@@ -2,19 +2,27 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { exigirEquipe } from "@/lib/auth";
 import { CANAIS, STATUS_CLIENTE, dataBR, hojeISO, linkWhatsApp, reais } from "@/lib/format";
+import { carregarFaixas } from "@/lib/dados";
+import { COR_SITUACAO, ROTULO_SITUACAO, situacaoCobranca } from "@/lib/pagamentos";
+import { STATUS_ENTREGA } from "@/lib/semana";
 import { concluirContato, excluirCliente, mudarStatus, registrarContato, trocarPlano } from "../actions";
 
 export default async function Cliente({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { supabase, usuario } = await exigirEquipe();
 
-  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }] = await Promise.all([
+  const faixas = await carregarFaixas(supabase);
+  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: modelos }, { data: entregas }] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", id).single(),
     supabase.from("assinaturas").select("*, planos(nome, modalidade), pontos_coleta(nome)").eq("cliente_id", id).order("inicio", { ascending: false }),
     supabase.from("contatos").select("*").eq("cliente_id", id).order("data", { ascending: false }).order("criado_em", { ascending: false }),
     supabase.from("planos").select("id, nome, valor_centavos").eq("ativo", true).order("modalidade").order("paes_por_semana"),
     supabase.from("pontos_coleta").select("id, nome").eq("ativo", true),
+    supabase.from("modelos_mensagem").select("chave, nome").order("nome"),
+    supabase.from("entregas").select("id, status, ocorrencia, rota_nome, ponto_nome, entregue_em, semanas(inicio, sabor)").eq("cliente_id", id).order("semana_id", { ascending: false }).limit(12),
   ]);
+  const { data: cobrancas } = await supabase.from("cobrancas").select("id, competencia, valor_centavos, vencimento, status").in("assinatura_id", (assinaturas ?? []).map((a) => a.id)).order("competencia", { ascending: false }).limit(12);
+  const hoje = hojeISO();
   if (!c) notFound();
 
   const atual = assinaturas?.find((a) => a.status === "ativa" || a.status === "pausada");
@@ -95,6 +103,37 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
           </ul>
         )}
       </section>
+
+      <section className="cartao">
+        <div className="mb-2 flex items-center"><h2 className="font-semibold">Pagamentos</h2><Link className="ml-auto text-sm underline" href="/pagamentos">abrir painel</Link></div>
+        <ul className="divide-y divide-stone-100 text-sm">
+          {cobrancas?.map((b) => {
+            const sit = situacaoCobranca(b, hoje, faixas);
+            return <li key={b.id} className="flex items-center gap-2 py-1.5"><span className="w-20">{b.competencia.slice(5, 7)}/{b.competencia.slice(0, 4)}</span><span className="flex-1">{reais(b.valor_centavos)} · vence {dataBR(b.vencimento)}</span><span className={`rounded-full px-2 py-0.5 text-xs ${COR_SITUACAO[sit]}`}>{ROTULO_SITUACAO[sit]}</span></li>;
+          })}
+          {!cobrancas?.length && <li className="py-1.5 text-stone-500">Nenhuma cobrança gerada.</li>}
+        </ul>
+      </section>
+
+      <section className="cartao">
+        <h2 className="mb-2 font-semibold">Entregas recentes</h2>
+        <ul className="divide-y divide-stone-100 text-sm">
+          {entregas?.map((e) => {
+            const sm = (Array.isArray(e.semanas) ? e.semanas[0] : e.semanas) as { inicio: string; sabor: string | null } | null;
+            return <li key={e.id} className="flex gap-2 py-1.5"><span className="w-24">{dataBR(sm?.inicio)}</span><span className="flex-1">{sm?.sabor ?? "—"} · {e.rota_nome ?? e.ponto_nome ?? "—"}</span><span>{STATUS_ENTREGA[e.status]}{e.ocorrencia && ` — ${e.ocorrencia}`}</span></li>;
+          })}
+          {!entregas?.length && <li className="py-1.5 text-stone-500">Sem entregas registradas.</li>}
+        </ul>
+      </section>
+
+      {c.whatsapp && (
+        <section className="cartao">
+          <h2 className="mb-2 font-semibold">Enviar mensagem (WhatsApp)</h2>
+          <div className="flex flex-wrap gap-2">
+            {modelos?.map((m) => <a key={m.chave} className="btn-sec px-3 py-1.5 text-sm" target="_blank" href={`/mensagens/enviar?cliente=${id}&modelo=${m.chave}`}>{m.nome}</a>)}
+          </div>
+        </section>
+      )}
 
       <section className="cartao flex flex-col gap-3">
         <h2 className="font-semibold">Situação</h2>

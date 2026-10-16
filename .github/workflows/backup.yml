@@ -1,0 +1,36 @@
+name: Backup do banco
+
+# Cópia do Supabase para fora dele (o plano gratuito não tem backup gerenciado).
+# Roda segunda e quinta: a segunda é o backup semanal; a quinta também mantém o
+# projeto "acordado" (o plano gratuito pausa após ~1 semana sem acesso).
+on:
+  schedule:
+    - cron: "0 8 * * 1,4"
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Instalar cliente PostgreSQL 17
+        run: |
+          sudo sh -c 'echo "deb https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          wget -qO- https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo tee /etc/apt/trusted.gpg.d/pgdg.asc >/dev/null
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Gerar dump (dados do app + usuários do login)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          test -n "$SUPABASE_DB_URL" || { echo "Defina o secret SUPABASE_DB_URL"; exit 1; }
+          mkdir out
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges -n public -Fc -f out/public.dump
+          pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges --data-only -t auth.users -t auth.identities -Fc -f out/auth.dump
+          ls -l out
+
+      - name: Guardar (repositório privado!)
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-amada-massa-${{ github.run_id }}
+          path: out/
+          retention-days: 90

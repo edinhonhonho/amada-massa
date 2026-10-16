@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { exigirAdmin, exigirEquipe } from "@/lib/auth";
 import { hojeISO, paraCentavos, soDigitos } from "@/lib/format";
 
@@ -149,6 +150,19 @@ export async function concluirContato(f: FormData) {
   revalidatePath("/");
 }
 
+/** Cancela cobranças pendentes ainda não vencidas (pausa/cancelamento/troca) e reavalia entregas. */
+async function liberarCobrancas(supabase: SupabaseClient, assinaturaIds: string[], motivo: string, aPartirDe = hojeISO()) {
+  if (assinaturaIds.length) {
+    await supabase
+      .from("cobrancas")
+      .update({ status: "cancelada", justificativa: motivo })
+      .in("assinatura_id", assinaturaIds)
+      .eq("status", "pendente")
+      .gte("vencimento", aPartirDe);
+  }
+  await supabase.rpc("reavaliar_entregas");
+}
+
 /** Pausar, reativar ou cancelar. Cancelar nunca apaga: só muda status (spec 4). */
 export async function mudarStatus(f: FormData) {
   const { supabase } = await exigirEquipe();
@@ -156,12 +170,17 @@ export async function mudarStatus(f: FormData) {
   const acao = String(f.get("acao"));
   const hoje = hojeISO();
 
+  const { data: vigentes } = await supabase.from("assinaturas").select("id").eq("cliente_id", id).in("status", ["ativa", "pausada"]);
+  const ids = (vigentes ?? []).map((a) => a.id);
+
   if (acao === "pausar") {
     await supabase.from("clientes").update({ status: "pausado", pausa_retorno_previsto: vazio(f.get("retorno")) }).eq("id", id);
     await supabase.from("assinaturas").update({ status: "pausada" }).eq("cliente_id", id).eq("status", "ativa");
+    await liberarCobrancas(supabase, ids, "Cliente pausado");
   } else if (acao === "reativar") {
     await supabase.from("clientes").update({ status: "ativo", pausa_retorno_previsto: null, cancelado_em: null, motivo_cancelamento: null }).eq("id", id);
     await supabase.from("assinaturas").update({ status: "ativa" }).eq("cliente_id", id).eq("status", "pausada");
+    await supabase.rpc("gerar_cobrancas", { p_competencia: hoje });
   } else if (acao === "cancelar") {
     const motivo = vazio(f.get("motivo"));
     if (!motivo) return;
@@ -171,6 +190,7 @@ export async function mudarStatus(f: FormData) {
       .update({ status: "cancelada", fim: vazio(f.get("data")) ?? hoje, motivo_cancelamento: motivo })
       .eq("cliente_id", id)
       .in("status", ["ativa", "pausada"]);
+    await liberarCobrancas(supabase, ids, "Assinatura cancelada");
   }
   revalidatePath(`/clientes/${id}`);
   revalidatePath("/clientes");
@@ -203,6 +223,11 @@ export async function trocarPlano(f: FormData) {
   });
   if (error) return;
   await supabase.from("assinaturas").update({ status: "encerrada", fim: inicio, motivo_cancelamento: "Troca de plano" }).eq("id", atualId);
+  // A nova assinatura assume as cobranças ainda não pagas daqui em diante.
+  await supabase.from("cobrancas").update({ status: "cancelada", justificativa: "Troca de plano" })
+    .eq("assinatura_id", atualId).eq("status", "pendente").gte("competencia", inicio.slice(0, 7) + "-01");
+  await supabase.rpc("gerar_cobrancas", { p_competencia: hojeISO() });
+  await supabase.rpc("reavaliar_entregas");
   revalidatePath(`/clientes/${clienteId}`);
 }
 
