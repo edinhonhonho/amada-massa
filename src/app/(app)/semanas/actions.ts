@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { exigirEquipe } from "@/lib/auth";
 import { hojeISO } from "@/lib/format";
 import { adicionarDias } from "@/lib/pagamentos";
+import { avisarSabor } from "@/lib/avisos-entrega";
 
 const txt = (f: FormData, k: string) => {
   const v = f.get(k);
@@ -93,4 +94,14 @@ export async function excluirSemana(f: FormData) {
   await supabase.from("semanas").delete().eq("id", id);
   revalidatePath("/semanas");
   redirect("/semanas");
+}
+
+/** Avisa no app dos membros ativos qual é o sabor da semana. */
+export async function avisarSaborMembros(f: FormData) {
+  const { supabase } = await exigirEquipe();
+  const id = String(f.get("id"));
+  const { data: s } = await supabase.from("semanas").select("sabor").eq("id", id).single();
+  if (!s?.sabor) redirect(`/semanas/${id}?erro=sabor`);
+  const n = await avisarSabor(id, s.sabor);
+  redirect(`/semanas/${id}?avisados=${n}`);
 }

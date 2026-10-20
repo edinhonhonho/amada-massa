@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Páginas abertas a quem não entrou. Cada app tem a sua tela de entrada.
+const ENTRADAS: Record<string, string> = { "/entregador/entrar": "/entregador", "/membro/entrar": "/membro", "/login": "/" };
+const LIVRES = ["/auth/", "/sem-acesso"];
+
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
   const supabase = createServerClient(
@@ -20,16 +24,17 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getUser();
   const rota = request.nextUrl.pathname;
-  const publica = rota.startsWith("/login") || rota.startsWith("/auth/");
+  const destinoSeLogado = ENTRADAS[rota.replace(/\/$/, "")];
+  const livre = destinoSeLogado !== undefined || LIVRES.some((p) => rota.startsWith(p));
 
-  if (!data.user && !publica) {
+  if (!data.user && !livre) {
     const url = request.nextUrl.clone();
-    url.pathname = "/login";
+    url.pathname = rota.startsWith("/entregador") ? "/entregador/entrar" : rota.startsWith("/membro") ? "/membro/entrar" : "/login";
     return NextResponse.redirect(url);
   }
-  if (data.user && publica) {
+  if (data.user && destinoSeLogado !== undefined) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = destinoSeLogado;
     return NextResponse.redirect(url);
   }
   return response;

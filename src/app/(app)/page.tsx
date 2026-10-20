@@ -7,7 +7,7 @@ import { COR_SITUACAO, ROTULO_SITUACAO, ordemSituacao, primeiroDoMes, situacaoCo
 
 export default async function Inicio() {
   const { supabase, usuario } = await usuarioAtual();
-  if (usuario.perfil === "entregador") redirect("/entregas");
+  if (usuario.perfil === "entregador") redirect("/entregador");
   const hoje = hojeISO();
   const mes = primeiroDoMes(hoje);
   await supabase.rpc("gerar_cobrancas", { p_competencia: mes });

@@ -12,14 +12,19 @@ export async function usuarioAtual() {
     .select("id, nome, perfil, ativo")
     .eq("id", data.user.id)
     .single();
-  if (!u || !u.ativo) redirect("/login?erro=inativo");
+  if (!u) {
+    // conta de membro (cliente) ou sem vínculo: nunca é equipe
+    const { data: m } = await supabase.from("membros").select("user_id").eq("user_id", data.user.id).maybeSingle();
+    redirect(m ? "/membro" : "/sem-acesso");
+  }
+  if (!u.ativo) redirect("/sem-acesso?motivo=inativo");
   return { supabase, usuario: u as { id: string; nome: string; perfil: Perfil; ativo: boolean } };
 }
 
 /** Páginas de gestão: bloqueia o entregador. */
 export async function exigirEquipe() {
   const ctx = await usuarioAtual();
-  if (ctx.usuario.perfil === "entregador") redirect("/entregas");
+  if (ctx.usuario.perfil === "entregador") redirect("/entregador");
   return ctx;
 }
 

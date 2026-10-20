@@ -4,10 +4,11 @@ import { exigirEquipe } from "@/lib/auth";
 import { nomeCompleto, um } from "@/lib/dados";
 import { dataBR } from "@/lib/format";
 import { STATUS_ENTREGA, STATUS_SEMANA } from "@/lib/semana";
-import { abrirSemana, alternarListaFechada, alternarPulo, alternarSemProducao, excluirSemana, salvarSemana } from "../actions";
+import { abrirSemana, avisarSaborMembros, alternarListaFechada, alternarPulo, alternarSemProducao, excluirSemana, salvarSemana } from "../actions";
 
-export default async function Semana({ params }: { params: Promise<{ id: string }> }) {
+export default async function Semana({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ avisados?: string; erro?: string }> }) {
   const { id } = await params;
+  const { avisados, erro } = await searchParams;
   const { supabase } = await exigirEquipe();
   const { data: s } = await supabase.from("semanas").select("*").eq("id", id).single();
   if (!s) notFound();
@@ -55,9 +56,13 @@ export default async function Semana({ params }: { params: Promise<{ id: string 
             <button className="btn">{aberta ? "Atualizar entregas da semana" : "Abrir semana (gerar entregas)"}</button></form>
           <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
             <button className="btn-sec">{s.lista_fechada ? "Reabrir lista" : "Fechar lista do dia"}</button></form>
+          <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} />
+            <button className="btn-sec">Avisar sabor aos membros (app)</button></form>
           <form action={alternarSemProducao}><input type="hidden" name="id" value={id} /><input type="hidden" name="ligar" value={s.sem_producao ? "0" : "1"} />
             <button className="btn-sec">{s.sem_producao ? "Voltar a produzir" : "Marcar sem produção (feriado)"}</button></form>
         </div>
+        {avisados !== undefined && <p className="rounded-lg bg-green-50 p-2 text-green-800">Aviso enviado para {avisados} membro(s) com o app.</p>}
+        {erro === "sabor" && <p className="rounded-lg bg-red-50 p-2 text-red-800">Defina o sabor antes de avisar.</p>}
         {aberta && (
           <p className="text-stone-700">
             <b>{paes} pães</b> a produzir · {Object.entries(contagem).map(([k, v]) => `${v} ${STATUS_ENTREGA[k].toLowerCase()}`).join(" · ")}

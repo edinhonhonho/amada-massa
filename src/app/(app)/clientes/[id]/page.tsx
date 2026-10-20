@@ -23,6 +23,10 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   ]);
   const { data: cobrancas } = await supabase.from("cobrancas").select("id, competencia, valor_centavos, vencimento, status").in("assinatura_id", (assinaturas ?? []).map((a) => a.id)).order("competencia", { ascending: false }).limit(12);
   const hoje = hojeISO();
+  const [{ data: membro }, { count: aparelhos }] = await Promise.all([
+    supabase.from("membros").select("criado_em").eq("cliente_id", id).maybeSingle(),
+    supabase.from("push_inscricoes").select("*", { count: "exact", head: true }).eq("cliente_id", id),
+  ]);
   if (!c) notFound();
 
   const atual = assinaturas?.find((a) => a.status === "ativa" || a.status === "pausada");
@@ -65,6 +69,11 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
         {c.restricoes_alimentares && <p><b>Restrições:</b> {c.restricoes_alimentares}</p>}
         {c.observacoes && <p className="sm:col-span-2"><b>Obs.:</b> {c.observacoes}</p>}
       </section>
+
+      <p className="text-sm text-stone-600">
+        <b>App do membro:</b>{" "}
+        {!c.email ? "sem e-mail cadastrado — não consegue entrar" : !membro ? "ainda não entrou" : aparelhos ? `entrou e recebe avisos (${aparelhos} aparelho${aparelhos > 1 ? "s" : ""})` : "entrou, mas não ativou os avisos"}
+      </p>
 
       <section className="cartao flex flex-col gap-3">
         <h2 className="font-semibold">Assinatura</h2>

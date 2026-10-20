@@ -1,4 +1,6 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { avisarLivre } from "@/lib/avisos-entrega";
 import { exigirEquipe } from "@/lib/auth";
 import { carregarFaixas, nomeCompleto, um } from "@/lib/dados";
 import { hojeISO } from "@/lib/format";
@@ -14,7 +16,18 @@ async function salvarModelo(f: FormData) {
   revalidatePath("/mensagens");
 }
 
-export default async function Mensagens({ searchParams }: { searchParams: Promise<{ modelo?: string; segmento?: string }> }) {
+async function enviarAvisoApp(f: FormData) {
+  "use server";
+  await exigirEquipe();
+  const titulo = String(f.get("titulo") ?? "").trim().slice(0, 80);
+  const corpo = String(f.get("corpo") ?? "").trim().slice(0, 300);
+  if (!titulo || !corpo) redirect("/mensagens?erro=aviso");
+  const rota = String(f.get("rota") ?? "") || undefined;
+  const n = await avisarLivre(titulo, corpo, rota);
+  redirect(`/mensagens?avisados=${n}`);
+}
+
+export default async function Mensagens({ searchParams }: { searchParams: Promise<{ modelo?: string; segmento?: string; avisados?: string; erro?: string }> }) {
   const { supabase } = await exigirEquipe();
   const b = await searchParams;
   const hoje = hojeISO();
@@ -53,7 +66,20 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
       <h1 className="text-2xl font-bold">Mensagens</h1>
 
       <section className="cartao flex flex-col gap-3">
-        <h2 className="font-semibold">Envio em lote</h2>
+        <h2 className="font-semibold">Aviso no app dos membros</h2>
+        <p className="text-sm text-stone-600">Chega como notificação no celular de quem instalou o app e ficou na caixa de avisos.</p>
+        {b.avisados !== undefined && <p className="rounded-lg bg-green-50 p-2 text-green-800">Enviado para {b.avisados} membro(s).</p>}
+        {b.erro === "aviso" && <p className="rounded-lg bg-red-50 p-2 text-red-800">Preencha título e texto.</p>}
+        <form action={enviarAvisoApp} className="grid gap-3 sm:grid-cols-2">
+          <input className="campo" name="titulo" placeholder="Título" maxLength={80} required />
+          <select className="campo" name="rota" defaultValue=""><option value="">Todos os membros ativos</option>{rotas?.map((r) => <option key={r.id} value={r.id}>Só rota {r.nome}</option>)}</select>
+          <textarea className="campo sm:col-span-2" name="corpo" rows={2} placeholder="Texto do aviso" maxLength={300} required />
+          <button className="btn sm:justify-self-start">Enviar aviso</button>
+        </form>
+      </section>
+
+      <section className="cartao flex flex-col gap-3">
+        <h2 className="font-semibold">Envio em lote (WhatsApp)</h2>
         <p className="text-sm text-stone-600">Cada clique abre o WhatsApp com o texto pronto; você confirma o envio. O contato fica registrado na linha do tempo.</p>
         <form className="grid gap-3 sm:grid-cols-3">
           <select className="campo" name="modelo" defaultValue={b.modelo} required>

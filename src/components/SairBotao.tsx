@@ -1,12 +1,9 @@
 "use client";
 
-/** Ao sair, apaga o cache offline (nomes e endereços) do aparelho. */
-export default function SairBotao() {
+/** Ao sair, apaga o cache offline do app (nomes e endereços) deste aparelho. */
+export default function SairBotao({ cache, className = "underline" }: { cache?: string; className?: string }) {
   return (
-    <button
-      className="underline"
-      onClick={() => { if ("caches" in window) void caches.delete("entregas-v1"); }}
-    >
+    <button className={className} onClick={() => { if (cache && "caches" in window) void caches.delete(cache); }}>
       Sair
     </button>
   );

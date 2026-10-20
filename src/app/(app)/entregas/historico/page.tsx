@@ -11,12 +11,23 @@ export default async function Historico({ searchParams }: { searchParams: Promis
   const { data: semanas } = await supabase.from("semanas").select("id, inicio").order("inicio", { ascending: false }).limit(30);
   const semanaId = b.semana ?? semanas?.[0]?.id;
 
-  let q = supabase.from("entregas").select("id, rota_nome, ponto_nome, status, ocorrencia, observacao, qtd_prevista, entregue_em, clientes(nome, sobrenome), cliente_id").eq("semana_id", semanaId ?? "");
+  let q = supabase.from("entregas").select("id, rota_nome, ponto_nome, status, ocorrencia, observacao, qtd_prevista, entregue_em, foto_path, clientes(nome, sobrenome), cliente_id, usuarios(nome)").eq("semana_id", semanaId ?? "");
   if (b.rota) q = q.eq("rota_nome", b.rota);
-  const [{ data }, { data: pend }] = await Promise.all([
+  const [{ data }, { data: pend }, { data: execucoes }] = await Promise.all([
     q.order("rota_nome").order("ordem"),
     supabase.from("entregas").select("id, rota_nome, ponto_nome, ocorrencia, semanas(inicio), clientes(nome, sobrenome)").eq("status", "nao_entregue").order("entregue_em", { ascending: false }).limit(50),
+    supabase.from("rota_execucoes").select("iniciada_em, finalizada_em, rotas(nome), usuarios(nome)").eq("semana_id", semanaId ?? ""),
   ]);
+
+  // links temporários (1 h) para as fotos, que ficam em armazenamento privado
+  const caminhos = (data ?? []).map((e) => e.foto_path).filter((x): x is string => !!x);
+  const urls = new Map<string, string>();
+  if (caminhos.length) {
+    const { data: assinadas } = await supabase.storage.from("entregas-fotos").createSignedUrls(caminhos, 3600);
+    for (const a of assinadas ?? []) if (a.path && a.signedUrl) urls.set(a.path, a.signedUrl);
+  }
+  const quemFez = (u: unknown) => (um(u as { nome: string } | { nome: string }[] | null))?.nome;
+  const hhmm = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) : "—");
 
   const porDestino = new Map<string, Record<string, number>>();
   for (const e of data ?? []) {
@@ -55,6 +66,17 @@ export default async function Historico({ searchParams }: { searchParams: Promis
         </section>
       )}
 
+      {(execucoes?.length ?? 0) > 0 && (
+        <section className="cartao">
+          <h2 className="mb-2 font-semibold">Rotas da semana</h2>
+          <ul className="text-sm">
+            {execucoes?.map((x, i) => (
+              <li key={i}><b>{(um(x.rotas as never) as { nome: string } | null)?.nome}</b> · iniciada {hhmm(x.iniciada_em)} · {x.finalizada_em ? `finalizada ${hhmm(x.finalizada_em)}` : "em andamento"} · {quemFez(x.usuarios)}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <form className="cartao grid gap-3 sm:grid-cols-3">
         <select className="campo" name="semana" defaultValue={semanaId}>{semanas?.map((s) => <option key={s.id} value={s.id}>Semana {dataBR(s.inicio)}</option>)}</select>
         <select className="campo" name="rota" defaultValue={b.rota ?? ""}><option value="">Todas as rotas</option>{rotasNomes.map((r) => <option key={r}>{r}</option>)}</select>
@@ -76,10 +98,14 @@ export default async function Historico({ searchParams }: { searchParams: Promis
 
       <ul className="cartao divide-y divide-stone-100 p-0 text-sm">
         {data?.map((e) => (
-          <li key={e.id} className="flex flex-wrap gap-2 p-2">
+          <li key={e.id} className="flex flex-wrap items-center gap-2 p-2">
             <Link href={`/clientes/${e.cliente_id}`} className="flex-1 hover:underline">{nomeCompleto(um(e.clientes as never))}</Link>
             <span className="text-stone-600">{e.rota_nome ?? e.ponto_nome}</span>
-            <span>{STATUS_ENTREGA[e.status]}{e.ocorrencia && ` — ${e.ocorrencia}`}</span>
+            <span>{STATUS_ENTREGA[e.status]}{e.ocorrencia && ` — ${e.ocorrencia}`}{e.entregue_em && ` às ${hhmm(e.entregue_em)}`}{quemFez(e.usuarios) && ` · ${quemFez(e.usuarios)}`}</span>
+            {e.observacao && <span className="w-full pl-2 text-stone-600">“{e.observacao}”</span>}
+            {e.foto_path && urls.get(e.foto_path) && (
+              <a href={urls.get(e.foto_path)} target="_blank" rel="noreferrer" className="underline">ver foto</a>
+            )}
           </li>
         ))}
       </ul>
