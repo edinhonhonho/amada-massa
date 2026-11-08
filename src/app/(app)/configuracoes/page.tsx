@@ -1,4 +1,6 @@
 import { revalidatePath } from "next/cache";
+import PageHeader from "@/components/ui/PageHeader";
+import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirAdmin } from "@/lib/auth";
 
 async function salvar(f: FormData) {
@@ -16,15 +18,18 @@ export default async function Configuracoes() {
   const { supabase } = await exigirAdmin();
   const { data } = await supabase.from("configuracoes").select("*").order("chave");
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">Configurações</h1>
-      <form action={salvar} className="cartao flex flex-col gap-3">
+    <>
+      <PageHeader titulo="Configurações" subtitulo="Regras de cobrança e de suspensão de entrega." />
+      <form action={salvar} className="cartao flex max-w-xl flex-col gap-5 !p-6">
         {data?.map((c) => (
-          <div key={c.chave}><label className="rotulo" htmlFor={c.chave}>{c.descricao}</label><input className="campo w-32" id={c.chave} name={c.chave} type="number" min={0} defaultValue={c.valor} /></div>
+          <div key={c.chave}>
+            <label className="rotulo" htmlFor={c.chave}>{c.descricao}</label>
+            <div className="flex items-center gap-2"><input className="campo !w-28" id={c.chave} name={c.chave} type="number" min={0} defaultValue={c.valor} /><span className="text-sm text-stone-500">dias</span></div>
+          </div>
         ))}
-        <button className="btn self-start">Salvar</button>
+        <div className="flex justify-end"><SubmitButton>Salvar configurações</SubmitButton></div>
       </form>
-      <p className="text-sm text-stone-600">Contas da equipe: crie em Supabase → Authentication → Users e ajuste o perfil na tabela <code>usuarios</code> (ver README).</p>
-    </div>
+      <p className="mt-4 max-w-xl text-sm text-stone-500">Contas da equipe: crie em Supabase → Authentication → Users e ajuste o perfil e o nome na tabela <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs">usuarios</code> (ver README).</p>
+    </>
   );
 }

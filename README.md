@@ -23,6 +23,10 @@ App do membro com notificações push implementado. Ainda fora do escopo: mapa, 
 - Pausa/cancelamento cancelam cobranças ainda não vencidas; troca de plano substitui as cobranças pendentes do mês em diante.
 - Sem multa nem juros.
 
+## Atalhos de teclado (gestão)
+
+`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. `G` e depois uma letra navega: `I` início, `C` clientes, `L` planos, `P` pagamentos, `S` semanas, `R` rotas, `E` entregas, `M` mensagens. `?` mostra a lista.
+
 ## Os três apps
 
 | App | Endereço | Quem usa |

@@ -1,10 +1,15 @@
+import { Bell, Check, ClipboardList, Lock, LockOpen, Moon, PackageCheck, Printer, RefreshCw, Rocket, SkipForward, Truck, Undo2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import Badge from "@/components/ui/Badge";
+import PageHeader from "@/components/ui/PageHeader";
+import Stat from "@/components/ui/Stat";
+import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirEquipe } from "@/lib/auth";
 import { nomeCompleto, um } from "@/lib/dados";
 import { dataBR } from "@/lib/format";
 import { STATUS_ENTREGA, STATUS_SEMANA } from "@/lib/semana";
-import { abrirSemana, avisarSaborMembros, alternarListaFechada, alternarPulo, alternarSemProducao, excluirSemana, salvarSemana } from "../actions";
+import { abrirSemana, alternarListaFechada, alternarPulo, alternarSemProducao, avisarSaborMembros, excluirSemana, salvarSemana } from "../actions";
 
 export default async function Semana({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ avisados?: string; erro?: string }> }) {
   const { id } = await params;
@@ -29,81 +34,107 @@ export default async function Semana({ params, searchParams }: { params: Promise
   const aberta = (entregas?.length ?? 0) > 0;
   const hist = (entregas ?? []).some((e) => ["entregue", "retirada", "nao_entregue"].includes(e.status));
 
+  const passos = [
+    { n: 1, titulo: "Definir o sabor", feito: !!s.sabor || s.sem_producao },
+    { n: 2, titulo: "Abrir a semana", feito: aberta || s.sem_producao },
+    { n: 3, titulo: "Produzir e imprimir listas", feito: aberta && s.lista_fechada },
+    { n: 4, titulo: "Fechar a lista do dia", feito: s.lista_fechada },
+  ];
+
   return (
-    <div className="flex flex-col gap-4">
-      <Link href="/semanas" className="text-sm text-amber-800 underline">← Semanas</Link>
-      <h1 className="text-2xl font-bold">Semana {dataBR(s.inicio)} a {dataBR(s.fim)}</h1>
-      <p className="text-stone-600">{STATUS_SEMANA[s.status]}{s.sem_producao && " · sem produção"}{s.lista_fechada && " · lista fechada"}</p>
+    <>
+      <PageHeader
+        voltar={{ href: "/semanas", rotulo: "Semanas" }}
+        titulo={`Semana de ${dataBR(s.inicio)}`}
+        etiqueta={<Badge tom={s.sem_producao ? "cinza" : "azul"} ponto>{s.sem_producao ? "Sem produção" : STATUS_SEMANA[s.status]}</Badge>}
+        subtitulo={`${dataBR(s.inicio)} a ${dataBR(s.fim)}${s.sabor ? ` · ${s.sabor}` : ""}`}
+        acoes={aberta && !s.sem_producao ? (
+          <>
+            <Link className="btn-sec" href={`/semanas/${id}/listas/producao`}><ClipboardList size={16} />Produção</Link>
+            <Link className="btn-sec" href={`/semanas/${id}/listas/entrega`}><Truck size={16} />Entrega</Link>
+            <Link className="btn-sec" href={`/semanas/${id}/listas/coleta`}><PackageCheck size={16} />Coleta</Link>
+          </>
+        ) : undefined}
+      />
 
-      <section className="cartao">
-        <form action={salvarSemana} className="grid gap-3 sm:grid-cols-2">
-          <input type="hidden" name="id" value={id} />
-          <div><label className="rotulo">Sabor</label><input className="campo" name="sabor" defaultValue={s.sabor ?? ""} /></div>
-          <div><label className="rotulo">Status</label>
-            <select className="campo" name="status" defaultValue={s.status}>{Object.entries(STATUS_SEMANA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
-          <div className="sm:col-span-2"><label className="rotulo">Descrição curta</label><input className="campo" name="descricao" defaultValue={s.descricao ?? ""} /></div>
-          <div><label className="rotulo">Ingredientes</label><input className="campo" name="ingredientes" defaultValue={s.ingredientes ?? ""} /></div>
-          <div><label className="rotulo">Alérgenos</label><input className="campo" name="alergenos" defaultValue={s.alergenos ?? ""} /></div>
-          <div className="sm:col-span-2"><label className="rotulo">Observação</label><input className="campo" name="observacao" defaultValue={s.observacao ?? ""} /></div>
-          <button className="btn sm:justify-self-start">Salvar</button>
-        </form>
-      </section>
+      <ol className="mb-5 grid grid-cols-4 gap-3">
+        {passos.map((p) => (
+          <li key={p.n} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-sm ${p.feito ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-stone-200 bg-white text-stone-700"}`}>
+            <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${p.feito ? "bg-emerald-600 text-white" : "bg-stone-200 text-stone-600"}`}>{p.feito ? <Check size={14} /> : p.n}</span>
+            {p.titulo}
+          </li>
+        ))}
+      </ol>
 
-      <section className="cartao flex flex-col gap-3">
-        <h2 className="font-semibold">Planejamento</h2>
-        <div className="flex flex-wrap gap-2">
-          <form action={abrirSemana}><input type="hidden" name="id" value={id} />
-            <button className="btn">{aberta ? "Atualizar entregas da semana" : "Abrir semana (gerar entregas)"}</button></form>
-          <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
-            <button className="btn-sec">{s.lista_fechada ? "Reabrir lista" : "Fechar lista do dia"}</button></form>
-          <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} />
-            <button className="btn-sec">Avisar sabor aos membros (app)</button></form>
-          <form action={alternarSemProducao}><input type="hidden" name="id" value={id} /><input type="hidden" name="ligar" value={s.sem_producao ? "0" : "1"} />
-            <button className="btn-sec">{s.sem_producao ? "Voltar a produzir" : "Marcar sem produção (feriado)"}</button></form>
+      {avisados !== undefined && <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Aviso enviado para {avisados} membro(s) com o app.</p>}
+      {erro === "sabor" && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">Defina o sabor antes de avisar.</p>}
+
+      <div className="mb-5 grid grid-cols-4 gap-3">
+        <Stat rotulo="Pães a produzir" valor={paes} icone={PackageCheck} tom="ambar" />
+        <Stat rotulo="Entregas programadas" valor={(contagem.programada ?? 0) + (contagem.reagendada ?? 0)} icone={Truck} tom="azul" />
+        <Stat rotulo="Entregues" valor={(contagem.entregue ?? 0) + (contagem.retirada ?? 0)} icone={Check} tom="verde" />
+        <Stat rotulo="Suspensas por atraso" valor={suspensas.length} icone={SkipForward} tom={suspensas.length ? "vermelho" : "neutro"} detalhe={suspensas.length ? suspensas.map((e) => nomeCompleto(um(e.clientes as never)).split(" ")[0]).join(", ") : undefined} />
+      </div>
+
+      <div className="grid grid-cols-[1fr_380px] items-start gap-5">
+        <section className="cartao">
+          <div className="cartao-titulo">Sabor e detalhes</div>
+          <form action={salvarSemana} className="grid grid-cols-2 gap-4">
+            <input type="hidden" name="id" value={id} />
+            <div><label className="rotulo">Sabor</label><input className="campo" name="sabor" defaultValue={s.sabor ?? ""} placeholder="Ex.: Centeio com sementes" /></div>
+            <div><label className="rotulo">Situação da semana</label>
+              <select className="campo" name="status" defaultValue={s.status}>{Object.entries(STATUS_SEMANA).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></div>
+            <div className="col-span-2"><label className="rotulo">Descrição curta</label><input className="campo" name="descricao" defaultValue={s.descricao ?? ""} /></div>
+            <div><label className="rotulo">Ingredientes</label><input className="campo" name="ingredientes" defaultValue={s.ingredientes ?? ""} /></div>
+            <div><label className="rotulo">Alérgenos</label><input className="campo" name="alergenos" defaultValue={s.alergenos ?? ""} /></div>
+            <div className="col-span-2"><label className="rotulo">Observação</label><input className="campo" name="observacao" defaultValue={s.observacao ?? ""} /></div>
+            <div className="col-span-2 flex justify-end"><SubmitButton>Salvar</SubmitButton></div>
+          </form>
+          {!hist && (
+            <form action={excluirSemana} className="mt-2 border-t border-stone-100 pt-3">
+              <input type="hidden" name="id" value={id} />
+              <button className="text-sm text-stone-400 underline hover:text-red-700">Excluir esta semana</button>
+            </form>
+          )}
+        </section>
+
+        <div className="flex flex-col gap-5">
+          <section className="cartao">
+            <div className="cartao-titulo">Ações da semana</div>
+            <div className="flex flex-col gap-2">
+              <form action={abrirSemana}><input type="hidden" name="id" value={id} />
+                <SubmitButton className="btn w-full">{aberta ? <><RefreshCw size={16} />Atualizar entregas</> : <><Rocket size={16} />Abrir semana (gerar entregas)</>}</SubmitButton></form>
+              <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} />
+                <SubmitButton className="btn-sec w-full"><Bell size={16} />Avisar sabor aos membros</SubmitButton></form>
+              <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
+                <SubmitButton className="btn-sec w-full">{s.lista_fechada ? <><LockOpen size={16} />Reabrir lista</> : <><Lock size={16} />Fechar lista do dia</>}</SubmitButton></form>
+              <form action={alternarSemProducao}><input type="hidden" name="id" value={id} /><input type="hidden" name="ligar" value={s.sem_producao ? "0" : "1"} />
+                <SubmitButton className="btn-sec w-full">{s.sem_producao ? <><Undo2 size={16} />Voltar a produzir</> : <><Moon size={16} />Marcar sem produção</>}</SubmitButton></form>
+            </div>
+            <p className="ajuda mt-3">Fechar a lista congela quem entra no dia: pagamentos feitos depois não reativam a entrega.</p>
+          </section>
+
+          <section className="cartao !p-0">
+            <div className="cartao-titulo !mb-0 px-5 pt-5">Pular esta semana <span className="text-xs font-normal text-stone-500">sem pausar a assinatura</span></div>
+            <ul className="mt-2 max-h-80 divide-y divide-stone-100 overflow-y-auto">
+              {assinaturas?.map((a) => {
+                const p = pulou.has(a.id);
+                return (
+                  <li key={a.id}>
+                    <form action={alternarPulo} className="flex items-center gap-2 px-5 py-2.5">
+                      <input type="hidden" name="semana_id" value={id} /><input type="hidden" name="assinatura_id" value={a.id} /><input type="hidden" name="pular" value={p ? "0" : "1"} />
+                      <span className="flex-1 text-sm font-medium">{nomeCompleto(um(a.clientes as never))}</span>
+                      {!p && <input className="campo !w-32 !py-1 text-sm" name="motivo" placeholder="Motivo" />}
+                      <SubmitButton className={p ? "btn btn-pequeno" : "btn-sec btn-pequeno"}>{p ? "Voltar" : "Pular"}</SubmitButton>
+                    </form>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         </div>
-        {avisados !== undefined && <p className="rounded-lg bg-green-50 p-2 text-green-800">Aviso enviado para {avisados} membro(s) com o app.</p>}
-        {erro === "sabor" && <p className="rounded-lg bg-red-50 p-2 text-red-800">Defina o sabor antes de avisar.</p>}
-        {aberta && (
-          <p className="text-stone-700">
-            <b>{paes} pães</b> a produzir · {Object.entries(contagem).map(([k, v]) => `${v} ${STATUS_ENTREGA[k].toLowerCase()}`).join(" · ")}
-          </p>
-        )}
-        {aberta && (
-          <div className="flex flex-wrap gap-2">
-            <Link className="btn-sec" href={`/semanas/${id}/listas/producao`}>Lista de produção</Link>
-            <Link className="btn-sec" href={`/semanas/${id}/listas/entrega`}>Lista de entrega</Link>
-            <Link className="btn-sec" href={`/semanas/${id}/listas/coleta`}>Lista de coleta</Link>
-          </div>
-        )}
-        {suspensas.length > 0 && (
-          <div className="rounded-lg bg-orange-50 p-3 text-sm">
-            <b>Suspensas por atraso:</b> {suspensas.map((e) => nomeCompleto(um(e.clientes as never))).join(", ")}
-          </div>
-        )}
-      </section>
-
-      <section className="cartao">
-        <h2 className="mb-2 font-semibold">Pular a semana (sem pausar a assinatura)</h2>
-        <ul className="max-h-80 divide-y divide-stone-100 overflow-y-auto">
-          {assinaturas?.map((a) => {
-            const p = pulou.has(a.id);
-            return (
-              <li key={a.id}>
-                <form action={alternarPulo} className="flex items-center gap-2 py-2">
-                  <input type="hidden" name="semana_id" value={id} /><input type="hidden" name="assinatura_id" value={a.id} /><input type="hidden" name="pular" value={p ? "0" : "1"} />
-                  <span className="flex-1">{nomeCompleto(um(a.clientes as never))}</span>
-                  {!p && <input className="campo w-40 py-1.5 text-sm" name="motivo" placeholder="Motivo (viagem…)" />}
-                  <button className={p ? "btn" : "btn-sec"}>{p ? "Voltar" : "Pular"}</button>
-                </form>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {!hist && (
-        <form action={excluirSemana}><input type="hidden" name="id" value={id} /><button className="text-sm text-red-700 underline">Excluir semana</button></form>
-      )}
-    </div>
+      </div>
+      {aberta && <p className="mt-6 text-center text-xs text-stone-400"><Printer size={12} className="mr-1 inline" />Status das entregas: {Object.entries(contagem).map(([k, v]) => `${v} ${STATUS_ENTREGA[k].toLowerCase()}`).join(" · ")}</p>}
+    </>
   );
 }

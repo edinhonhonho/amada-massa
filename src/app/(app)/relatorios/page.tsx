@@ -1,4 +1,7 @@
+import { Download } from "lucide-react";
 import Link from "next/link";
+import PageHeader from "@/components/ui/PageHeader";
+import Vazio from "@/components/ui/Vazio";
 import { exigirAdmin } from "@/lib/auth";
 import { hojeISO } from "@/lib/format";
 import { adicionarDias } from "@/lib/pagamentos";
@@ -14,31 +17,35 @@ export default async function Relatorios({ searchParams }: { searchParams: Promi
   const rel = await gerarRelatorio(supabase, chave, { de, ate, hoje });
 
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">Relatórios</h1>
-      <div className="flex flex-wrap gap-2">
-        {Object.entries(RELATORIOS).map(([k, v]) => (
-          <Link key={k} href={`/relatorios?r=${k}&de=${de}&ate=${ate}`} className={k === chave ? "btn" : "btn-sec"}>{v}</Link>
-        ))}
-      </div>
-      <form className="cartao grid gap-3 sm:grid-cols-4">
-        <input type="hidden" name="r" value={chave} />
-        <div><label className="rotulo">De</label><input className="campo" type="date" name="de" defaultValue={de} /></div>
-        <div><label className="rotulo">Até</label><input className="campo" type="date" name="ate" defaultValue={ate} /></div>
-        <button className="btn self-end">Aplicar</button>
-        <a className="btn-sec self-end" href={`/relatorios/csv?r=${chave}&de=${de}&ate=${ate}`}>Exportar CSV</a>
-      </form>
-      {rel && (
-        <div className="cartao overflow-x-auto p-0">
-          <table className="w-full min-w-[480px] text-sm">
-            <thead><tr className="border-b border-stone-200 text-left">{rel.colunas.map((c) => <th key={c} className="p-2">{c}</th>)}</tr></thead>
-            <tbody>
-              {rel.linhas.map((l, i) => <tr key={i} className="border-b border-stone-100">{l.map((v, j) => <td key={j} className="p-2">{v}</td>)}</tr>)}
-              {!rel.linhas.length && <tr><td className="p-4 text-stone-500" colSpan={rel.colunas.length}>Sem dados no período.</td></tr>}
-            </tbody>
-          </table>
+    <>
+      <PageHeader titulo="Relatórios" subtitulo="Receita, inadimplência, evolução da base, cancelamentos, entregas e produção. Tudo exportável em CSV." />
+      <div className="grid grid-cols-[220px_1fr] items-start gap-5">
+        <nav className="cartao flex flex-col gap-0.5 !p-2">
+          {Object.entries(RELATORIOS).map(([k, v]) => (
+            <Link key={k} href={`/relatorios?r=${k}&de=${de}&ate=${ate}`} className={`rounded-lg px-3 py-2 text-sm transition ${k === chave ? "bg-amber-50 font-medium text-amber-900" : "text-stone-600 hover:bg-stone-100"}`}>{v}</Link>
+          ))}
+        </nav>
+        <div className="flex flex-col gap-4">
+          <form className="cartao flex flex-wrap items-end gap-3 !p-4">
+            <input type="hidden" name="r" value={chave} />
+            <div><label className="rotulo">De</label><input className="campo" type="date" name="de" defaultValue={de} /></div>
+            <div><label className="rotulo">Até</label><input className="campo" type="date" name="ate" defaultValue={ate} /></div>
+            <button className="btn">Aplicar</button>
+            <a className="btn-sec ml-auto" href={`/relatorios/csv?r=${chave}&de=${de}&ate=${ate}`}><Download size={16} />Exportar CSV</a>
+          </form>
+          {rel && (
+            <div className="cartao overflow-hidden !p-0">
+              <h2 className="border-b border-stone-100 px-5 py-3 font-semibold">{rel.titulo}</h2>
+              {rel.linhas.length ? (
+                <table className="tabela">
+                  <thead><tr>{rel.colunas.map((c) => <th key={c}>{c}</th>)}</tr></thead>
+                  <tbody>{rel.linhas.map((l, i) => <tr key={i}>{l.map((v, j) => <td key={j}>{v}</td>)}</tr>)}</tbody>
+                </table>
+              ) : <Vazio titulo="Sem dados no período" texto="Ajuste as datas para ver resultados." />}
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }

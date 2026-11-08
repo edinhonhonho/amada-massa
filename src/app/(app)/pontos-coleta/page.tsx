@@ -1,4 +1,9 @@
 import { revalidatePath } from "next/cache";
+import { MapPin, Pencil, Plus } from "lucide-react";
+import Badge from "@/components/ui/Badge";
+import Modal from "@/components/ui/Modal";
+import PageHeader from "@/components/ui/PageHeader";
+import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirEquipe } from "@/lib/auth";
 
 async function salvarPonto(f: FormData) {
@@ -20,17 +25,19 @@ async function salvarPonto(f: FormData) {
   revalidatePath("/pontos-coleta");
 }
 
-function Form({ p }: { p?: { id: string; nome: string; endereco: string; horario_texto: string | null; responsavel: string | null; telefone: string | null; ativo: boolean } }) {
+type Ponto = { id: string; nome: string; endereco: string; horario_texto: string | null; responsavel: string | null; telefone: string | null; ativo: boolean };
+
+function Form({ p }: { p?: Ponto }) {
   return (
-    <form action={salvarPonto} className="grid gap-2 sm:grid-cols-2">
+    <form action={salvarPonto} className="grid grid-cols-2 gap-4">
       {p && <input type="hidden" name="id" value={p.id} />}
-      <input className="campo" name="nome" defaultValue={p?.nome} placeholder="Nome" required />
-      <input className="campo" name="endereco" defaultValue={p?.endereco} placeholder="Endereço" required />
-      <input className="campo sm:col-span-2" name="horario_texto" defaultValue={p?.horario_texto ?? ""} placeholder="Dia e horário" />
-      <input className="campo" name="responsavel" defaultValue={p?.responsavel ?? ""} placeholder="Responsável" />
-      <input className="campo" name="telefone" defaultValue={p?.telefone ?? ""} placeholder="Telefone" />
-      {p && <label className="flex items-center gap-2"><input type="checkbox" name="ativo" defaultChecked={p.ativo} /> ativo</label>}
-      <button className="btn-sec sm:justify-self-start">{p ? "Salvar" : "Adicionar"}</button>
+      <div><label className="rotulo">Nome <span className="text-red-500">*</span></label><input className="campo" name="nome" defaultValue={p?.nome} required /></div>
+      <div><label className="rotulo">Endereço <span className="text-red-500">*</span></label><input className="campo" name="endereco" defaultValue={p?.endereco} required /></div>
+      <div className="col-span-2"><label className="rotulo">Dia e horário de retirada</label><input className="campo" name="horario_texto" defaultValue={p?.horario_texto ?? ""} placeholder="Ex.: Quarta 11h30–18h" /></div>
+      <div><label className="rotulo">Responsável</label><input className="campo" name="responsavel" defaultValue={p?.responsavel ?? ""} /></div>
+      <div><label className="rotulo">Telefone</label><input className="campo" name="telefone" defaultValue={p?.telefone ?? ""} /></div>
+      {p && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" name="ativo" defaultChecked={p.ativo} className="size-4 accent-amber-700" />Ponto ativo</label>}
+      <div className="col-span-2 flex justify-end"><SubmitButton>{p ? "Salvar ponto" : "Adicionar ponto"}</SubmitButton></div>
     </form>
   );
 }
@@ -39,10 +46,28 @@ export default async function Pontos() {
   const { supabase } = await exigirEquipe();
   const { data } = await supabase.from("pontos_coleta").select("*").order("nome");
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">Pontos de coleta</h1>
-      {data?.map((p) => <div key={p.id} className="cartao"><Form p={p} /></div>)}
-      <details className="cartao"><summary className="cursor-pointer font-medium">Novo ponto</summary><div className="mt-3"><Form /></div></details>
-    </div>
+    <>
+      <PageHeader
+        titulo="Pontos de coleta"
+        subtitulo="Onde os clientes de coleta retiram o pão. Cada assinatura de coleta aponta para um ponto."
+        acoes={<Modal titulo="Novo ponto de coleta" gatilho={<><Plus size={16} />Novo ponto</>} gatilhoClasse="btn" largo><Form /></Modal>}
+      />
+      <div className="grid grid-cols-2 gap-4">
+        {data?.map((p) => (
+          <article key={p.id} className={`cartao flex flex-col gap-2 ${p.ativo ? "" : "opacity-60"}`}>
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800"><MapPin size={18} /></span>
+              <div className="min-w-0 flex-1"><h2 className="font-semibold leading-tight">{p.nome}</h2><p className="text-sm text-stone-500">{p.endereco}</p></div>
+              {!p.ativo && <Badge>Inativo</Badge>}
+            </div>
+            {p.horario_texto && <p className="text-sm text-stone-700">{p.horario_texto}</p>}
+            {(p.responsavel || p.telefone) && <p className="text-sm text-stone-500">{[p.responsavel, p.telefone].filter(Boolean).join(" · ")}</p>}
+            <div className="mt-auto pt-2">
+              <Modal titulo="Editar ponto de coleta" gatilho={<><Pencil size={14} />Editar</>} gatilhoClasse="btn-sec btn-pequeno" largo><Form p={p} /></Modal>
+            </div>
+          </article>
+        ))}
+      </div>
+    </>
   );
 }

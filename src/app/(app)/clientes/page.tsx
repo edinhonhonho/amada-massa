@@ -1,95 +1,161 @@
+import { MessageCircle, Search, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
+import Avatar from "@/components/ui/Avatar";
+import Badge, { type Tom } from "@/components/ui/Badge";
+import PageHeader from "@/components/ui/PageHeader";
+import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
-import { MODALIDADES, STATUS_CLIENTE, hojeISO, linkWhatsApp, soDigitos } from "@/lib/format";
-import { carregarFaixas, um } from "@/lib/dados";
-import { COR_SITUACAO, ROTULO_SITUACAO, pior, primeiroDoMes, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
+import { carregarFaixas, nomeCompleto, um } from "@/lib/dados";
+import { MODALIDADES, hojeISO, linkWhatsApp, reais, soDigitos } from "@/lib/format";
+import { ROTULO_SITUACAO, pior, primeiroDoMes, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
 
-type Busca = { q?: string; status?: string; modalidade?: string; bairro?: string; pagamento?: string };
+type Busca = { q?: string; status?: string; modalidade?: string; bairro?: string; pagamento?: string; plano?: string };
+type Assin = { status: string; valor_centavos: number; planos: { id: string; nome: string; modalidade: keyof typeof MODALIDADES; paes_por_semana: number } | null; pontos_coleta: { nome: string } | null };
+
+const TOM_STATUS: Record<string, Tom> = { ativo: "verde", pausado: "ambar", cancelado: "cinza" };
+const TOM_SIT: Record<Situacao, Tom> = { em_dia: "verde", a_vencer: "azul", vence_hoje: "ambar", atrasado: "laranja", atraso_critico: "vermelho", sem_cobranca: "cinza" };
 
 export default async function Clientes({ searchParams }: { searchParams: Promise<Busca> }) {
   const { supabase } = await exigirEquipe();
-  const { q, status, modalidade, bairro, pagamento } = await searchParams;
+  const b = await searchParams;
   const hoje = hojeISO();
   const faixas = await carregarFaixas(supabase);
-  const { data: cobs } = await supabase.from("cobrancas").select("vencimento, status, assinaturas(cliente_id)").eq("competencia", primeiroDoMes(hoje));
-  const porCliente = new Map<string, Situacao[]>();
-  for (const c of cobs ?? []) {
-    const id = (um(c.assinaturas as never) as { cliente_id: string } | null)?.cliente_id;
-    if (id) porCliente.set(id, [...(porCliente.get(id) ?? []), situacaoCobranca(c, hoje, faixas)]);
-  }
-  const situacaoDe = (id: string): Situacao | null => (porCliente.has(id) ? pior(porCliente.get(id)!) : null);
 
   let query = supabase
     .from("clientes")
-    .select("id, nome, sobrenome, whatsapp, bairro, status, assinaturas(status, planos(modalidade, paes_por_semana))")
+    .select("id, nome, sobrenome, whatsapp, bairro, status, assinaturas(status, valor_centavos, planos(id, nome, modalidade, paes_por_semana), pontos_coleta(nome))")
     .order("nome")
     .limit(500);
-  if (status) query = query.eq("status", status);
-  if (bairro) query = query.ilike("bairro", `%${bairro.replace(/[%,()]/g, "")}%`);
-  if (q) {
-    const t = q.replace(/[%,()*]/g, "").trim();
+  if (b.bairro) query = query.ilike("bairro", `%${b.bairro.replace(/[%,()]/g, "")}%`);
+  if (b.q) {
+    const t = b.q.replace(/[%,()*]/g, "").trim();
     const d = soDigitos(t);
-    const partes = [`nome.ilike.%${t}%`, `sobrenome.ilike.%${t}%`];
+    const partes = [`nome.ilike.%${t}%`, `sobrenome.ilike.%${t}%`, `email.ilike.%${t}%`];
     if (d.length >= 3) partes.push(`whatsapp.ilike.%${d}%`);
     query = query.or(partes.join(","));
   }
-  const { data } = await query;
 
-  type Linha = NonNullable<typeof data>[number];
-  const plano = (c: Linha) => {
-    const a = (c.assinaturas as unknown as { status: string; planos: { modalidade: keyof typeof MODALIDADES; paes_por_semana: number } | null }[]).find((x) => x.status !== "cancelada" && x.status !== "encerrada");
-    return a?.planos ?? null;
+  const [{ data }, { data: cobs }, { data: atrib }, { data: planos }] = await Promise.all([
+    query,
+    supabase.from("cobrancas").select("vencimento, status, assinaturas(cliente_id)").eq("competencia", primeiroDoMes(hoje)),
+    supabase.from("atribuicoes_rota").select("cliente_id, rotas(nome, cor)").is("fim", null),
+    supabase.from("planos").select("id, nome").order("modalidade").order("paes_por_semana"),
+  ]);
+
+  const sit = new Map<string, Situacao[]>();
+  for (const c of cobs ?? []) {
+    const id = (um(c.assinaturas as never) as { cliente_id: string } | null)?.cliente_id;
+    if (id) sit.set(id, [...(sit.get(id) ?? []), situacaoCobranca(c, hoje, faixas)]);
+  }
+  const rotaDe = new Map((atrib ?? []).map((a) => [a.cliente_id, um(a.rotas as never) as { nome: string; cor: string } | null]));
+
+  const vigente = (c: NonNullable<typeof data>[number]) =>
+    ((c.assinaturas as unknown as Assin[]) ?? []).find((a) => a.status === "ativa" || a.status === "pausada") ?? null;
+  const planoDe = (c: NonNullable<typeof data>[number]) => { const a = vigente(c); return a ? { ...a, plano: um(a.planos as never) as Assin["planos"] } : null; };
+
+  const base = (data ?? [])
+    .filter((c) => !b.modalidade || planoDe(c)?.plano?.modalidade === b.modalidade)
+    .filter((c) => !b.plano || planoDe(c)?.plano?.id === b.plano)
+    .filter((c) => !b.pagamento || (sit.has(c.id) && pior(sit.get(c.id)!) === b.pagamento));
+  const contagem = { todos: base.length, ativo: 0, pausado: 0, cancelado: 0 } as Record<string, number>;
+  for (const c of base) contagem[c.status]++;
+  const lista = b.status ? base.filter((c) => c.status === b.status) : base;
+
+  const href = (extra: Partial<Busca>) => {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries({ ...b, ...extra })) if (v) p.set(k, v);
+    const s = p.toString();
+    return `/clientes${s ? `?${s}` : ""}`;
   };
-  const lista = (data ?? [])
-    .filter((c) => !modalidade || plano(c)?.modalidade === modalidade)
-    .filter((c) => !pagamento || situacaoDe(c.id) === pagamento);
+  const abas = [["", "Todos", contagem.todos], ["ativo", "Ativos", contagem.ativo], ["pausado", "Pausados", contagem.pausado], ["cancelado", "Cancelados", contagem.cancelado]] as const;
+  const planoFiltrado = planos?.find((p) => p.id === b.plano);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Clientes <span className="text-base font-normal text-stone-500">({lista.length})</span></h1>
-        <Link href="/clientes/novo" className="btn">Novo cliente</Link>
-      </div>
-      <form className="cartao grid gap-3 sm:grid-cols-3">
-        <input className="campo" name="q" defaultValue={q} placeholder="Buscar por nome ou telefone" />
-        <select className="campo" name="status" defaultValue={status ?? ""}>
-          <option value="">Todos os status</option>
-          {Object.entries(STATUS_CLIENTE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <select className="campo" name="modalidade" defaultValue={modalidade ?? ""}>
-          <option value="">Todas as modalidades</option>
-          {Object.entries(MODALIDADES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <input className="campo" name="bairro" defaultValue={bairro} placeholder="Bairro" />
-        <select className="campo" name="pagamento" defaultValue={pagamento ?? ""}>
-          <option value="">Pagamento do mês: todos</option>
-          {Object.entries(ROTULO_SITUACAO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <button className="btn sm:justify-self-start">Filtrar</button>
-      </form>
-      <ul className="cartao divide-y divide-stone-100 p-0">
-        {!lista.length && <li className="p-4 text-stone-500">Nenhum cliente encontrado.</li>}
-        {lista.map((c) => {
-          const p = plano(c);
-          const wa = linkWhatsApp(c.whatsapp);
+    <>
+      <PageHeader
+        titulo="Clientes"
+        subtitulo="Quem assina o clube. Cada cliente tem uma assinatura, e cada assinatura usa um plano do catálogo."
+        acoes={<Link href="/clientes/novo" className="btn"><UserPlus size={16} />Novo cliente</Link>}
+      />
+
+      <div className="mb-4 flex items-center gap-1 border-b border-stone-200">
+        {abas.map(([k, rotulo, n]) => {
+          const on = (b.status ?? "") === k;
           return (
-            <li key={c.id} className="flex items-center gap-3 p-3">
-              <Link href={`/clientes/${c.id}`} className="min-w-0 flex-1">
-                <div className="truncate font-medium">{c.nome} {c.sobrenome}</div>
-                <div className="truncate text-sm text-stone-600">
-                  {p ? `${MODALIDADES[p.modalidade]} · ${p.paes_por_semana} pão/sem` : "Sem assinatura ativa"}
-                  {c.bairro && ` · ${c.bairro}`}
-                </div>
-              </Link>
-              <span className={`rounded-full px-2 py-0.5 text-xs ${c.status === "ativo" ? "bg-green-100 text-green-800" : c.status === "pausado" ? "bg-amber-100 text-amber-800" : "bg-stone-200 text-stone-700"}`}>
-                {STATUS_CLIENTE[c.status as keyof typeof STATUS_CLIENTE]}
-              </span>
-              {situacaoDe(c.id) && <span className={`rounded-full px-2 py-0.5 text-xs ${COR_SITUACAO[situacaoDe(c.id)!]}`}>{ROTULO_SITUACAO[situacaoDe(c.id)!]}</span>}
-              {wa && <a href={wa} target="_blank" rel="noreferrer" className="btn-sec px-3 py-1.5 text-sm">WhatsApp</a>}
-            </li>
+            <Link key={k} href={href({ status: k || undefined })}
+              className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition ${on ? "border-amber-600 text-amber-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
+              {rotulo}<span className={`rounded-full px-1.5 py-0.5 text-xs ${on ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-500"}`}>{n}</span>
+            </Link>
           );
         })}
-      </ul>
-    </div>
+      </div>
+
+      <form className="mb-4 flex flex-wrap items-center gap-2">
+        {b.status && <input type="hidden" name="status" value={b.status} />}
+        <div className="relative min-w-64 flex-1">
+          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input className="campo !pl-10" name="q" defaultValue={b.q} placeholder="Buscar por nome, e-mail ou telefone" />
+        </div>
+        <select className="campo !w-auto" name="plano" defaultValue={b.plano ?? ""}>
+          <option value="">Todos os planos</option>
+          {planos?.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+        </select>
+        <select className="campo !w-auto" name="pagamento" defaultValue={b.pagamento ?? ""}>
+          <option value="">Pagamento: todos</option>
+          {Object.entries(ROTULO_SITUACAO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <input className="campo !w-36" name="bairro" defaultValue={b.bairro} placeholder="Bairro" />
+        <button className="btn-sec">Filtrar</button>
+        {(b.q || b.plano || b.pagamento || b.bairro || b.modalidade) && <Link href={href({ q: undefined, plano: undefined, pagamento: undefined, bairro: undefined, modalidade: undefined })} className="btn-ghost">Limpar</Link>}
+      </form>
+      {planoFiltrado && <p className="mb-3 text-sm text-stone-600">Mostrando clientes do plano <b>{planoFiltrado.nome}</b>.</p>}
+
+      <div className="cartao overflow-hidden !p-0">
+        {!lista.length ? (
+          <Vazio icone={Users} titulo="Nenhum cliente encontrado" texto="Ajuste os filtros ou cadastre quem acabou de confirmar a assinatura."
+            acao={<Link href="/clientes/novo" className="btn"><UserPlus size={16} />Novo cliente</Link>} />
+        ) : (
+          <table className="tabela">
+            <thead><tr><th>Cliente</th><th>Plano (assinatura)</th><th>Entrega ou retirada</th><th>Pagamento do mês</th><th>Situação</th><th /></tr></thead>
+            <tbody>
+              {lista.map((c) => {
+                const p = planoDe(c);
+                const s = sit.has(c.id) ? pior(sit.get(c.id)!) : null;
+                const rota = rotaDe.get(c.id);
+                const wa = linkWhatsApp(c.whatsapp);
+                return (
+                  <tr key={c.id}>
+                    <td>
+                      <Link href={`/clientes/${c.id}`} className="flex items-center gap-3">
+                        <Avatar nome={nomeCompleto(c)} />
+                        <span><span className="block font-medium text-stone-900">{nomeCompleto(c)}</span><span className="text-xs text-stone-500">{c.bairro ?? "Sem bairro"}</span></span>
+                      </Link>
+                    </td>
+                    <td>
+                      {p?.plano ? (
+                        <Link href={`/planos`} className="block hover:opacity-80">
+                          <span className="block text-stone-800">{MODALIDADES[p.plano.modalidade]} · {p.plano.paes_por_semana} pão{p.plano.paes_por_semana > 1 ? "es" : ""}/sem</span>
+                          <span className="text-xs text-stone-500">{reais(p.valor_centavos)}/mês</span>
+                        </Link>
+                      ) : <span className="text-stone-400">{c.status === "cancelado" ? "Assinatura encerrada" : "Sem assinatura"}</span>}
+                    </td>
+                    <td className="text-stone-700">
+                      {p?.plano?.modalidade === "entrega"
+                        ? (rota ? <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full" style={{ background: rota.cor }} />{rota.nome}</span> : c.status === "ativo" ? <Badge tom="ambar">Sem rota</Badge> : "—")
+                        : p?.pontos_coleta?.nome ?? "—"}
+                    </td>
+                    <td>{s ? <Badge tom={TOM_SIT[s]} ponto>{ROTULO_SITUACAO[s]}</Badge> : <span className="text-stone-400">—</span>}</td>
+                    <td><Badge tom={TOM_STATUS[c.status]}>{c.status === "ativo" ? "Ativo" : c.status === "pausado" ? "Pausado" : "Cancelado"}</Badge></td>
+                    <td className="text-right">
+                      {wa && <a href={wa} target="_blank" rel="noreferrer" className="btn-ghost !p-2" title="Abrir WhatsApp"><MessageCircle size={17} /></a>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </>
   );
 }
