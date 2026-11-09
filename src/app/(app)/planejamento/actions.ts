@@ -15,6 +15,17 @@ const refresh = (id: string) => { revalidatePath(`/planejamento/${id}`); revalid
 const falhou = (id: string, msg: string): never => redirect(`/planejamento/${id}?erro=${encodeURIComponent(msg)}`);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** Pães tradicionais entram sozinhos nas semanas que ainda não os têm (sem mexer em quem já os tem). */
+async function incluirTradicionais(supabase: Awaited<ReturnType<typeof exigirEquipe>>["supabase"], semanas: string[]) {
+  if (!semanas.length) return;
+  const { data: trad } = await supabase.from("paes").select("id").eq("tradicional", true).eq("ativo", true);
+  if (!trad?.length) return;
+  const { data: existentes } = await supabase.from("paes_semana").select("semana_id, pao_id").in("semana_id", semanas);
+  const tem = new Set((existentes ?? []).map((e) => `${e.semana_id}|${e.pao_id}`));
+  const novas = semanas.flatMap((semana_id) => trad.filter((p) => !tem.has(`${semana_id}|${p.id}`)).map((p) => ({ semana_id, pao_id: p.id, ordem: 0 })));
+  if (novas.length) await supabase.from("paes_semana").insert(novas);
+}
+
 // ----------------------------------------------------------- calendário
 /** Abre (criando se preciso) a semana que começa na data indicada. */
 export async function planejarSemana(f: FormData) {
@@ -23,6 +34,7 @@ export async function planejarSemana(f: FormData) {
   if (!inicio) return;
   await supabase.from("semanas").upsert({ inicio, fim: adicionarDias(inicio, 6) }, { onConflict: "inicio", ignoreDuplicates: true });
   const { data } = await supabase.from("semanas").select("id").eq("inicio", inicio).single();
+  if (data) await incluirTradicionais(supabase, [data.id]);
   revalidatePath("/planejamento");
   redirect(data ? `/planejamento/${data.id}` : "/planejamento");
 }
@@ -37,6 +49,8 @@ export async function criarSemanasDoAno(f: FormData) {
   const linhas: { inicio: string; fim: string }[] = [];
   while (d <= `${ano}-12-31`) { linhas.push({ inicio: d, fim: adicionarDias(d, 6) }); d = adicionarDias(d, 7); }
   await supabase.from("semanas").upsert(linhas, { onConflict: "inicio", ignoreDuplicates: true });
+  const { data: criadas } = await supabase.from("semanas").select("id").gte("inicio", linhas[0].inicio).lte("inicio", linhas[linhas.length - 1].inicio);
+  await incluirTradicionais(supabase, (criadas ?? []).map((s) => s.id));
   revalidatePath("/planejamento");
   redirect(`/planejamento?ano=${ano}`);
 }
@@ -137,7 +151,7 @@ export async function criarPao(f: FormData) {
   let paoId = existente?.id as string | undefined;
   if (!paoId) {
     const { data, error } = await supabase.from("paes")
-      .insert({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos") }).select("id").single();
+      .insert({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos"), tradicional: f.get("tradicional") === "on" }).select("id").single();
     if (error || !data) return voltar(error?.message ?? "Não foi possível cadastrar o pão.");
     paoId = data.id;
   }
@@ -157,7 +171,7 @@ export async function salvarPao(f: FormData) {
   const id = String(f.get("id"));
   const nome = txt(f, "nome");
   if (!nome) return;
-  const { error } = await supabase.from("paes").update({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos") }).eq("id", id);
+  const { error } = await supabase.from("paes").update({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos"), tradicional: f.get("tradicional") === "on" }).eq("id", id);
   if (error) redirect(`/planejamento/paes?erro=${encodeURIComponent(error.code === "23505" ? "Já existe um pão com esse nome." : error.message)}`);
   revalidatePath("/planejamento", "layout");
 }

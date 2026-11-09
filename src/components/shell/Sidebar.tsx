@@ -14,17 +14,17 @@ export default function Sidebar({
   admin, nome, perfil, sair,
 }: { admin: boolean; nome: string; perfil: string; sair: () => Promise<void> }) {
   const caminho = usePathname();
-  const ativo = (href: string) => (href === "/" ? caminho === "/" : caminho === href || caminho.startsWith(`${href}/`));
+  const ativo = (href: string) => caminho === href || caminho.startsWith(`${href}/`);
 
   return (
     <aside className="nao-imprimir sticky top-0 flex h-screen w-[264px] shrink-0 flex-col bg-white shadow-[1px_0_0_rgba(28,25,23,.05),8px_0_32px_-16px_rgba(28,25,23,.18)]">
-      <div className="flex items-center gap-2.5 px-5 pb-3 pt-5">
+      <Link href="/clientes" className="flex items-center gap-2.5 px-5 pb-3 pt-5">
         <span className="flex size-9 items-center justify-center rounded-xl bg-amber-700 text-lg shadow-sm">🍞</span>
         <div className="leading-tight">
           <div className="font-semibold tracking-tight">Amada Massa</div>
           <div className="text-xs text-stone-500">Clube do Pão</div>
         </div>
-      </div>
+      </Link>
 
       <button
         type="button"

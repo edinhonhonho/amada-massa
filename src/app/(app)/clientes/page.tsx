@@ -24,7 +24,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
     .from("clientes")
     .select("id, nome, sobrenome, whatsapp, bairro, status, assinaturas(status, valor_centavos, planos(id, nome, modalidade, paes_por_semana), pontos_coleta(nome))")
     .order("nome")
-    .limit(500);
+    .range(0, 999);
   if (b.bairro) query = query.ilike("bairro", `%${b.bairro.replace(/[%,()]/g, "")}%`);
   if (b.q) {
     const t = b.q.replace(/[%,()*]/g, "").trim();
@@ -59,7 +59,9 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
     .filter((c) => !b.pagamento || (sit.has(c.id) && pior(sit.get(c.id)!) === b.pagamento));
   const contagem = { todos: base.length, ativo: 0, pausado: 0, cancelado: 0 } as Record<string, number>;
   for (const c of base) contagem[c.status]++;
-  const lista = b.status ? base.filter((c) => c.status === b.status) : base;
+  // Por padrão só os ativos: o histórico (cancelados) fica na aba própria, "Todos" mostra tudo.
+  const statusAtual = b.status ?? "ativo";
+  const lista = statusAtual === "todos" ? base : base.filter((c) => c.status === statusAtual);
 
   const href = (extra: Partial<Busca>) => {
     const p = new URLSearchParams();
@@ -67,7 +69,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
     const s = p.toString();
     return `/clientes${s ? `?${s}` : ""}`;
   };
-  const abas = [["", "Todos", contagem.todos], ["ativo", "Ativos", contagem.ativo], ["pausado", "Pausados", contagem.pausado], ["cancelado", "Cancelados", contagem.cancelado]] as const;
+  const abas = [["ativo", "Ativos", contagem.ativo], ["pausado", "Pausados", contagem.pausado], ["cancelado", "Cancelados", contagem.cancelado], ["todos", "Todos", contagem.todos]] as const;
   const planoFiltrado = planos?.find((p) => p.id === b.plano);
 
   return (
@@ -80,9 +82,9 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
 
       <div className="mb-4 flex items-center gap-1 border-b border-stone-200">
         {abas.map(([k, rotulo, n]) => {
-          const on = (b.status ?? "") === k;
+          const on = statusAtual === k;
           return (
-            <Link key={k} href={href({ status: k || undefined })}
+            <Link key={k} href={href({ status: k })}
               className={`-mb-px flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition ${on ? "border-amber-600 text-amber-900" : "border-transparent text-stone-500 hover:text-stone-800"}`}>
               {rotulo}<span className={`rounded-full px-1.5 py-0.5 text-xs ${on ? "bg-amber-100 text-amber-800" : "bg-stone-100 text-stone-500"}`}>{n}</span>
             </Link>
@@ -91,7 +93,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
       </div>
 
       <form className="mb-4 flex flex-wrap items-center gap-2">
-        {b.status && <input type="hidden" name="status" value={b.status} />}
+        <input type="hidden" name="status" value={statusAtual} />
         <div className="relative min-w-64 flex-1">
           <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
           <input className="campo !pl-10" name="q" defaultValue={b.q} placeholder="Buscar por nome, e-mail ou telefone" />
@@ -134,7 +136,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
                     <td>
                       {p?.plano ? (
                         <Link href={`/planos`} className="block hover:opacity-80">
-                          <span className="block text-stone-800">{MODALIDADES[p.plano.modalidade]} · {p.plano.paes_por_semana} pão{p.plano.paes_por_semana > 1 ? "es" : ""}/sem</span>
+                          <span className="block text-stone-800">{MODALIDADES[p.plano.modalidade]}{p.plano.paes_por_semana > 0 && ` · ${p.plano.paes_por_semana} pão${p.plano.paes_por_semana > 1 ? "es" : ""}/sem`}</span>
                           <span className="text-xs text-stone-500">{reais(p.valor_centavos)}/mês</span>
                         </Link>
                       ) : <span className="text-stone-400">{c.status === "cancelado" ? "Assinatura encerrada" : "Sem assinatura"}</span>}

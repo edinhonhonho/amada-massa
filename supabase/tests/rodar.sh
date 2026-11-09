@@ -16,4 +16,8 @@ $P -f migrations/0005_catalogo_paes_quantidades.sql
 $P -c "delete from semanas; delete from paes;" >/dev/null
 $P -c "delete from entregas; delete from assinaturas; delete from atribuicoes_rota; delete from clientes; delete from rotas;" >/dev/null 2>&1 || true
 $P -f tests/05_catalogo_quantidades.sql | grep -q ok5
-echo "OK: migrações 0001-0005 e testes 01-05 passaram."
+# a 0006 adiciona um valor ao enum: roda sozinha, antes dos testes que o usam
+$P -c "delete from semanas; delete from paes; delete from entregas; delete from assinaturas; delete from clientes;" >/dev/null 2>&1 || true
+$P -f migrations/0006_apoio_e_paes_tradicionais.sql
+$P -f tests/06_apoio_tradicional.sql | grep -q ok6
+echo "OK: migrações 0001-0006 e testes 01-06 passaram."

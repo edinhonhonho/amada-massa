@@ -16,7 +16,6 @@ const ATALHOS_AJUDA: [string[], string][] = [
   [["⌘", "K"], "Abrir busca e comandos"],
   [["/"], "Abrir busca e comandos"],
   [["N"], "Novo cliente"],
-  [["G", "I"], "Ir para Início"],
   [["G", "C"], "Ir para Clientes"],
   [["G", "L"], "Ir para Planos"],
   [["G", "P"], "Ir para Pagamentos"],

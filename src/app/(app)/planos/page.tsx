@@ -1,16 +1,15 @@
-import { MapPin, Pencil, Plus, Store, Tag, Truck, Users } from "lucide-react";
+import { HeartHandshake, MapPin, Pencil, Plus, Store, Truck } from "lucide-react";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
-import Stat from "@/components/ui/Stat";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirAdmin, exigirEquipe } from "@/lib/auth";
 import { MODALIDADES, dataBR, hojeISO, paraCentavos, reais } from "@/lib/format";
 
-const pluralPaes = (n: number) => `${n} pão${n > 1 ? "es" : ""}`;
+const pluralPaes = (n: number) => (n === 0 ? "Sem pães" : `${n} pão${n > 1 ? "es" : ""}`);
 type Mod = keyof typeof MODALIDADES;
 
 async function atualizarPlano(f: FormData) {
@@ -34,9 +33,9 @@ async function criarPlano(f: FormData) {
   const modalidade = String(f.get("modalidade")) as Mod;
   const paes = Number(f.get("paes"));
   const valor = paraCentavos(String(f.get("valor") ?? ""));
-  if (!(modalidade in MODALIDADES) || !Number.isInteger(paes) || paes < 1 || paes > 30 || valor === null)
+  if (!(modalidade in MODALIDADES) || !Number.isInteger(paes) || paes < (modalidade === "apoio" ? 0 : 1) || paes > 30 || valor === null)
     redirect("/planos?erro=Confira+a+modalidade%2C+a+quantidade+de+p%C3%A3es+e+o+valor.");
-  const nome = String(f.get("nome") ?? "").trim() || `${MODALIDADES[modalidade]} · ${pluralPaes(paes)}/semana`;
+  const nome = String(f.get("nome") ?? "").trim() || (paes === 0 ? MODALIDADES[modalidade] : `${MODALIDADES[modalidade]} · ${pluralPaes(paes)}/semana`);
   const { error } = await supabase.from("planos").insert({ nome, modalidade, paes_por_semana: paes, valor_centavos: valor });
   if (error) redirect(`/planos?erro=${encodeURIComponent(error.message)}`);
   revalidatePath("/planos");
@@ -48,7 +47,7 @@ function FormNovoPlano({ modalidade }: { modalidade: Mod }) {
     <form action={criarPlano} className="flex flex-col gap-4">
       <input type="hidden" name="modalidade" value={modalidade} />
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="rotulo">Pães por semana <span className="text-red-500">*</span></label><input className="campo" type="number" name="paes" min={1} max={30} defaultValue={1} required /></div>
+        <div><label className="rotulo">Pães por semana <span className="text-red-500">*</span></label><input className="campo" type="number" name="paes" min={modalidade === "apoio" ? 0 : 1} max={30} defaultValue={modalidade === "apoio" ? 0 : 1} required /></div>
         <div><label className="rotulo">Valor mensal (R$) <span className="text-red-500">*</span></label><input className="campo" name="valor" placeholder="80,00" required /></div>
       </div>
       <div><label className="rotulo">Nome do plano</label><input className="campo" name="nome" placeholder="Opcional. Ex.: valor solidário" /><p className="ajuda">Em branco, o nome é montado com a modalidade e a quantidade de pães.</p></div>
@@ -61,6 +60,7 @@ const COLUNAS: Record<Mod, { icone: typeof Truck; texto: string; tile: string; b
   entrega: { icone: Truck, texto: "Entregue na casa do cliente, por uma rota.", tile: "bg-amber-100 text-amber-800", barra: "bg-amber-500" },
   coleta_ponto: { icone: MapPin, texto: "Retirada num ponto de coleta parceiro.", tile: "bg-teal-100 text-teal-800", barra: "bg-teal-500" },
   coleta_padaria: { icone: Store, texto: "Retirada na própria padaria.", tile: "bg-rose-100 text-rose-800", barra: "bg-rose-500" },
+  apoio: { icone: HeartHandshake, texto: "Contribui todo mês, sem receber pão.", tile: "bg-violet-100 text-violet-800", barra: "bg-violet-500" },
 };
 
 export default async function Planos({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
@@ -78,9 +78,6 @@ export default async function Planos({ searchParams }: { searchParams: Promise<{
     u.n++; u.receita += a.valor_centavos;
     uso.set(a.plano_id, u);
   }
-  const totalAssinaturas = [...uso.values()].reduce((s, u) => s + u.n, 0);
-  const receitaTotal = [...uso.values()].reduce((s, u) => s + u.receita, 0);
-  const maisUsado = (planos ?? []).reduce<{ nome: string; n: number } | null>((m, p) => ((uso.get(p.id)?.n ?? 0) > (m?.n ?? 0) ? { nome: p.nome, n: uso.get(p.id)!.n } : m), null);
   const maiorUso = Math.max(1, ...[...uso.values()].map((u) => u.n));
 
   return (
@@ -88,19 +85,13 @@ export default async function Planos({ searchParams }: { searchParams: Promise<{
       <PageHeader titulo="Planos" subtitulo="O que o clube vende: modalidade, quantidade de pães e preço mensal." />
       {erro && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 shadow-sm">{erro}</p>}
 
-      <div className="mb-6 grid grid-cols-3 gap-3">
-        <Stat rotulo="Assinaturas ativas" valor={totalAssinaturas} icone={Users} tom="verde" />
-        <Stat rotulo="Receita mensal prevista" valor={reais(receitaTotal)} icone={Tag} tom="ambar" />
-        <Stat rotulo="Plano mais assinado" valor={<span className="text-base">{maisUsado?.nome ?? "—"}</span>} detalhe={maisUsado ? `${maisUsado.n} cliente(s)` : undefined} icone={Truck} tom="azul" />
-      </div>
-
-      <div className="grid grid-cols-3 items-start gap-5">
+      <div className="grid grid-cols-4 items-start gap-4">
         {(Object.keys(COLUNAS) as Mod[]).map((m) => {
           const col = COLUNAS[m];
           const lista = (planos ?? []).filter((p) => p.modalidade === m);
           return (
             <section key={m} className="flex flex-col gap-3">
-              <header className="flex items-center gap-3 px-1">
+              <header className="flex min-h-[60px] items-center gap-3 px-1">
                 <span className={`flex size-10 items-center justify-center rounded-xl shadow-sm ${col.tile}`}><col.icone size={19} /></span>
                 <div className="min-w-0 flex-1"><h2 className="font-semibold leading-tight">{MODALIDADES[m]}</h2><p className="text-xs text-stone-500">{col.texto}</p></div>
                 {admin && (
@@ -116,7 +107,7 @@ export default async function Planos({ searchParams }: { searchParams: Promise<{
                   <article key={p.id} className={`cartao flex flex-col gap-3 transition hover:shadow-lg ${p.ativo ? "" : "opacity-60"}`}>
                     <div className="flex items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-stone-500">{pluralPaes(p.paes_por_semana)} por semana</div>
+                        <div className="text-[13px] font-medium text-stone-500">{p.paes_por_semana === 0 ? "Sem pães" : `${pluralPaes(p.paes_por_semana)} por semana`}</div>
                         <div className="text-[28px] font-semibold leading-tight tracking-tight">{reais(p.valor_centavos)}<span className="text-sm font-normal text-stone-500">/mês</span></div>
                       </div>
                       {!p.ativo && <Badge>Descontinuado</Badge>}

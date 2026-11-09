@@ -1,20 +1,21 @@
 "use client";
 
-import { AlertTriangle, Check, MapPin, Store, Truck } from "lucide-react";
+import { AlertTriangle, Check, HeartHandshake, MapPin, Store, Truck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { reais } from "@/lib/format";
 
-export type PlanoOpcao = { id: string; nome: string; modalidade: "entrega" | "coleta_ponto" | "coleta_padaria"; paes_por_semana: number; valor_centavos: number };
+export type PlanoOpcao = { id: string; nome: string; modalidade: "entrega" | "coleta_ponto" | "coleta_padaria" | "apoio"; paes_por_semana: number; valor_centavos: number };
 export type PontoOpcao = { id: string; nome: string; tipo: "padaria" | "ponto"; endereco: string; horario_texto: string | null };
 
 const MOD = {
   entrega: { icone: Truck, titulo: "Entrega em casa", desc: "Uma rota leva até a porta" },
   coleta_ponto: { icone: MapPin, titulo: "Ponto de coleta", desc: "Retira num ponto parceiro" },
   coleta_padaria: { icone: Store, titulo: "Na padaria", desc: "Retira na própria padaria" },
+  apoio: { icone: HeartHandshake, titulo: "Apoio recorrente", desc: "Contribui todo mês, sem receber pão" },
 } as const;
-const ORDEM: (keyof typeof MOD)[] = ["entrega", "coleta_ponto", "coleta_padaria"];
-const pluralPaes = (n: number) => `${n} pão${n > 1 ? "es" : ""}`;
+const ORDEM: (keyof typeof MOD)[] = ["entrega", "coleta_ponto", "coleta_padaria", "apoio"];
+const pluralPaes = (n: number) => (n === 0 ? "Sem pães" : `${n} pão${n > 1 ? "es" : ""}`);
 
 /**
  * Escolha em 3 passos que impede combinações inválidas:
@@ -39,7 +40,7 @@ export default function SeletorPlano({
   const plano = planos.find((p) => p.id === planoId) ?? null;
 
   // O ponto efetivo depende da modalidade: Padaria é automático; entrega não tem ponto.
-  const ponto = mod === "entrega" ? null
+  const ponto = mod === "entrega" || mod === "apoio" ? null
     : mod === "coleta_padaria" ? (padarias.find((p) => p.id === pontoId) ?? padarias[0] ?? null)
     : (retiradas.find((p) => p.id === pontoId) ?? null);
 
@@ -60,7 +61,7 @@ export default function SeletorPlano({
 
       <fieldset>
         <legend className="rotulo">1. Como o cliente recebe o pão?</legend>
-        <div className="grid grid-cols-3 gap-3">
+        <div className={`grid gap-3 ${modalidades.length > 3 ? "grid-cols-4" : "grid-cols-3"}`}>
           {modalidades.map((m) => {
             const I = MOD[m].icone;
             const menor = Math.min(...planos.filter((p) => p.modalidade === m).map((p) => p.valor_centavos));
@@ -86,7 +87,7 @@ export default function SeletorPlano({
               <input type="radio" name="plano_ui" className="sr-only" checked={planoId === p.id} onChange={() => setPlanoId(p.id)} />
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-stone-100 text-lg font-semibold text-stone-700">{p.paes_por_semana}</span>
               <span className="min-w-0 flex-1">
-                <span className="block font-medium leading-tight">{pluralPaes(p.paes_por_semana)} por semana</span>
+                <span className="block font-medium leading-tight">{p.paes_por_semana === 0 ? "Sem pães" : `${pluralPaes(p.paes_por_semana)} por semana`}</span>
                 <span className="block truncate text-xs text-stone-500">{p.nome}</span>
               </span>
               <span className="text-right"><b className="block text-lg leading-tight">{reais(p.valor_centavos)}</b><span className="text-xs text-stone-500">por mês</span></span>
@@ -129,6 +130,10 @@ export default function SeletorPlano({
             <p className="flex items-start gap-2 rounded-xl bg-red-50 shadow-sm p-3 text-sm text-red-800"><AlertTriangle size={16} className="mt-0.5 shrink-0" />Nenhum ponto de retirada cadastrado. <Link className="underline" href="/pontos-coleta">Cadastre em Pontos de coleta</Link>.</p>
           )}
         </fieldset>
+      )}
+
+      {mod === "apoio" && (
+        <p className="flex items-center gap-2 rounded-xl bg-stone-50 px-4 py-3 text-sm text-stone-600"><HeartHandshake size={16} className="shrink-0 text-stone-400" />Contribuição mensal: gera cobrança e pagamento, mas não entra em rotas, retiradas nem produção.</p>
       )}
 
       {mod === "entrega" && (

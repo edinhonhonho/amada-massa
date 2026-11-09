@@ -1,7 +1,8 @@
-import { BookOpen, CalendarPlus, ChevronLeft, ChevronRight, Plus, Users, Wheat } from "lucide-react";
+import { BookOpen, CalendarPlus, Plus, Users, Wheat } from "lucide-react";
 import Link from "next/link";
 import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
+import SeletorAno from "@/components/SeletorAno";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirEquipe } from "@/lib/auth";
 import { um } from "@/lib/dados";
@@ -47,11 +48,8 @@ export default async function Planejamento({ searchParams }: { searchParams: Pro
         subtitulo="Defina os pães de cada semana e, dentro dela, quanto produzir e para onde levar."
         acoes={<>
           <Link className="btn-sec" href="/planejamento/paes"><BookOpen size={16} />Catálogo de pães</Link>
-          <div className="flex items-center rounded-xl bg-white p-0.5 shadow-sm">
-            <Link className="btn-ghost !p-2" href={`/planejamento?ano=${ano - 1}`} aria-label="Ano anterior"><ChevronLeft size={17} /></Link>
-            <Link className="btn-ghost !px-3" href="/planejamento">Hoje</Link>
-            <Link className="btn-ghost !p-2" href={`/planejamento?ano=${ano + 1}`} aria-label="Próximo ano"><ChevronRight size={17} /></Link>
-          </div>
+          <SeletorAno ano={ano} base="/planejamento" />
+          {ano !== Number(hoje.slice(0, 4)) && <Link className="btn-sec" href="/planejamento">Ano atual</Link>}
           {faltam > 0 && (
             <form action={criarSemanasDoAno}><input type="hidden" name="ano" value={ano} />
               <SubmitButton className="btn-sec"><CalendarPlus size={16} />Criar as {faltam} semanas que faltam</SubmitButton></form>

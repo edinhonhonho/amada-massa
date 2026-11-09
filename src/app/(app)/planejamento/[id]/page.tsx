@@ -250,7 +250,7 @@ export default async function Semana({ params, searchParams }: { params: Promise
             {paes.map((p) => (
               <li key={p.id} className="flex flex-col gap-1.5 rounded-xl bg-stone-50/80 p-4 shadow-sm">
                 <div className="flex items-start gap-2">
-                  <b className="flex-1 leading-tight">{p.nome}</b>
+                  <b className="flex-1 leading-tight">{p.nome}{p.tradicional && <span className="selo selo-ambar ml-2 align-middle">Tradicional</span>}</b>
                   <form action={removerPaoSemana}><input type="hidden" name="semana_id" value={id} /><input type="hidden" name="pao_id" value={p.id} />
                     <SubmitButton className="btn-ghost !p-1 hover:!bg-red-50 hover:!text-red-700"><span className="sr-only">Tirar da semana</span><X size={15} /></SubmitButton></form>
                 </div>

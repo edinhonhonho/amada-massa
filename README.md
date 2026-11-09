@@ -31,9 +31,19 @@ App do membro com notificações push implementado. Ainda fora do escopo: mapa, 
 
 CEP: ViaCEP. Localização de endereços: Nominatim (OpenStreetMap), com limite de 1 consulta por segundo (o sistema respeita e guarda o resultado no cliente). Traçado de bicicleta: routing.openstreetmap.de. Mapa: Leaflet com tiles do OpenStreetMap. Todos são de uso gratuito e razoável; para volume alto, seria preciso um provedor próprio.
 
+## Importar a planilha de assinaturas
+
+`scripts/importar_planilha.py` lê a planilha "Controle de assinaturas" e gera um SQL de importação mais um relatório de conferência:
+
+```bash
+python3 scripts/importar_planilha.py caminho/da/planilha.xlsx importacao/
+```
+
+O SQL **apaga todos os clientes atuais** e importa clientes, assinaturas (modalidade, pães, tradicionais, valor), rotas e ordem das paradas, pontos de coleta, pagamentos de 2026 e as anotações da aba Alterações. Rode no SQL Editor depois de aplicar a migração 0006. A pasta `importacao/` não vai para o Git (tem dados pessoais).
+
 ## Atalhos de teclado (gestão)
 
-`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. `G` e depois uma letra navega: `I` início, `C` clientes, `L` planos, `P` pagamentos, `S` planejamento, `R` rotas, `E` entregas, `M` mensagens. `?` mostra a lista.
+`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. `G` e depois uma letra navega: `C` clientes, `L` planos, `P` pagamentos, `S` planejamento, `R` rotas, `E` entregas, `M` mensagens. `?` mostra a lista.
 
 ## Os três apps
 
@@ -47,7 +57,7 @@ O membro só entra se o e-mail estiver na ficha do cliente (e o cliente não est
 
 ## Configuração
 
-1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql`, `0003_apps_entregador_membro.sql`, `0004_planos_pontos_paes_mapa.sql` e `0005_catalogo_paes_quantidades.sql`.
+1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql`, `0003_apps_entregador_membro.sql`, `0004_planos_pontos_paes_mapa.sql`, `0005_catalogo_paes_quantidades.sql` e `0006_apoio_e_paes_tradicionais.sql` (esta última **sozinha**, antes de importar dados: ela adiciona a modalidade de apoio recorrente).
 2. **Supabase → Authentication**:
    - *Sign In / Providers → Email*: deixe ligado; desligue **Allow new users to sign up**; comprimento do código (OTP length) = 6.
    - *URL Configuration*: Site URL = endereço do app; Redirect URLs = `https://SEU-APP/auth/callback` (e `http://localhost:3000/auth/callback`).

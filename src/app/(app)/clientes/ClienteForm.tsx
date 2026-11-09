@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CalendarClock, Check, Loader2, MapPin, Package, Store, Truck } from "lucide-react";
+import { AlertTriangle, CalendarClock, Check, HeartHandshake, Loader2, MapPin, Package, Store, Truck } from "lucide-react";
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import SeletorPlano, { type PlanoOpcao, type PontoOpcao } from "@/components/SeletorPlano";
@@ -69,7 +69,7 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
   const plano = selecao.plano;
   const personalizado = valor.trim() ? paraCentavos(valor) : null;
   const final = personalizado ?? plano?.valor_centavos ?? 0;
-  const IconeMod = plano ? { entrega: Truck, coleta_ponto: MapPin, coleta_padaria: Store }[plano.modalidade] : Package;
+  const IconeMod = plano ? { entrega: Truck, coleta_ponto: MapPin, coleta_padaria: Store, apoio: HeartHandshake }[plano.modalidade] : Package;
 
   return (
     <form action={acao} className={c ? "max-w-3xl" : "grid grid-cols-[1fr_320px] items-start gap-6"}>
@@ -139,6 +139,13 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
               <input className="campo" id="dia_vencimento" name="dia_vencimento" type="number" min={1} max={28} required value={dia} onChange={(e) => setDia(e.target.value)} />
             </div>
             <Campo nome="inicio" rotulo="Início da assinatura" tipo="date" />
+            {plano && plano.paes_por_semana > 0 && (
+              <div>
+                <label className="rotulo" htmlFor="paes_tradicionais">Quantos são tradicionais?</label>
+                <input className="campo" id="paes_tradicionais" name="paes_tradicionais" type="number" min={0} max={plano.paes_por_semana} defaultValue={0} />
+                <p className="ajuda">Dos {plano.paes_por_semana} pães por semana. O resto é o pão da semana.</p>
+              </div>
+            )}
             <div>
               <label className="rotulo" htmlFor="valor">Valor combinado (se diferente)</label>
               <input className="campo" id="valor" name="valor" placeholder={plano ? reais(plano.valor_centavos) : ""} value={valor} onChange={(e) => setValor(e.target.value)} />
@@ -164,7 +171,7 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800"><IconeMod size={18} /></span>
             <div className="min-w-0">
               <div className="text-sm font-medium leading-snug">{MODALIDADES[plano.modalidade]}</div>
-              <div className="text-xs text-stone-500">{plano.paes_por_semana} pão{plano.paes_por_semana > 1 ? "es" : ""} por semana</div>
+              <div className="text-xs text-stone-500">{plano.paes_por_semana === 0 ? "Sem pães" : `${plano.paes_por_semana} pão${plano.paes_por_semana > 1 ? "es" : ""} por semana`}</div>
             </div>
           </div>
           <div>
@@ -173,7 +180,9 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
           </div>
           <ul className="space-y-2 text-sm text-stone-600">
             <li className="flex items-start gap-2"><CalendarClock size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Cobrança todo dia <b className="text-stone-900">{dia || "—"}</b>, gerada automaticamente</span></li>
-            {plano.modalidade === "entrega"
+            {plano.modalidade === "apoio"
+              ? <li className="flex items-start gap-2"><HeartHandshake size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Contribuição mensal, <b className="text-stone-900">sem entrega nem retirada</b></span></li>
+              : plano.modalidade === "entrega"
               ? <li className="flex items-start gap-2"><Truck size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Depois de cadastrar, atribua uma <b className="text-stone-900">rota</b></span></li>
               : <li className="flex items-start gap-2"><Store size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Retira em <b className="text-stone-900">{selecao.ponto?.nome ?? "—"}</b></span></li>}
           </ul>

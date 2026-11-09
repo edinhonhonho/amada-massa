@@ -33,6 +33,7 @@ export const MODALIDADES = {
   coleta_padaria: "Coleta na padaria",
   coleta_ponto: "Ponto de coleta",
   entrega: "Entrega em casa",
+  apoio: "Apoio recorrente",
 } as const;
 export type Modalidade = keyof typeof MODALIDADES;
 

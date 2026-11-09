@@ -1,5 +1,5 @@
 import {
-  BarChart3, CalendarDays, LayoutDashboard, MapPin, MessageCircle, Route, Settings, Tag, Truck, Users, Wallet,
+  BarChart3, CalendarDays, MapPin, MessageCircle, Route, Settings, Tag, Truck, Users, Wallet,
   type LucideIcon,
 } from "lucide-react";
 
@@ -16,7 +16,6 @@ export type ItemNav = {
 export type GrupoNav = { titulo?: string; admin?: boolean; fluxo?: boolean; itens: ItemNav[] };
 
 export const GRUPOS: GrupoNav[] = [
-  { itens: [{ href: "/", rotulo: "Início", icone: LayoutDashboard, atalho: "i" }] },
   {
     // A ordem é a do trabalho: onde retirar, o que se vende e, por fim, quem assina.
     titulo: "Cadastros",
