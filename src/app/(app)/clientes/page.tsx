@@ -19,7 +19,6 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
   const { supabase } = await exigirEquipe();
   const b = await searchParams;
   const hoje = hojeISO();
-  const faixas = await carregarFaixas(supabase);
 
   let query = supabase
     .from("clientes")
@@ -35,11 +34,12 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
     query = query.or(partes.join(","));
   }
 
-  const [{ data }, { data: cobs }, { data: atrib }, { data: planos }] = await Promise.all([
+  const [{ data }, { data: cobs }, { data: atrib }, { data: planos }, faixas] = await Promise.all([
     query,
     supabase.from("cobrancas").select("vencimento, status, assinaturas(cliente_id)").eq("competencia", primeiroDoMes(hoje)),
     supabase.from("atribuicoes_rota").select("cliente_id, rotas(nome, cor)").is("fim", null),
     supabase.from("planos").select("id, nome").order("modalidade").order("paes_por_semana"),
+    carregarFaixas(supabase),
   ]);
 
   const sit = new Map<string, Situacao[]>();

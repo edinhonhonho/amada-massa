@@ -43,7 +43,7 @@ export default function Atalhos({ admin }: { admin: boolean }) {
     );
     return [
       { id: "novo-cliente", rotulo: "Novo cliente", grupo: "Criar", href: "/clientes/novo", icone: <UserPlus size={16} />, dica: "N", palavras: "cadastrar adicionar assinante" },
-      { id: "nova-semana", rotulo: "Nova semana", grupo: "Criar", href: "/semanas/nova", icone: <FilePlus2 size={16} />, palavras: "sabor produção" },
+      { id: "nova-semana", rotulo: "Planejar semanas do ano", grupo: "Criar", href: "/semanas", icone: <FilePlus2 size={16} />, palavras: "calendário sabor pães produção" },
       { id: "nova-rota", rotulo: "Nova rota", grupo: "Criar", href: "/rotas/nova", icone: <FilePlus2 size={16} /> },
       ...paginas,
     ];

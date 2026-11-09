@@ -1,25 +1,28 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 export type Perfil = "admin" | "operacao" | "entregador";
 
-export async function usuarioAtual() {
+/**
+ * Usuário logado, uma vez por requisição (layout e página compartilham o resultado).
+ * `getClaims` valida o token localmente quando o projeto usa chaves assimétricas,
+ * evitando uma viagem de rede ao Supabase a cada tela.
+ */
+export const usuarioAtual = cache(async () => {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getUser();
-  if (!data.user) redirect("/login");
-  const { data: u } = await supabase
-    .from("usuarios")
-    .select("id, nome, perfil, ativo")
-    .eq("id", data.user.id)
-    .single();
+  const { data: claims } = await supabase.auth.getClaims();
+  const uid = claims?.claims?.sub;
+  if (!uid) redirect("/login");
+  const { data: u } = await supabase.from("usuarios").select("id, nome, perfil, ativo").eq("id", uid).single();
   if (!u) {
     // conta de membro (cliente) ou sem vínculo: nunca é equipe
-    const { data: m } = await supabase.from("membros").select("user_id").eq("user_id", data.user.id).maybeSingle();
+    const { data: m } = await supabase.from("membros").select("user_id").eq("user_id", uid).maybeSingle();
     redirect(m ? "/membro" : "/sem-acesso");
   }
   if (!u.ativo) redirect("/sem-acesso?motivo=inativo");
   return { supabase, usuario: u as { id: string; nome: string; perfil: Perfil; ativo: boolean } };
-}
+});
 
 /** Páginas de gestão: bloqueia o entregador. */
 export async function exigirEquipe() {

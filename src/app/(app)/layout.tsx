@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen">
       <Sidebar admin={admin} nome={usuario.nome} perfil={usuario.perfil} sair={sair} />
       <main className="min-w-0 flex-1">
-        <div className="entra mx-auto max-w-[1180px] px-10 py-8">{children}</div>
+        <div className="entra max-w-[1320px] px-10 py-8">{children}</div>
       </main>
       <Atalhos admin={admin} />
     </div>

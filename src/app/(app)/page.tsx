@@ -28,36 +28,48 @@ export default async function Inicio() {
   if (usuario.perfil === "entregador") redirect("/entregador");
   const hoje = hojeISO();
   const mes = primeiroDoMes(hoje);
-  await supabase.rpc("gerar_cobrancas", { p_competencia: mes });
-  const faixas = await carregarFaixas(supabase);
+  const buscaCobrancas = () => supabase.from("cobrancas").select("valor_centavos, vencimento, status, pagamentos(valor_centavos)").eq("competencia", mes);
 
+  // Tudo em paralelo: cada ida ao banco custa tempo, então nada espera por outra sem precisar.
   const [
     { count: ativos }, { count: pausados }, { count: canceladosMes },
-    { data: retornos }, { data: cobrancas }, { data: atrasadas },
+    { data: retornos }, { data: cobrancasInicial }, { data: atrasadas },
     { data: semanaAtual }, { count: pendenciasEntrega }, { data: rotas }, { data: atrib }, { data: entregaAtiva },
+    faixas, { data: entregasSemana }, { data: execucoesSemana }, { count: qtdPlanos }, { count: qtdPontos },
   ] = await Promise.all([
     supabase.from("clientes").select("*", { count: "exact", head: true }).eq("status", "ativo"),
     supabase.from("clientes").select("*", { count: "exact", head: true }).eq("status", "pausado"),
     supabase.from("clientes").select("*", { count: "exact", head: true }).gte("cancelado_em", mes).lt("cancelado_em", somarMeses(mes, 1)),
     supabase.from("contatos").select("id, proximo_passo, proximo_passo_em, cliente_id, clientes(nome, sobrenome)")
       .eq("concluido", false).not("proximo_passo_em", "is", null).lte("proximo_passo_em", hoje).order("proximo_passo_em").limit(6),
-    supabase.from("cobrancas").select("valor_centavos, vencimento, status, pagamentos(valor_centavos)").eq("competencia", mes),
+    buscaCobrancas(),
     supabase.from("cobrancas").select("id, vencimento, valor_centavos, status, assinaturas(cliente_id, clientes(nome, sobrenome))").eq("status", "pendente").lt("vencimento", hoje).order("vencimento").limit(200),
     supabase.from("semanas").select("id, inicio, fim, sabor, sem_producao").lte("inicio", hoje).gte("fim", hoje).limit(1),
     supabase.from("entregas").select("*", { count: "exact", head: true }).eq("status", "nao_entregue"),
     supabase.from("rotas").select("id, nome, entregador_id").eq("ativa", true),
     supabase.from("atribuicoes_rota").select("cliente_id").is("fim", null),
     supabase.from("assinaturas").select("cliente_id, planos!inner(modalidade)").eq("status", "ativa").eq("planos.modalidade", "entrega"),
+    carregarFaixas(supabase),
+    supabase.from("entregas").select("rota_nome, ponto_nome, qtd_prevista, status, semanas!inner(inicio, fim)").lte("semanas.inicio", hoje).gte("semanas.fim", hoje),
+    supabase.from("rota_execucoes").select("finalizada_em, semanas!inner(inicio, fim)").lte("semanas.inicio", hoje).gte("semanas.fim", hoje),
+    supabase.from("planos").select("*", { count: "exact", head: true }).eq("ativo", true),
+    supabase.from("pontos_coleta").select("*", { count: "exact", head: true }).eq("ativo", true),
   ]);
+
+  // Mês ainda sem cobranças (primeiro acesso do mês): gera e busca de novo.
+  let cobrancas = cobrancasInicial;
+  if (!cobrancas?.length) {
+    await supabase.rpc("gerar_cobrancas", { p_competencia: mes });
+    cobrancas = (await buscaCobrancas()).data;
+  }
 
   // ---- mensalidades
   const contagem = new Map<Situacao, number>();
-  let esperado = 0, recebido = 0, pendentes = 0;
+  let esperado = 0, recebido = 0;
   for (const c of cobrancas ?? []) {
     const s = situacaoCobranca(c, hoje, faixas);
     contagem.set(s, (contagem.get(s) ?? 0) + 1);
     if (c.status !== "isenta" && c.status !== "cancelada") esperado += c.valor_centavos;
-    if (c.status === "pendente") pendentes++;
     recebido += ((c.pagamentos as { valor_centavos: number }[]) ?? []).reduce((s, p) => s + p.valor_centavos, 0);
   }
   const lista = (atrasadas ?? []).filter((c) => ["atrasado", "atraso_critico"].includes(situacaoCobranca(c, hoje, faixas)));
@@ -71,12 +83,9 @@ export default async function Inicio() {
   let totalEntregas = 0;
   let execucoes: { finalizada_em: string | null }[] = [];
   if (sem) {
-    const [{ data: ent }, { data: ex }] = await Promise.all([
-      supabase.from("entregas").select("rota_nome, ponto_nome, qtd_prevista, status").eq("semana_id", sem.id),
-      supabase.from("rota_execucoes").select("finalizada_em").eq("semana_id", sem.id),
-    ]);
+    const ent = entregasSemana;
     totalEntregas = ent?.length ?? 0;
-    execucoes = ex ?? [];
+    execucoes = execucoesSemana ?? [];
     if (!sem.sem_producao) {
       const m = new Map<string, number>();
       for (const e of ent ?? []) if (!["pulada", "suspensa_atraso"].includes(e.status)) {
@@ -96,25 +105,19 @@ export default async function Inicio() {
   const atrasoQtd = lista.length;
   const passos: Passo[] = [
     {
-      n: 1, titulo: "Pagamentos", icone: Wallet, href: "/pagamentos",
-      tom: atrasoQtd ? "vermelho" : pendentes ? "ambar" : "verde",
-      estado: atrasoQtd ? "Atenção" : pendentes ? "A receber" : "Em dia",
-      resumo: atrasoQtd ? `${atrasoQtd} em atraso · ${reais(emAtraso)}` : pendentes ? `${pendentes} mensalidade(s) pendente(s)` : "Tudo recebido neste mês",
-    },
-    {
-      n: 2, titulo: "Semana", icone: CalendarDays, href: sem ? `/semanas/${sem.id}` : "/semanas/nova",
+      n: 1, titulo: "Semana", icone: CalendarDays, href: sem ? `/semanas/${sem.id}` : "/semanas",
       tom: !sem ? "cinza" : !sem.sabor && !sem.sem_producao ? "ambar" : !totalEntregas && !sem.sem_producao ? "ambar" : "verde",
-      estado: !sem ? "A fazer" : sem.sem_producao ? "Sem produção" : !sem.sabor ? "Definir sabor" : !totalEntregas ? "Abrir semana" : "Pronta",
-      resumo: !sem ? "Crie a semana de entrega" : sem.sem_producao ? "Semana de descanso" : !totalEntregas ? "Gere as entregas da semana" : `${totalPaes} pães · ${sem.sabor}`,
+      estado: !sem ? "A fazer" : sem.sem_producao ? "Sem produção" : !sem.sabor ? "Definir pães" : !totalEntregas ? "Abrir semana" : "Pronta",
+      resumo: !sem ? "Planeje a semana no calendário" : sem.sem_producao ? "Semana de descanso" : !sem.sabor ? "Cadastre os pães da semana" : !totalEntregas ? "Gere as entregas da semana" : `${totalPaes} pães · ${sem.sabor}`,
     },
     {
-      n: 3, titulo: "Rotas", icone: Route, href: "/rotas",
+      n: 2, titulo: "Rotas", icone: Route, href: "/rotas",
       tom: semRota || rotasSemEntregador.length ? "ambar" : "verde",
       estado: semRota || rotasSemEntregador.length ? "Ajustar" : "Organizadas",
       resumo: semRota ? `${semRota} cliente(s) sem rota` : rotasSemEntregador.length ? `${rotasSemEntregador.length} rota(s) sem entregador` : `${rotas?.length ?? 0} rota(s) ativas`,
     },
     {
-      n: 4, titulo: "Entregas", icone: Truck, href: "/entregas/historico",
+      n: 3, titulo: "Entregas", icone: Truck, href: "/entregas/historico",
       tom: !totalEntregas ? "cinza" : execucoes.length && execucoes.every((e) => e.finalizada_em) && execucoes.length >= (rotas?.length ?? 0) ? "verde" : execucoes.length ? "azul" : "cinza",
       estado: !totalEntregas ? "Aguardando" : execucoes.length && execucoes.every((e) => e.finalizada_em) && execucoes.length >= (rotas?.length ?? 0) ? "Concluídas" : execucoes.length ? "Em andamento" : "Não iniciadas",
       resumo: (pendenciasEntrega ?? 0) > 0 ? `${pendenciasEntrega} ocorrência(s) a resolver` : execucoes.length ? `${execucoes.filter((e) => e.finalizada_em).length}/${rotas?.length ?? 0} rotas finalizadas` : "Entregador ainda não iniciou",
@@ -130,10 +133,30 @@ export default async function Inicio() {
         acoes={<Link href="/clientes/novo" className="btn"><UserPlus size={16} />Novo cliente <span className="kbd !border-white/30 !bg-white/15 !text-white">N</span></Link>}
       />
 
+      {(!qtdPlanos || !qtdPontos || !((ativos ?? 0) + (pausados ?? 0))) && (
+        <section className="cartao mb-6 border-amber-200 bg-gradient-to-r from-amber-50 to-white">
+          <h2 className="font-semibold">Primeiros passos</h2>
+          <p className="mb-3 text-sm text-stone-600">Siga esta ordem: o cliente precisa de um plano, e quem retira o pão precisa de um ponto.</p>
+          <ol className="flex flex-wrap gap-3 text-sm">
+            {[
+              { ok: !!qtdPlanos, t: "Cadastrar os planos", href: "/planos" },
+              { ok: !!qtdPontos, t: "Conferir os pontos de coleta", href: "/pontos-coleta" },
+              { ok: !!((ativos ?? 0) + (pausados ?? 0)), t: "Cadastrar o primeiro cliente", href: "/clientes/novo" },
+            ].map((p, i) => (
+              <li key={p.t}>
+                <Link href={p.href} className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition hover:shadow-sm ${p.ok ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-stone-200 bg-white"}`}>
+                  <span className={`flex size-5 items-center justify-center rounded-full text-xs font-semibold ${p.ok ? "bg-emerald-600 text-white" : "bg-stone-200"}`}>{p.ok ? <CheckCircle2 size={13} /> : i + 1}</span>{p.t}
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {/* A rotina da semana, em ordem */}
       <section aria-label="Rotina da semana" className="mb-6">
         <h2 className="mb-2 text-sm font-semibold text-stone-500">Rotina da semana</h2>
-        <ol className="grid grid-cols-4 gap-3">
+        <ol className="grid grid-cols-3 gap-3">
           {passos.map((p) => {
             const Icone = p.icone;
             return (
@@ -147,7 +170,7 @@ export default async function Inicio() {
                   <Badge tom={p.tom} ponto>{p.estado}</Badge>
                   <p className="mt-2 text-sm text-stone-600">{p.resumo}</p>
                 </Link>
-                {p.n < 4 && <ArrowRight size={14} className="absolute -right-2.5 top-1/2 z-10 -translate-y-1/2 rounded-full bg-fundo text-stone-400" />}
+                {p.n < 3 && <ArrowRight size={14} className="absolute -right-2.5 top-1/2 z-10 -translate-y-1/2 rounded-full bg-fundo text-stone-400" />}
               </li>
             );
           })}

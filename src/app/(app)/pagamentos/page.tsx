@@ -26,18 +26,22 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
   // Só gera o mês atual e o próximo: meses passados nunca nascem sozinhos
   // (criariam atrasos falsos para quem cadastrou assinatura antiga).
   const atual = primeiroDoMes(hoje);
-  if (mes >= atual && mes <= somarMeses(atual, 1)) await supabase.rpc("gerar_cobrancas", { p_competencia: mes });
-  const faixas = await carregarFaixas(supabase);
+  const gera = mes >= atual && mes <= somarMeses(atual, 1);
+  const buscaCobrancas = () => supabase
+    .from("cobrancas")
+    .select("id, valor_centavos, vencimento, status, justificativa, assinaturas(cliente_id, clientes(nome, sobrenome, whatsapp), planos(nome, modalidade)), pagamentos(id, valor_centavos, data, forma, observacao)")
+    .eq("competencia", mes)
+    .order("vencimento");
 
-  const [{ data: cobrancas }, { data: rotas }, { data: atrib }] = await Promise.all([
-    supabase
-      .from("cobrancas")
-      .select("id, valor_centavos, vencimento, status, justificativa, assinaturas(cliente_id, clientes(nome, sobrenome, whatsapp), planos(nome, modalidade)), pagamentos(id, valor_centavos, data, forma, observacao)")
-      .eq("competencia", mes)
-      .order("vencimento"),
+  // A geração é idempotente e barata; roda junto com as demais consultas, e depois relemos só se algo nasceu.
+  const [{ data: cobrancasInicial }, { data: rotas }, { data: atrib }, faixas, gerou] = await Promise.all([
+    buscaCobrancas(),
     supabase.from("rotas").select("id, nome").order("nome"),
     supabase.from("atribuicoes_rota").select("cliente_id, rota_id").is("fim", null),
+    carregarFaixas(supabase),
+    gera ? supabase.rpc("gerar_cobrancas", { p_competencia: mes }) : Promise.resolve({ data: 0 }),
   ]);
+  const cobrancas = Number(gerou.data) > 0 ? (await buscaCobrancas()).data : cobrancasInicial;
   const rotaDe = new Map((atrib ?? []).map((a) => [a.cliente_id, a.rota_id]));
 
   const linhas = (cobrancas ?? [])
@@ -68,7 +72,6 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
     <>
       <PageHeader
         titulo={nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1)}
-        etiqueta={<Badge tom="cinza">Passo 1 · Receber</Badge>}
         subtitulo="Mensalidades geradas a partir das assinaturas. Quem está em atraso sai das rotas até pagar."
         acoes={<>
           <div className="flex items-center rounded-xl border border-stone-200 bg-white p-0.5 shadow-sm">
@@ -114,7 +117,7 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
             </h2>
             <table className="tabela table-fixed">
               <colgroup><col className="w-[30%]" /><col className="w-[20%]" /><col className="w-[16%]" /><col className="w-[14%]" /><col className="w-[20%]" /></colgroup>
-              <thead><tr><th>Cliente</th><th>Plano</th><th>Vencimento</th><th className="text-right">Valor</th><th className="text-right">Ações</th></tr></thead>
+              <thead><tr><th>Cliente</th><th>Plano</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead>
               <tbody>
                 {itens.map(({ c, cli, plano, pagos, pago, restante, a }) => {
                   const modelo = s === "atrasado" || s === "atraso_critico" ? "cobranca_atraso" : "lembrete_pagamento";
@@ -124,9 +127,9 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
                       <td><Link href={`/clientes/${a?.cliente_id}`} className="flex items-center gap-3"><Avatar nome={nm} tamanho={32} /><span className="font-medium">{nm}</span></Link></td>
                       <td className="text-stone-600">{plano ? MODALIDADES[plano.modalidade] : "—"}<span className="block text-xs text-stone-400">{plano?.nome.split("·")[1]?.trim()}</span></td>
                       <td>{dataBR(c.vencimento)}{c.justificativa && <span className="block text-xs text-stone-400">{c.justificativa}</span>}</td>
-                      <td className="text-right"><b>{reais(c.valor_centavos)}</b>{pago > 0 && pago < c.valor_centavos && <span className="block text-xs text-emerald-700">pago {reais(pago)}</span>}</td>
+                      <td><b>{reais(c.valor_centavos)}</b>{pago > 0 && pago < c.valor_centavos && <span className="block text-xs text-emerald-700">pago {reais(pago)}</span>}</td>
                       <td>
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center gap-1.5">
                           {c.status === "pendente" && (
                             <Modal titulo="Dar baixa" descricao={`${nm} · ${reais(restante)} em aberto`} gatilho={<><HandCoins size={15} />Dar baixa</>} gatilhoClasse="btn btn-pequeno">
                               <form action={darBaixa} className="flex flex-col gap-4">

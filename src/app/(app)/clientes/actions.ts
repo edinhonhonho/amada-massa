@@ -52,6 +52,16 @@ function lerCliente(f: FormData) {
   } as const;
 }
 
+/** Regra de retirada: padaria só na Padaria, ponto só em ponto de retirada, entrega sem ponto. */
+async function validarPonto(supabase: SupabaseClient, modalidade: string, pontoId: string | null): Promise<string | null> {
+  if (modalidade === "entrega") return null;
+  if (!pontoId) return modalidade === "coleta_padaria" ? "Escolha a Padaria como local de retirada." : "Escolha o ponto de coleta.";
+  const { data } = await supabase.from("pontos_coleta").select("tipo").eq("id", pontoId).single();
+  if (modalidade === "coleta_padaria" && data?.tipo !== "padaria") return "Coleta na padaria só pode retirar na Padaria.";
+  if (modalidade === "coleta_ponto" && data?.tipo !== "ponto") return "Ponto de coleta exige um ponto de retirada (não a padaria).";
+  return null;
+}
+
 export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoForm> {
   const { supabase } = await exigirEquipe();
   const id = vazio(f.get("id"));
@@ -77,7 +87,10 @@ export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoF
   }
 
   if (id) {
-    const { error } = await supabase.from("clientes").update(dados).eq("id", id);
+    // se o endereço mudou, a localização no mapa precisa ser refeita
+    const { data: antes } = await supabase.from("clientes").select("logradouro, numero, cep, cidade").eq("id", id).single();
+    const mudou = !antes || (["logradouro", "numero", "cep", "cidade"] as const).some((k) => (antes[k] ?? null) !== (dados[k] ?? null));
+    const { error } = await supabase.from("clientes").update(mudou ? { ...dados, lat: null, lng: null } : dados).eq("id", id);
     if (error) return { erro: error.message };
     revalidatePath(`/clientes/${id}`);
     redirect(`/clientes/${id}`);
@@ -99,7 +112,8 @@ export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoF
   const dia = Number(f.get("dia_vencimento"));
   if (!Number.isInteger(dia) || dia < 1 || dia > 28) return { erro: "Dia de pagamento deve ser de 1 a 28." };
   const pontoId = vazio(f.get("ponto_coleta_id"));
-  if (plano.modalidade !== "entrega" && !pontoId) return { erro: "Escolha o ponto de coleta." };
+  const erroPonto = await validarPonto(supabase, plano.modalidade, pontoId);
+  if (erroPonto) return { erro: erroPonto };
 
   const { data: novo, error } = await supabase
     .from("clientes")
@@ -121,6 +135,7 @@ export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoF
     await supabase.from("clientes").delete().eq("id", novo.id); // evita cliente sem assinatura
     return { erro: e2.message };
   }
+  await supabase.rpc("gerar_cobrancas", { p_competencia: hojeISO() }); // a cobrança do mês já nasce com o cliente
   revalidatePath("/clientes");
   redirect(`/clientes/${novo.id}`);
 }
@@ -214,7 +229,7 @@ export async function trocarPlano(f: FormData) {
   const justificativa = vazio(f.get("justificativa_valor"));
   if (valor === null || (valor !== plano.valor_centavos && !justificativa)) return;
   const pontoId = plano.modalidade === "entrega" ? null : (vazio(f.get("ponto_coleta_id")) ?? atual.ponto_coleta_id);
-  if (plano.modalidade !== "entrega" && !pontoId) return;
+  if (await validarPonto(supabase, plano.modalidade, pontoId)) return;
 
   // Nova primeiro: se falhar, a antiga continua valendo.
   const { error } = await supabase.from("assinaturas").insert({

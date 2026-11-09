@@ -1,81 +1,100 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { exigirEquipe } from "@/lib/auth";
 import { hojeISO } from "@/lib/format";
 
-const txt = (f: FormData, k: string) => {
-  const v = f.get(k);
-  return typeof v === "string" && v.trim() ? v.trim() : null;
+export type PayloadRota = {
+  id?: string;
+  nome: string;
+  descricao: string;
+  cor: string;
+  dia_semana: number | null;
+  janela_inicio: string | null;
+  janela_fim: string | null;
+  entregador_id: string | null;
+  capacidade_paes: number | null;
+  ativa: boolean;
+  origem_ponto_id: string | null;
+  /** Clientes na ordem das paradas. */
+  clientes: string[];
+  trajeto: [number, number][] | null;
+  distancia_m: number | null;
+  duracao_s: number | null;
 };
+export type ResultadoRota = { ok: true; id: string } | { ok: false; erro: string };
 
-export async function salvarRota(f: FormData) {
-  const { supabase } = await exigirEquipe();
-  const id = txt(f, "id");
-  const nome = txt(f, "nome");
-  if (!nome) return;
-  const cap = Number(f.get("capacidade_paes"));
-  const dados = {
-    nome,
-    descricao: txt(f, "descricao"),
-    dia_semana: f.get("dia_semana") === "" ? null : Number(f.get("dia_semana")),
-    janela_inicio: txt(f, "janela_inicio"),
-    janela_fim: txt(f, "janela_fim"),
-    cor: txt(f, "cor") ?? "#b45309",
-    entregador_id: txt(f, "entregador_id"),
-    capacidade_paes: Number.isInteger(cap) && cap > 0 ? cap : null,
-    ativa: id ? f.get("ativa") === "on" : true,
-  };
-  if (id) {
-    await supabase.from("rotas").update(dados).eq("id", id);
+/**
+ * Cria ou atualiza a rota inteira: dados, clientes (com a ordem das paradas) e trajeto.
+ * Quem já estava em outra rota é movido (a atribuição anterior é encerrada com data, preservando o histórico).
+ */
+export async function salvarRotaCompleta(p: PayloadRota): Promise<ResultadoRota> {
+  try {
+    const { supabase } = await exigirEquipe();
+    const nome = p.nome.trim();
+    if (!nome) return { ok: false, erro: "Informe o nome da rota." };
+    const hoje = hojeISO();
+
+    const dados = {
+      nome, descricao: p.descricao.trim() || null, cor: p.cor || "#b45309", dia_semana: p.dia_semana,
+      janela_inicio: p.janela_inicio || null, janela_fim: p.janela_fim || null, entregador_id: p.entregador_id || null,
+      capacidade_paes: p.capacidade_paes && p.capacidade_paes > 0 ? p.capacidade_paes : null, ativa: p.ativa,
+      origem_ponto_id: p.origem_ponto_id || null, trajeto: p.trajeto, distancia_m: p.distancia_m, duracao_s: p.duracao_s,
+    };
+
+    let id = p.id;
+    if (id) {
+      const { error } = await supabase.from("rotas").update(dados).eq("id", id);
+      if (error) return { ok: false, erro: `Não foi possível salvar a rota: ${error.message}` };
+    } else {
+      const { data, error } = await supabase.from("rotas").insert(dados).select("id").single();
+      if (error || !data) return { ok: false, erro: `Não foi possível criar a rota: ${error?.message ?? "erro desconhecido"}` };
+      id = data.id;
+    }
+
+    // atribuições ativas: desta rota, e dos clientes escolhidos (que podem estar em outra)
+    const escolhidos = [...new Set(p.clientes)];
+    const { data: ativas, error: e1 } = await supabase
+      .from("atribuicoes_rota").select("id, cliente_id, rota_id, ordem")
+      .is("fim", null).or(`rota_id.eq.${id}${escolhidos.length ? `,cliente_id.in.(${escolhidos.join(",")})` : ""}`);
+    if (e1) return { ok: false, erro: `Rota salva, mas não foi possível ler os clientes: ${e1.message}` };
+
+    const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
+    for (const a of ativas ?? []) {
+      const naNovaLista = escolhidos.includes(a.cliente_id);
+      if (a.rota_id === id && !naNovaLista) ops.push(supabase.from("atribuicoes_rota").update({ fim: hoje }).eq("id", a.id)); // saiu da rota
+      else if (a.rota_id !== id && naNovaLista) ops.push(supabase.from("atribuicoes_rota").update({ fim: hoje }).eq("id", a.id)); // veio de outra
+    }
+    // fecha antes de abrir: o banco só admite uma atribuição ativa por cliente
+    const fechar = await Promise.all(ops);
+    const falha = fechar.find((r) => r.error);
+    if (falha?.error) return { ok: false, erro: `Não foi possível mover clientes de rota: ${falha.error.message}` };
+
+    const jaNaRota = new Map((ativas ?? []).filter((a) => a.rota_id === id).map((a) => [a.cliente_id, a]));
+    const gravar = escolhidos.map((cliente, i) => {
+      const atual = jaNaRota.get(cliente);
+      return atual
+        ? supabase.from("atribuicoes_rota").update({ ordem: i + 1 }).eq("id", atual.id)
+        : supabase.from("atribuicoes_rota").insert({ cliente_id: cliente, rota_id: id, ordem: i + 1, inicio: hoje });
+    });
+    const resultados = await Promise.all(gravar);
+    const erro = resultados.find((r) => r.error)?.error;
+    if (erro) return { ok: false, erro: `Não foi possível gravar as paradas: ${erro.message}` };
+
+    revalidatePath("/rotas");
     revalidatePath(`/rotas/${id}`);
-    redirect(`/rotas/${id}`);
+    return { ok: true, id: id! };
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : "Erro inesperado ao salvar a rota." };
   }
-  const { data } = await supabase.from("rotas").insert(dados).select("id").single();
-  revalidatePath("/rotas");
-  redirect(data ? `/rotas/${data.id}` : "/rotas");
 }
 
-/** Atribui clientes (um ou vários) a uma rota. Troca de rota fecha a atribuição anterior com data. */
-export async function atribuirClientes(f: FormData) {
+/** Guarda as coordenadas já encontradas, para não geocodificar de novo. */
+export async function salvarCoordenadas(itens: { tipo: "cliente" | "ponto"; id: string; lat: number; lng: number }[]): Promise<void> {
   const { supabase } = await exigirEquipe();
-  const rotaId = String(f.get("rota_id"));
-  const ids = f.getAll("cliente_id").map(String).filter(Boolean);
-  if (!ids.length) return;
-  const hoje = hojeISO();
-
-  const { data: max } = await supabase.from("atribuicoes_rota").select("ordem").eq("rota_id", rotaId).is("fim", null).order("ordem", { ascending: false }).limit(1);
-  let ordem = (max?.[0]?.ordem ?? 0) + 1;
-
-  for (const clienteId of ids) {
-    const { data: atual } = await supabase.from("atribuicoes_rota").select("id, rota_id").eq("cliente_id", clienteId).is("fim", null).maybeSingle();
-    if (atual?.rota_id === rotaId) continue;
-    if (atual) await supabase.from("atribuicoes_rota").update({ fim: hoje }).eq("id", atual.id);
-    await supabase.from("atribuicoes_rota").insert({ cliente_id: clienteId, rota_id: rotaId, ordem: ordem++, inicio: hoje });
-  }
-  revalidatePath(`/rotas/${rotaId}`);
-  revalidatePath("/rotas");
-}
-
-export async function removerDaRota(f: FormData) {
-  const { supabase } = await exigirEquipe();
-  await supabase.from("atribuicoes_rota").update({ fim: hojeISO() }).eq("id", String(f.get("atribuicao_id")));
-  revalidatePath(`/rotas/${String(f.get("rota_id"))}`);
-}
-
-/** Troca a ordem de parada com a vizinha (cima/baixo) e renumera 1..n. */
-export async function moverParada(f: FormData) {
-  const { supabase } = await exigirEquipe();
-  const rotaId = String(f.get("rota_id"));
-  const id = String(f.get("atribuicao_id"));
-  const dir = f.get("dir") === "cima" ? -1 : 1;
-  const { data } = await supabase.from("atribuicoes_rota").select("id").eq("rota_id", rotaId).is("fim", null).order("ordem").order("inicio");
-  const ids = (data ?? []).map((a) => a.id);
-  const i = ids.indexOf(id);
-  const j = i + dir;
-  if (i < 0 || j < 0 || j >= ids.length) return;
-  [ids[i], ids[j]] = [ids[j], ids[i]];
-  await Promise.all(ids.map((x, k) => supabase.from("atribuicoes_rota").update({ ordem: k + 1 }).eq("id", x)));
-  revalidatePath(`/rotas/${rotaId}`);
+  await Promise.all(
+    itens
+      .filter((i) => Number.isFinite(i.lat) && Number.isFinite(i.lng))
+      .map((i) => supabase.from(i.tipo === "cliente" ? "clientes" : "pontos_coleta").update({ lat: i.lat, lng: i.lng }).eq("id", i.id)),
+  );
 }

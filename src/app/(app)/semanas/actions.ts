@@ -22,14 +22,59 @@ export async function criarSemana(f: FormData) {
   redirect(`/semanas/${data.id}`);
 }
 
+/** Situação e observação. O sabor da semana é o resumo dos pães cadastrados (mantido pelo banco). */
 export async function salvarSemana(f: FormData) {
   const { supabase } = await exigirEquipe();
   const id = String(f.get("id"));
-  await supabase.from("semanas").update({
-    sabor: txt(f, "sabor"), descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"),
-    alergenos: txt(f, "alergenos"), observacao: txt(f, "observacao"), status: String(f.get("status")),
-  }).eq("id", id);
+  await supabase.from("semanas").update({ observacao: txt(f, "observacao"), status: String(f.get("status")) }).eq("id", id);
   refresh(id);
+}
+
+/** Cadastra ou edita um pão da semana (nome, descrição, ingredientes, alérgenos). */
+export async function salvarPao(f: FormData) {
+  const { supabase } = await exigirEquipe();
+  const semana = String(f.get("semana_id"));
+  const id = txt(f, "id");
+  const nome = txt(f, "nome");
+  if (!nome) return;
+  const dados = { nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos") };
+  if (id) await supabase.from("paes_semana").update(dados).eq("id", id);
+  else {
+    const { count } = await supabase.from("paes_semana").select("*", { count: "exact", head: true }).eq("semana_id", semana);
+    await supabase.from("paes_semana").insert({ ...dados, semana_id: semana, ordem: count ?? 0 });
+  }
+  refresh(semana);
+}
+
+export async function excluirPao(f: FormData) {
+  const { supabase } = await exigirEquipe();
+  await supabase.from("paes_semana").delete().eq("id", String(f.get("id")));
+  refresh(String(f.get("semana_id")));
+}
+
+/** Calendário: abre (criando se preciso) a semana que começa na data indicada. */
+export async function planejarSemana(f: FormData) {
+  const { supabase } = await exigirEquipe();
+  const inicio = txt(f, "inicio");
+  if (!inicio) return;
+  await supabase.from("semanas").upsert({ inicio, fim: adicionarDias(inicio, 6) }, { onConflict: "inicio", ignoreDuplicates: true });
+  const { data } = await supabase.from("semanas").select("id").eq("inicio", inicio).single();
+  revalidatePath("/semanas");
+  redirect(data ? `/semanas/${data.id}` : "/semanas");
+}
+
+/** Cria, de uma vez, todas as semanas (segunda a domingo) do ano que ainda não existem. */
+export async function criarSemanasDoAno(f: FormData) {
+  const { supabase } = await exigirEquipe();
+  const ano = Number(f.get("ano"));
+  if (!Number.isInteger(ano) || ano < 2020 || ano > 2100) return;
+  let d = `${ano}-01-01`;
+  d = adicionarDias(d, -((new Date(`${d}T12:00:00Z`).getUTCDay() + 6) % 7)); // segunda da semana de 1º/jan
+  const linhas: { inicio: string; fim: string }[] = [];
+  while (d <= `${ano}-12-31`) { linhas.push({ inicio: d, fim: adicionarDias(d, 6) }); d = adicionarDias(d, 7); }
+  await supabase.from("semanas").upsert(linhas, { onConflict: "inicio", ignoreDuplicates: true });
+  revalidatePath("/semanas");
+  redirect(`/semanas?ano=${ano}`);
 }
 
 export async function abrirSemana(f: FormData) {

@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { finalizarRota, iniciarRota, registrarEntrega } from "@/app/entregador/actions";
 import { empilhar, lerFila, novoItemKey, remover, type ItemFila, type NovoItem } from "@/lib/fila";
+import MapaRotaDinamico from "@/components/MapaRotaDinamico";
+import { linkGoogleMaps } from "@/lib/geo";
 import { comprimirImagem } from "@/lib/imagem";
 import { createBrowser } from "@/lib/supabase/browser";
 
 export type Parada = {
   id: string; ordem: number; nome: string; telefone: string | null; endereco: string; bairro: string | null;
   instrucoes: string | null; qtd: number; status: string; ocorrencia: string | null;
-  observacao: string | null; entregue_em: string | null; tem_foto: boolean;
+  observacao: string | null; entregue_em: string | null; tem_foto: boolean; lat: number | null; lng: number | null;
 };
 type Estado = { status: string; ocorrencia: string | null; observacao: string | null; em: string | null; foto: boolean };
 type Folha = { id: string; modo: "entregue" | "nao_entregue" };
@@ -18,9 +20,15 @@ const OCORRENCIAS = ["Cliente ausente", "Endereço errado", "Atraso", "Pão com 
 const hora = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) : "";
 
+type OrigemMapa = { lat: number; lng: number; nome: string };
+
 export default function EntregadorApp({
-  semanaId, rotaId, paradas, iniciadaEm, finalizadaEm,
-}: { semanaId: string; rotaId: string; paradas: Parada[]; iniciadaEm: string | null; finalizadaEm: string | null }) {
+  semanaId, rotaId, paradas, iniciadaEm, finalizadaEm, cor, trajeto, distanciaM, duracaoS, origem,
+}: {
+  semanaId: string; rotaId: string; paradas: Parada[]; iniciadaEm: string | null; finalizadaEm: string | null;
+  cor: string; trajeto: [number, number][] | null; distanciaM: number | null; duracaoS: number | null; origem: OrigemMapa | null;
+}) {
+  const [verMapa, setVerMapa] = useState(false);
   const [estado, setEstado] = useState<Record<string, Estado>>(() =>
     Object.fromEntries(paradas.map((p) => [p.id, { status: p.status, ocorrencia: p.ocorrencia, observacao: p.observacao, em: p.entregue_em, foto: p.tem_foto }])),
   );
@@ -150,6 +158,12 @@ export default function EntregadorApp({
   const restantes = paradas.length - concluidas;
   const emAndamento = !!inicio && !fim;
   const proximo = paradas.find((p) => ["programada", "reagendada"].includes(estado[p.id].status))?.id;
+  const pendentes_ = paradas.filter((p) => ["programada", "reagendada"].includes(estado[p.id].status));
+  const navegar = linkGoogleMaps(pendentes_.map((p) => (p.lat != null && p.lng != null ? { lat: p.lat, lng: p.lng } : `${p.endereco}, ${p.bairro ?? ""}, Porto Alegre`)));
+  const paradasMapa = paradas.filter((p) => p.lat != null && p.lng != null).map((p) => ({
+    id: p.id, nome: p.nome, lat: p.lat as number, lng: p.lng as number,
+    cor: estado[p.id].status === "entregue" ? "#059669" : estado[p.id].status === "nao_entregue" ? "#dc2626" : cor,
+  }));
 
   return (
     <div className="flex flex-col gap-3">
@@ -158,6 +172,21 @@ export default function EntregadorApp({
         <span className={online ? "text-green-700" : "text-red-700"}>{online ? "online" : "sem sinal"}</span>
         {pendentes > 0 && <button className="ml-auto underline" onClick={() => void sincronizar()}>{pendentes} a sincronizar</button>}
       </div>
+
+      {(paradasMapa.length > 0 || navegar) && (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            {paradasMapa.length > 0 && <button className="btn-sec" onClick={() => setVerMapa((v) => !v)}>{verMapa ? "Ocultar mapa" : "Ver mapa da rota"}</button>}
+            {navegar && <a className="btn" href={navegar} target="_blank" rel="noreferrer">Navegar (Google Maps)</a>}
+          </div>
+          {verMapa && (
+            <div className="h-80 overflow-hidden rounded-2xl border border-stone-200">
+              <MapaRotaDinamico origem={origem} paradas={paradasMapa} trajeto={trajeto} cor={cor} destaque={proximo} />
+            </div>
+          )}
+          {verMapa && distanciaM != null && <p className="text-xs text-stone-500">{(distanciaM / 1000).toFixed(1).replace(".", ",")} km de percurso{duracaoS ? ` · cerca de ${Math.round(duracaoS / 60)} min de bicicleta` : ""}</p>}
+        </div>
+      )}
 
       {aviso && <p className="rounded-lg bg-red-50 p-3 text-red-800" onClick={() => setAviso(null)}>{aviso} <span className="underline">ok</span></p>}
 

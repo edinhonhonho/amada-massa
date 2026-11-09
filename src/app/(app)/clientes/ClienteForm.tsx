@@ -1,14 +1,14 @@
 "use client";
 
-import { AlertTriangle, CalendarClock, Check, MapPin, Package, Store, Truck } from "lucide-react";
+import { AlertTriangle, CalendarClock, Check, Loader2, MapPin, Package, Store, Truck } from "lucide-react";
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import SeletorPlano, { type PlanoOpcao, type PontoOpcao } from "@/components/SeletorPlano";
 import SubmitButton from "@/components/ui/SubmitButton";
-import { salvarCliente, type EstadoForm } from "./actions";
+import { consultarCep, mascaraCep } from "@/lib/cep";
 import { MODALIDADES, ORIGENS, paraCentavos, reais } from "@/lib/format";
+import { salvarCliente, type EstadoForm } from "./actions";
 
-type Plano = { id: string; nome: string; modalidade: keyof typeof MODALIDADES; paes_por_semana: number; valor_centavos: number };
-type Ponto = { id: string; nome: string };
 type Cliente = Record<string, string | null> & { id: string };
 
 const Campo = ({ nome, rotulo, def, tipo = "text", req = false, area = false, ajuda, className = "" }: {
@@ -35,23 +35,44 @@ function Secao({ n, titulo, texto, children }: { n?: number; titulo: string; tex
   );
 }
 
-const ICONE_MOD = { entrega: Truck, coleta_ponto: MapPin, coleta_padaria: Store };
-
-export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cliente; planos?: Plano[]; pontos?: Ponto[] }) {
+export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cliente; planos?: PlanoOpcao[]; pontos?: PontoOpcao[] }) {
   const [estado, acao] = useActionState<EstadoForm, FormData>(salvarCliente, {});
-  const [planoId, setPlanoId] = useState(planos?.[0]?.id ?? "");
+  const c = cliente;
+
+  // Endereço: o CEP vem primeiro e preenche rua, bairro e cidade.
+  const [cep, setCep] = useState(mascaraCep(c?.cep ?? ""));
+  const [cepEstado, setCepEstado] = useState<"ocioso" | "buscando" | "ok" | "erro">("ocioso");
+  const [logradouro, setLogradouro] = useState(c?.logradouro ?? "");
+  const [bairro, setBairro] = useState(c?.bairro ?? "");
+  const [cidade, setCidade] = useState(c?.cidade ?? "Porto Alegre");
+  const numeroRef = useRef<HTMLInputElement>(null);
+
+  async function aoDigitarCep(valor: string) {
+    const m = mascaraCep(valor);
+    setCep(m);
+    if (m.replace(/\D/g, "").length !== 8) { setCepEstado("ocioso"); return; }
+    setCepEstado("buscando");
+    const r = await consultarCep(m);
+    if (!r) { setCepEstado("erro"); return; }
+    if (r.logradouro) setLogradouro(r.logradouro);
+    if (r.bairro) setBairro(r.bairro);
+    if (r.cidade) setCidade(r.cidade);
+    setCepEstado("ok");
+    numeroRef.current?.focus();
+  }
+
+  // Assinatura (só no cadastro)
+  const [selecao, setSelecao] = useState<{ plano: PlanoOpcao | null; ponto: PontoOpcao | null }>({ plano: null, ponto: null });
   const [dia, setDia] = useState("10");
   const [valor, setValor] = useState("");
-  const [ponto, setPonto] = useState(pontos?.[0]?.id ?? "");
-  const [nome, setNome] = useState(cliente?.nome ?? "");
-  const c = cliente;
-  const plano = planos?.find((p) => p.id === planoId);
+  const [nome, setNome] = useState(c?.nome ?? "");
+  const plano = selecao.plano;
   const personalizado = valor.trim() ? paraCentavos(valor) : null;
   const final = personalizado ?? plano?.valor_centavos ?? 0;
-  const IconeMod = plano ? ICONE_MOD[plano.modalidade] : Package;
+  const IconeMod = plano ? { entrega: Truck, coleta_ponto: MapPin, coleta_padaria: Store }[plano.modalidade] : Package;
 
   return (
-    <form action={acao} className="grid grid-cols-[1fr_320px] items-start gap-6">
+    <form action={acao} className={c ? "max-w-3xl" : "grid grid-cols-[1fr_320px] items-start gap-6"}>
       {c && <input type="hidden" name="id" value={c.id} />}
       <div className="flex flex-col gap-5">
         {estado.erro && (
@@ -89,33 +110,30 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
           <Campo nome="observacoes" rotulo="Observações" def={c?.observacoes} area className="col-span-2" />
         </Secao>
 
-        <Secao n={c ? undefined : 2} titulo="Onde recebe" texto="Usado nas rotas e nas listas de entrega.">
-          <Campo nome="logradouro" rotulo="Rua" def={c?.logradouro} />
-          <Campo nome="numero" rotulo="Número" def={c?.numero} />
+        <Secao n={c ? undefined : 2} titulo="Onde recebe" texto="Comece pelo CEP: rua, bairro e cidade são preenchidos sozinhos.">
+          <div>
+            <label className="rotulo" htmlFor="cep">CEP</label>
+            <div className="relative">
+              <input className="campo !pr-10" id="cep" name="cep" inputMode="numeric" autoComplete="postal-code" placeholder="00000-000" value={cep} onChange={(e) => void aoDigitarCep(e.target.value)} />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                {cepEstado === "buscando" && <Loader2 size={16} className="animate-spin text-stone-400" />}
+                {cepEstado === "ok" && <Check size={16} className="text-emerald-600" />}
+              </span>
+            </div>
+            {cepEstado === "erro" && <p className="mt-1 text-xs text-amber-800">CEP não encontrado. Preencha o endereço manualmente.</p>}
+          </div>
+          <div><label className="rotulo" htmlFor="numero">Número</label><input ref={numeroRef} className="campo" id="numero" name="numero" defaultValue={c?.numero ?? ""} /></div>
+          <div className="col-span-2"><label className="rotulo" htmlFor="logradouro">Rua</label><input className="campo" id="logradouro" name="logradouro" value={logradouro} onChange={(e) => setLogradouro(e.target.value)} /></div>
           <Campo nome="complemento" rotulo="Complemento" def={c?.complemento} />
-          <Campo nome="bairro" rotulo="Bairro" def={c?.bairro} />
-          <Campo nome="cidade" rotulo="Cidade" def={c?.cidade ?? "Porto Alegre"} />
-          <Campo nome="cep" rotulo="CEP" def={c?.cep} />
+          <div><label className="rotulo" htmlFor="bairro">Bairro</label><input className="campo" id="bairro" name="bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} /></div>
+          <div><label className="rotulo" htmlFor="cidade">Cidade</label><input className="campo" id="cidade" name="cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} /></div>
           <Campo nome="referencia_portaria" rotulo="Portaria / referência" def={c?.referencia_portaria} />
-          <Campo nome="instrucoes_entrega" rotulo="Instruções de entrega" def={c?.instrucoes_entrega} ajuda='Ex.: "deixar com o porteiro"' />
+          <Campo nome="instrucoes_entrega" rotulo="Instruções de entrega" def={c?.instrucoes_entrega} ajuda='Ex.: "deixar com o porteiro"' className="col-span-2" />
         </Secao>
 
         {!c && planos && (
           <Secao n={3} titulo="O que assina" texto="Escolha o plano do catálogo. Isso cria a assinatura e as cobranças mensais.">
-            <div className="col-span-2">
-              <label className="rotulo" htmlFor="plano_id">Plano <span className="text-red-500">*</span></label>
-              <select className="campo" id="plano_id" name="plano_id" value={planoId} onChange={(e) => setPlanoId(e.target.value)} required>
-                {planos.map((p) => <option key={p.id} value={p.id}>{p.nome} — {reais(p.valor_centavos)}/mês</option>)}
-              </select>
-            </div>
-            {plano && plano.modalidade !== "entrega" && (
-              <div className="col-span-2">
-                <label className="rotulo" htmlFor="ponto_coleta_id">Onde retira <span className="text-red-500">*</span></label>
-                <select className="campo" id="ponto_coleta_id" name="ponto_coleta_id" value={ponto} onChange={(e) => setPonto(e.target.value)} required>
-                  {pontos?.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                </select>
-              </div>
-            )}
+            <div className="col-span-2"><SeletorPlano planos={planos} pontos={pontos ?? []} onSelecao={setSelecao} /></div>
             <div>
               <label className="rotulo" htmlFor="dia_vencimento">Dia do pagamento (1 a 28) <span className="text-red-500">*</span></label>
               <input className="campo" id="dia_vencimento" name="dia_vencimento" type="number" min={1} max={28} required value={dia} onChange={(e) => setDia(e.target.value)} />
@@ -157,7 +175,7 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
             <li className="flex items-start gap-2"><CalendarClock size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Cobrança todo dia <b className="text-stone-900">{dia || "—"}</b>, gerada automaticamente</span></li>
             {plano.modalidade === "entrega"
               ? <li className="flex items-start gap-2"><Truck size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Depois de cadastrar, atribua uma <b className="text-stone-900">rota</b></span></li>
-              : <li className="flex items-start gap-2"><Store size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Retira em <b className="text-stone-900">{pontos?.find((p) => p.id === ponto)?.nome}</b></span></li>}
+              : <li className="flex items-start gap-2"><Store size={16} className="mt-0.5 shrink-0 text-stone-400" /><span>Retira em <b className="text-stone-900">{selecao.ponto?.nome ?? "—"}</b></span></li>}
           </ul>
         </aside>
       )}

@@ -22,17 +22,18 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  const { data } = await supabase.auth.getUser();
+  const { data } = await supabase.auth.getClaims();
+  const logado = !!data?.claims?.sub;
   const rota = request.nextUrl.pathname;
   const destinoSeLogado = ENTRADAS[rota.replace(/\/$/, "")];
   const livre = destinoSeLogado !== undefined || LIVRES.some((p) => rota.startsWith(p));
 
-  if (!data.user && !livre) {
+  if (!logado && !livre) {
     const url = request.nextUrl.clone();
     url.pathname = rota.startsWith("/entregador") ? "/entregador/entrar" : rota.startsWith("/membro") ? "/membro/entrar" : "/login";
     return NextResponse.redirect(url);
   }
-  if (data.user && destinoSeLogado !== undefined) {
+  if (logado && destinoSeLogado !== undefined) {
     const url = request.nextUrl.clone();
     url.pathname = destinoSeLogado;
     return NextResponse.redirect(url);

@@ -57,10 +57,12 @@ export default async function Entregador({ searchParams }: { searchParams: Promi
     );
   }
 
-  const [{ data }, { data: exec }] = await Promise.all([
+  const [{ data }, { data: exec }, { data: traj }] = await Promise.all([
     supabase.rpc("entregas_da_rota", { p_semana: semana.id, p_rota: rota.id }),
     supabase.rpc("execucao_da_rota", { p_semana: semana.id, p_rota: rota.id }),
+    supabase.rpc("rota_trajeto", { p_rota: rota.id }),
   ]);
+  const t = (traj as { trajeto: [number, number][] | null; distancia_m: number | null; duracao_s: number | null; origem_nome: string | null; origem_lat: number | null; origem_lng: number | null }[] | null)?.[0];
   const paradas = (data ?? []) as Parada[];
   const e = (exec as { iniciada_em: string; finalizada_em: string | null }[] | null)?.[0];
 
@@ -74,7 +76,7 @@ export default async function Entregador({ searchParams }: { searchParams: Promi
       </div>
       {semana.sem_producao ? <p className="cartao">Semana sem produção. Nada a entregar.</p>
         : !paradas.length ? <p className="cartao text-stone-500">Nenhuma parada. A gestão já abriu a semana?</p>
-        : <EntregadorApp key={`${semana.id}-${rota.id}`} semanaId={semana.id} rotaId={rota.id} paradas={paradas} iniciadaEm={e?.iniciada_em ?? null} finalizadaEm={e?.finalizada_em ?? null} />}
+        : <EntregadorApp key={`${semana.id}-${rota.id}`} semanaId={semana.id} rotaId={rota.id} paradas={paradas} cor={rota.cor} trajeto={t?.trajeto ?? null} distanciaM={t?.distancia_m ?? null} duracaoS={t?.duracao_s ?? null} origem={t?.origem_lat != null && t?.origem_lng != null ? { lat: t.origem_lat, lng: t.origem_lng, nome: t.origem_nome ?? "Partida" } : null} iniciadaEm={e?.iniciada_em ?? null} finalizadaEm={e?.finalizada_em ?? null} />}
     </>
   );
 }

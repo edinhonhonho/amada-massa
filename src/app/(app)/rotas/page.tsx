@@ -26,7 +26,7 @@ export default async function Rotas() {
     <>
       <PageHeader
         titulo="Rotas"
-        etiqueta={<Badge tom="cinza">Passo 3 · Organizar</Badge>}
+        etiqueta={<Badge tom="cinza">Passo 2 · Organizar</Badge>}
         subtitulo="Cada cliente de entrega pertence a uma rota. O entregador vê só a rota dele, na ordem das paradas."
         acoes={<Link href="/rotas/nova" className="btn"><Plus size={16} />Nova rota</Link>}
       />

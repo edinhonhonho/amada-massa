@@ -1,14 +1,15 @@
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirEquipe } from "@/lib/auth";
-import RotaForm from "../RotaForm";
+import { carregarDadosEditor } from "../dados";
+import RotaEditor from "../RotaEditor";
 
 export default async function NovaRota() {
   const { supabase } = await exigirEquipe();
-  const { data } = await supabase.from("usuarios").select("id, nome").eq("ativo", true).order("nome");
+  const dados = await carregarDadosEditor(supabase);
   return (
     <>
-      <PageHeader voltar={{ href: "/rotas", rotulo: "Rotas" }} titulo="Nova rota" subtitulo="Uma rota é um grupo de clientes de entrega atendido pelo mesmo entregador no mesmo dia." />
-      <div className="cartao max-w-2xl !p-6"><RotaForm entregadores={data ?? []} /></div>
+      <PageHeader voltar={{ href: "/rotas", rotulo: "Rotas" }} titulo="Nova rota" subtitulo="Escolha os clientes, deixe o sistema sugerir a ordem e trace o caminho no mapa para o entregador." />
+      <RotaEditor {...dados} />
     </>
   );
 }

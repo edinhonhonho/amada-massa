@@ -21,6 +21,7 @@ export default async function Lista({
   const { supabase } = await exigirEquipe();
   const { data: s } = await supabase.from("semanas").select("*").eq("id", id).single();
   if (!s) notFound();
+  const { data: paes } = await supabase.from("paes_semana").select("id, nome, ingredientes, alergenos").eq("semana_id", id).order("ordem").order("criado_em");
   const { data } = await supabase
     .from("entregas")
     .select("id, ordem, rota_nome, ponto_nome, qtd_prevista, status, clientes(nome, sobrenome, whatsapp, logradouro, numero, complemento, bairro, referencia_portaria, instrucoes_entrega)")
@@ -48,8 +49,14 @@ export default async function Lista({
       </div>
       <header>
         <h1 className="text-2xl font-bold">{titulo}</h1>
-        <p>Semana {dataBR(s.inicio)} a {dataBR(s.fim)} · <b>{s.sabor ?? "sabor a definir"}</b></p>
-        {s.alergenos && <p className="text-sm">Alérgenos: {s.alergenos}</p>}
+        <p>Semana {dataBR(s.inicio)} a {dataBR(s.fim)}</p>
+        {paes?.length ? (
+          <ul className="mt-2 text-sm">
+            {paes.map((p) => (
+              <li key={p.id}><b>{p.nome}</b>{p.ingredientes && ` — ${p.ingredientes}`}{p.alergenos && <span className="text-red-700"> · contém {p.alergenos}</span>}</li>
+            ))}
+          </ul>
+        ) : <p className="text-sm text-stone-500">Pães a definir.</p>}
         {s.sem_producao && <p className="font-semibold text-red-700">Semana sem produção.</p>}
       </header>
 

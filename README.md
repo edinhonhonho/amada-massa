@@ -8,8 +8,8 @@ Sistema interno (Next.js + TypeScript + Tailwind) hospedado na **Vercel**, com *
 | --- | --- |
 | 1 Base | Login, perfis com RLS, clientes (status, linha do tempo, contatos), planos, assinaturas, pontos de coleta, auditoria, LGPD |
 | 2 Dinheiro | Cobrança mensal automática (mês atual e próximo), baixa parcial/total, ajuste/isenção com justificativa, estorno (admin), situação calculada (em dia, a vencer, vence hoje, atrasado, crítico), painel de pagamentos e grade clientes × meses |
-| 3 Rotas | Rotas com entregador e capacidade, atribuição com histórico (uma ativa por cliente), ordem de parada, resumo, alertas (sem rota, bairro fora da bike) |
-| 4 Semana | Semanas e sabores, pular cliente, semana sem produção, entregas geradas com suspensão por atraso (volta ao pagar), listas de produção, entrega e coleta para imprimir |
+| 3 Rotas | Editor com seleção de clientes, ordem sugerida e trajeto de bicicleta no mapa; atribuição com histórico (uma ativa por cliente); mapa e navegação pelo Google Maps no app do entregador |
+| 4 Semana | Calendário do ano e vários pães por semana (cada um com ingredientes e alérgenos), pular cliente, semana sem produção, entregas geradas com suspensão por atraso (volta ao pagar), listas de produção, entrega e coleta para imprimir |
 | 5 Entregas | App do entregador (PWA, fila offline, iniciar/finalizar rota, foto e observação por parada, sem dados financeiros), ocorrências, pendências, histórico com fotos |
 | 6 Comunicação e painel | Modelos de WhatsApp editáveis, envio em lote por segmento, painel inicial, 7 relatórios, CSV, configurações |
 
@@ -22,6 +22,14 @@ App do membro com notificações push implementado. Ainda fora do escopo: mapa, 
 - A entrega volta ao pagar, desde que a lista da semana não esteja fechada.
 - Pausa/cancelamento cancelam cobranças ainda não vencidas; troca de plano substitui as cobranças pendentes do mês em diante.
 - Sem multa nem juros.
+
+## Desempenho
+
+`vercel.json` fixa as funções em **São Paulo (gru1)**, perto do banco do Supabase (também em São Paulo). Sem isso a Vercel roda nos EUA e cada ida ao banco cruza o continente. O login é verificado localmente (`getClaims`) quando o projeto usa chaves de assinatura assimétricas (padrão em projetos novos do Supabase).
+
+## Mapas e endereços (serviços gratuitos)
+
+CEP: ViaCEP. Localização de endereços: Nominatim (OpenStreetMap), com limite de 1 consulta por segundo (o sistema respeita e guarda o resultado no cliente). Traçado de bicicleta: routing.openstreetmap.de. Mapa: Leaflet com tiles do OpenStreetMap. Todos são de uso gratuito e razoável; para volume alto, seria preciso um provedor próprio.
 
 ## Atalhos de teclado (gestão)
 
@@ -39,7 +47,7 @@ O membro só entra se o e-mail estiver na ficha do cliente (e o cliente não est
 
 ## Configuração
 
-1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql` e `0003_apps_entregador_membro.sql`.
+1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql`, `0003_apps_entregador_membro.sql` e `0004_planos_pontos_paes_mapa.sql`.
 2. **Supabase → Authentication**:
    - *Sign In / Providers → Email*: deixe ligado; desligue **Allow new users to sign up**; comprimento do código (OTP length) = 6.
    - *URL Configuration*: Site URL = endereço do app; Redirect URLs = `https://SEU-APP/auth/callback` (e `http://localhost:3000/auth/callback`).

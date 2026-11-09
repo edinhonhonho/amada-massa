@@ -13,7 +13,8 @@ import { carregarFaixas, nomeCompleto, um } from "@/lib/dados";
 import { CANAIS, MODALIDADES, STATUS_CLIENTE, dataBR, hojeISO, linkWhatsApp, reais } from "@/lib/format";
 import { ROTULO_SITUACAO, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
 import { STATUS_ENTREGA } from "@/lib/semana";
-import { concluirContato, excluirCliente, mudarStatus, registrarContato, trocarPlano } from "../actions";
+import { concluirContato, excluirCliente, mudarStatus, registrarContato } from "../actions";
+import TrocarPlanoForm from "./TrocarPlanoForm";
 
 const TOM_SIT: Record<Situacao, Tom> = { em_dia: "verde", a_vencer: "azul", vence_hoje: "ambar", atrasado: "laranja", atraso_critico: "vermelho", sem_cobranca: "cinza" };
 const TOM_STATUS: Record<string, Tom> = { ativo: "verde", pausado: "ambar", cancelado: "cinza" };
@@ -27,22 +28,22 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   const { id } = await params;
   const { supabase, usuario } = await exigirEquipe();
   const hoje = hojeISO();
-  const faixas = await carregarFaixas(supabase);
 
-  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: modelos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }] = await Promise.all([
+  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: modelos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }, faixas, { data: cobrancas }] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", id).single(),
     supabase.from("assinaturas").select("*, planos(nome, modalidade, paes_por_semana, valor_centavos), pontos_coleta(nome)").eq("cliente_id", id).order("inicio", { ascending: false }),
     supabase.from("contatos").select("*").eq("cliente_id", id).order("data", { ascending: false }).order("criado_em", { ascending: false }),
-    supabase.from("planos").select("id, nome, valor_centavos").eq("ativo", true).order("modalidade").order("paes_por_semana"),
-    supabase.from("pontos_coleta").select("id, nome").eq("ativo", true),
+    supabase.from("planos").select("id, nome, modalidade, paes_por_semana, valor_centavos").eq("ativo", true).order("valor_centavos"),
+    supabase.from("pontos_coleta").select("id, nome, tipo, endereco, horario_texto").eq("ativo", true).order("nome"),
     supabase.from("modelos_mensagem").select("chave, nome").order("nome"),
     supabase.from("entregas").select("id, status, ocorrencia, rota_nome, ponto_nome, semanas(inicio, sabor)").eq("cliente_id", id).order("semana_id", { ascending: false }).limit(8),
     supabase.from("membros").select("criado_em").eq("cliente_id", id).maybeSingle(),
     supabase.from("push_inscricoes").select("*", { count: "exact", head: true }).eq("cliente_id", id),
     supabase.from("atribuicoes_rota").select("rotas(nome, cor)").eq("cliente_id", id).is("fim", null).maybeSingle(),
+    carregarFaixas(supabase),
+    supabase.from("cobrancas").select("id, competencia, valor_centavos, vencimento, status, assinaturas!inner(cliente_id)").eq("assinaturas.cliente_id", id).order("competencia", { ascending: false }).limit(8),
   ]);
   if (!c) notFound();
-  const { data: cobrancas } = await supabase.from("cobrancas").select("id, competencia, valor_centavos, vencimento, status").in("assinatura_id", (assinaturas ?? []).map((a) => a.id)).order("competencia", { ascending: false }).limit(8);
 
   const atual = assinaturas?.find((a) => a.status === "ativa" || a.status === "pausada");
   const planoAtual = um(atual?.planos as never) as { nome: string; modalidade: keyof typeof MODALIDADES; paes_por_semana: number; valor_centavos: number } | null;
@@ -136,20 +137,8 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {atual && (
-                <Modal titulo="Trocar de plano" descricao="Encerra a assinatura atual e cria outra. O histórico é mantido." gatilho={<><Repeat size={15} />Trocar plano</>} gatilhoClasse="btn-sec btn-pequeno">
-                  <form action={trocarPlano} className="flex flex-col gap-4">
-                    <input type="hidden" name="cliente_id" value={id} /><input type="hidden" name="assinatura_id" value={atual.id} />
-                    <div><label className="rotulo">Novo plano</label>
-                      <select className="campo" name="plano_id" required>{planos?.map((p) => <option key={p.id} value={p.id}>{p.nome} — {reais(p.valor_centavos)}</option>)}</select></div>
-                    <div><label className="rotulo">Onde retira (se for coleta)</label>
-                      <select className="campo" name="ponto_coleta_id" defaultValue={atual.ponto_coleta_id ?? ""}><option value="">—</option>{pontos?.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div><label className="rotulo">Vale a partir de</label><input className="campo" type="date" name="inicio" defaultValue={hoje} /></div>
-                      <div><label className="rotulo">Valor combinado</label><input className="campo" name="valor" placeholder="Padrão do plano" /></div>
-                    </div>
-                    <div><label className="rotulo">Motivo do valor diferente</label><input className="campo" name="justificativa_valor" placeholder="Só se o valor não for o do catálogo" /></div>
-                    <div className="flex justify-end"><SubmitButton>Trocar plano</SubmitButton></div>
-                  </form>
+                <Modal titulo="Trocar de plano" descricao="Encerra a assinatura atual e cria outra. O histórico é mantido." gatilho={<><Repeat size={15} />Trocar plano</>} gatilhoClasse="btn-sec btn-pequeno" largo>
+                  <TrocarPlanoForm clienteId={id} assinaturaId={atual.id} planoAtualId={atual.plano_id} pontoAtualId={atual.ponto_coleta_id} planos={(planos ?? []) as never} pontos={(pontos ?? []) as never} hoje={hoje} />
                 </Modal>
               )}
               {c.status === "ativo" && (
