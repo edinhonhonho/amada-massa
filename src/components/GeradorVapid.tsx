@@ -26,7 +26,7 @@ export default function GeradorVapid({ problema }: { problema?: string }) {
   const [chaves, setChaves] = useState<{ publica: string; privada: string } | null>(null);
   const [gerando, setGerando] = useState(false);
   return (
-    <section className="cartao mt-6 max-w-2xl !p-6">
+    <section className="cartao max-w-2xl !p-6">
       <div className="cartao-titulo"><KeyRound size={16} className="text-amber-700" />Notificações no celular</div>
       <p className={`mb-4 rounded-xl p-3 text-sm ${problema ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-900"}`}>
         {problema ?? "As chaves estão configuradas e combinam entre si."}

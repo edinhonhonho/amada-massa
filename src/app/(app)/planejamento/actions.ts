@@ -11,20 +11,9 @@ const txt = (f: FormData, k: string) => {
   const v = f.get(k);
   return typeof v === "string" && v.trim() ? v.trim() : null;
 };
-const refresh = (id: string) => { revalidatePath(`/planejamento/${id}`); revalidatePath("/planejamento"); };
-const falhou = (id: string, msg: string): never => redirect(`/planejamento/${id}?erro=${encodeURIComponent(msg)}`);
+const refresh = (id: string) => { revalidatePath(`/semana/${id}`); revalidatePath("/planejamento"); };
+const falhou = (id: string, msg: string): never => redirect(`/semana/${id}?erro=${encodeURIComponent(msg)}`);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/** Pães tradicionais entram sozinhos nas semanas que ainda não os têm (sem mexer em quem já os tem). */
-async function incluirTradicionais(supabase: Awaited<ReturnType<typeof exigirEquipe>>["supabase"], semanas: string[]) {
-  if (!semanas.length) return;
-  const { data: trad } = await supabase.from("paes").select("id").eq("tradicional", true).eq("ativo", true);
-  if (!trad?.length) return;
-  const { data: existentes } = await supabase.from("paes_semana").select("semana_id, pao_id").in("semana_id", semanas);
-  const tem = new Set((existentes ?? []).map((e) => `${e.semana_id}|${e.pao_id}`));
-  const novas = semanas.flatMap((semana_id) => trad.filter((p) => !tem.has(`${semana_id}|${p.id}`)).map((p) => ({ semana_id, pao_id: p.id, ordem: 0 })));
-  if (novas.length) await supabase.from("paes_semana").insert(novas);
-}
 
 // ----------------------------------------------------------- calendário
 /** Abre (criando se preciso) a semana que começa na data indicada. */
@@ -34,9 +23,8 @@ export async function planejarSemana(f: FormData) {
   if (!inicio) return;
   await supabase.from("semanas").upsert({ inicio, fim: adicionarDias(inicio, 6) }, { onConflict: "inicio", ignoreDuplicates: true });
   const { data } = await supabase.from("semanas").select("id").eq("inicio", inicio).single();
-  if (data) await incluirTradicionais(supabase, [data.id]);
   revalidatePath("/planejamento");
-  redirect(data ? `/planejamento/${data.id}` : "/planejamento");
+  redirect(data ? `/semana/${data.id}` : "/planejamento");
 }
 
 /** Cria, de uma vez, todas as semanas (segunda a domingo) do ano que ainda não existem. */
@@ -49,8 +37,6 @@ export async function criarSemanasDoAno(f: FormData) {
   const linhas: { inicio: string; fim: string }[] = [];
   while (d <= `${ano}-12-31`) { linhas.push({ inicio: d, fim: adicionarDias(d, 6) }); d = adicionarDias(d, 7); }
   await supabase.from("semanas").upsert(linhas, { onConflict: "inicio", ignoreDuplicates: true });
-  const { data: criadas } = await supabase.from("semanas").select("id").gte("inicio", linhas[0].inicio).lte("inicio", linhas[linhas.length - 1].inicio);
-  await incluirTradicionais(supabase, (criadas ?? []).map((s) => s.id));
   revalidatePath("/planejamento");
   redirect(`/planejamento?ano=${ano}`);
 }
@@ -122,7 +108,7 @@ export async function avisarSaborMembros(f: FormData) {
   const { data: s } = await supabase.from("semanas").select("sabor").eq("id", id).single();
   if (!s?.sabor) return falhou(id, "Cadastre ao menos um pão antes de avisar os membros.");
   const n = await avisarSabor(id, s.sabor);
-  redirect(`/planejamento/${id}?etapa=consolidar&avisados=${n}`);
+  redirect(`/semana/${id}?etapa=consolidar&avisados=${n}`);
 }
 
 // ------------------------------------------------------------------ pães
@@ -144,7 +130,7 @@ export async function criarPao(f: FormData) {
   const { supabase } = await exigirEquipe();
   const semana = txt(f, "semana_id");
   const nome = txt(f, "nome");
-  const voltar = (msg: string) => (semana ? falhou(semana, msg) : redirect(`/planejamento/paes?erro=${encodeURIComponent(msg)}`));
+  const voltar = (msg: string) => (semana ? falhou(semana, msg) : redirect(`/paes?erro=${encodeURIComponent(msg)}`));
   if (!nome) return voltar("Informe o nome do pão.");
 
   const { data: existente } = await supabase.from("paes").select("id").ilike("nome", nome.replace(/[\\%_]/g, "\\$&")).maybeSingle();
@@ -161,7 +147,7 @@ export async function criarPao(f: FormData) {
     await supabase.rpc("distribuir_paes", { p_semana: semana });
     refresh(semana);
   } else {
-    revalidatePath("/planejamento/paes");
+    revalidatePath("/paes");
   }
 }
 
@@ -172,7 +158,7 @@ export async function salvarPao(f: FormData) {
   const nome = txt(f, "nome");
   if (!nome) return;
   const { error } = await supabase.from("paes").update({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos"), tradicional: f.get("tradicional") === "on" }).eq("id", id);
-  if (error) redirect(`/planejamento/paes?erro=${encodeURIComponent(error.code === "23505" ? "Já existe um pão com esse nome." : error.message)}`);
+  if (error) redirect(`/paes?erro=${encodeURIComponent(error.code === "23505" ? "Já existe um pão com esse nome." : error.message)}`);
   revalidatePath("/planejamento", "layout");
 }
 
@@ -180,9 +166,9 @@ export async function excluirPao(f: FormData) {
   const { supabase } = await exigirEquipe();
   const id = String(f.get("id"));
   const { count } = await supabase.from("paes_semana").select("*", { count: "exact", head: true }).eq("pao_id", id);
-  if (count) redirect("/planejamento/paes?erro=" + encodeURIComponent("Este pão está em semanas do planejamento. Tire-o delas antes de excluir."));
+  if (count) redirect("/paes?erro=" + encodeURIComponent("Este pão está em semanas do planejamento. Tire-o delas antes de excluir."));
   await supabase.from("paes").delete().eq("id", id);
-  revalidatePath("/planejamento/paes");
+  revalidatePath("/paes");
 }
 
 /** Tira o pão desta semana (continua no catálogo). */

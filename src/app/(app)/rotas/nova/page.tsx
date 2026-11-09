@@ -8,7 +8,7 @@ export default async function NovaRota() {
   const dados = await carregarDadosEditor(supabase);
   return (
     <>
-      <PageHeader voltar={{ href: "/rotas", rotulo: "Rotas" }} titulo="Nova rota" subtitulo="Escolha os clientes, deixe o sistema sugerir a ordem e trace o caminho no mapa para o entregador." />
+      <PageHeader voltar={{ href: "/rotas", rotulo: "Rotas" }} titulo="Nova rota" subtitulo="Diga quem é o responsável e quais bairros a rota cobre. O resto é montado a cada semana." />
       <RotaEditor {...dados} />
     </>
   );

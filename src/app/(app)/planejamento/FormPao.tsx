@@ -15,7 +15,7 @@ export default function FormPao({ semanaId, pao }: { semanaId?: string; pao?: Pa
       <div><label className="rotulo">Alérgenos</label><input className="campo" name="alergenos" defaultValue={pao?.alergenos ?? ""} placeholder="Separe por vírgula. Ex.: glúten, gergelim" /></div>
       <label className="flex items-start gap-2.5 rounded-xl bg-stone-50 p-3 text-sm shadow-sm">
         <input type="checkbox" name="tradicional" defaultChecked={pao?.tradicional} className="mt-0.5 size-4 accent-amber-700" />
-        <span><b className="font-medium">Pão tradicional</b><span className="block text-xs text-stone-500">Fixo: entra automaticamente em todas as semanas. Cada assinatura define quantos de seus pães são tradicionais.</span></span>
+        <span><b className="font-medium">Pão tradicional</b><span className="block text-xs text-stone-500">É um pão como os outros: só entra na semana se você escolher. Quando entra, participa da divisão; assinaturas com uma quantidade fixa de tradicionais recebem essa quantidade primeiro.</span></span>
       </label>
       {pao && <p className="ajuda -mt-2">A alteração vale em todas as semanas que usam este pão.</p>}
       <div className="flex justify-end"><SubmitButton>{pao ? "Salvar pão" : semanaId ? "Cadastrar e adicionar à semana" : "Cadastrar pão"}</SubmitButton></div>

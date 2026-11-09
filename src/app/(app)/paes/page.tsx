@@ -2,10 +2,9 @@ import { Pencil, Plus, Trash2, Wheat } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
-import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
-import { excluirPao } from "../actions";
-import FormPao from "../FormPao";
+import { excluirPao } from "../planejamento/actions";
+import FormPao from "../planejamento/FormPao";
 
 export default async function Paes({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
   const { erro } = await searchParams;
@@ -16,18 +15,14 @@ export default async function Paes({ searchParams }: { searchParams: Promise<{ e
   return (
     <>
       <PageHeader
-        voltar={{ href: "/planejamento", rotulo: "Planejamento" }}
-        titulo="Catálogo de pães"
-        subtitulo="Cadastre cada pão uma vez e use em quantas semanas quiser."
-        acoes={<Modal titulo="Novo pão" gatilho={<><Plus size={16} />Novo pão</>} gatilhoClasse="btn" largo><FormPao /></Modal>}
+        titulo="Pães"
+        subtitulo="Cadastre cada pão uma vez e escolha, semana a semana, quais saem. O pão tradicional é um pão como os outros."
       />
       {erro && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 shadow-sm">{erro}</p>}
-      {!paes.length ? (
-        <div className="cartao"><Vazio icone={Wheat} titulo="Nenhum pão cadastrado" texto="Cadastre aqui ou direto na semana, em Adicionar pão." /></div>
-      ) : (
-        <div className="grid grid-cols-2 gap-4">
+      {(
+        <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2 2xl:grid-cols-3">
           {paes.map((p) => (
-            <article key={p.id} className="cartao flex flex-col gap-2 transition hover:shadow-lg">
+            <article key={p.id} className="flex h-full flex-col gap-2 rounded-[24px] bg-painel p-5 ring-1 ring-stone-900/[0.04] transition hover:bg-white hover:shadow-[0_18px_40px_-24px_rgba(28,25,23,.35)] hover:ring-stone-900/10">
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 shadow-sm"><Wheat size={19} /></span>
                 <div className="min-w-0 flex-1">
@@ -50,6 +45,7 @@ export default async function Paes({ searchParams }: { searchParams: Promise<{ e
               </div>
             </article>
           ))}
+          <Modal titulo="Novo pão" gatilho={<><span className="flex size-11 items-center justify-center rounded-full bg-stone-100 transition group-hover:bg-amber-100"><Plus size={20} /></span><span className="font-semibold">Novo pão</span><span className="text-[13px] text-stone-400">Cadastre uma vez, use em várias semanas</span></>} gatilhoClasse="cartao-novo group" largo><FormPao /></Modal>
         </div>
       )}
     </>

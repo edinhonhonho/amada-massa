@@ -1,43 +1,63 @@
-import { AlertTriangle, ChevronRight, Clock, Plus, Route as RouteIcon, TriangleAlert, Users } from "lucide-react";
+import { AlertTriangle, ChevronRight, Clock, Plus, Route as RouteIcon, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/ui/Avatar";
 import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
+import { normBairro, rotaDoCliente, type RotaBairros } from "@/lib/bairros";
 import { DIAS_SEMANA, nomeCompleto, um } from "@/lib/dados";
 import { reais } from "@/lib/format";
 
-type Cli = { nome: string; sobrenome: string; bairro: string | null; status: string; assinaturas: { status: string; valor_centavos: number; planos: { modalidade: string; paes_por_semana: number } | null }[] };
+type Linha = { cliente_id: string; valor_centavos: number; planos: { paes_por_semana: number } | { paes_por_semana: number }[] | null; clientes: { id: string; nome: string; sobrenome: string | null; bairro: string | null } | { id: string; nome: string; sobrenome: string | null; bairro: string | null }[] | null };
 
 export default async function Rotas() {
   const { supabase } = await exigirEquipe();
-  const [{ data: rotas }, { data: atrib }, { data: pendentes }, { data: entregadores }] = await Promise.all([
+  const [{ data: rotas }, { data: atrib }, { data: ass }, { data: entregadores }] = await Promise.all([
     supabase.from("rotas").select("*").order("ativa", { ascending: false }).order("nome"),
-    supabase.from("atribuicoes_rota").select("rota_id, cliente_id, clientes(nome, sobrenome, bairro, status, assinaturas(status, valor_centavos, planos(modalidade, paes_por_semana)))").is("fim", null),
-    supabase.from("assinaturas").select("cliente_id, clientes(nome, sobrenome, bairro, status), planos!inner(modalidade)").eq("status", "ativa").eq("planos.modalidade", "entrega"),
+    supabase.from("atribuicoes_rota").select("cliente_id, rota_id").is("fim", null),
+    supabase.from("assinaturas").select("cliente_id, valor_centavos, planos!inner(modalidade, paes_por_semana), clientes!inner(id, nome, sobrenome, bairro, status)")
+      .eq("status", "ativa").eq("planos.modalidade", "entrega").eq("clientes.status", "ativo").range(0, 4999),
     supabase.from("usuarios").select("id, nome"),
   ]);
-  const atribuidos = new Set((atrib ?? []).map((a) => a.cliente_id));
-  const semRota = (pendentes ?? []).filter((p) => !atribuidos.has(p.cliente_id) && (um(p.clientes as never) as Cli | null)?.status === "ativo");
+  const manual = new Map((atrib ?? []).map((a) => [a.cliente_id as string, a.rota_id as string]));
   const nomeEnt = new Map((entregadores ?? []).map((e) => [e.id, e.nome]));
+  const regras: RotaBairros[] = (rotas ?? []).map((r) => ({ id: r.id, nome: r.nome, ativa: r.ativa, bairros: (r.bairros ?? []) as string[] }));
+
+  // cada cliente de entrega cai numa rota pelo bairro (ou fica sem rota)
+  const porRota = new Map<string, { clientes: Set<string>; paes: number; valor: number }>();
+  const semRota = new Map<string, { nome: string; bairro: string | null }>();
+  for (const a of (ass ?? []) as unknown as Linha[]) {
+    const c = um(a.clientes as never) as { id: string; nome: string; sobrenome: string | null; bairro: string | null } | null;
+    const pl = um(a.planos as never) as { paes_por_semana: number } | null;
+    if (!c) continue;
+    const rotaId = rotaDoCliente(c.bairro, manual.get(c.id), regras);
+    if (!rotaId) { semRota.set(c.id, { nome: nomeCompleto(c), bairro: c.bairro }); continue; }
+    const g = porRota.get(rotaId) ?? porRota.set(rotaId, { clientes: new Set(), paes: 0, valor: 0 }).get(rotaId)!;
+    g.clientes.add(c.id); g.paes += pl?.paes_por_semana ?? 0; g.valor += a.valor_centavos;
+  }
+  // bairros com clientes de entrega que nenhuma rota cobre
+  const semBairro = new Map<string, { nome: string; qtd: number }>();
+  for (const c of semRota.values()) {
+    const k = normBairro(c.bairro) || "—";
+    const e = semBairro.get(k) ?? { nome: c.bairro?.trim() || "Sem bairro no cadastro", qtd: 0 };
+    e.qtd++; semBairro.set(k, e);
+  }
 
   return (
     <>
       <PageHeader
         titulo="Rotas"
-        subtitulo="Cada cliente de entrega pertence a uma rota. O entregador vê só a rota dele, na ordem das paradas."
-        acoes={<Link href="/rotas/nova" className="btn"><Plus size={16} />Nova rota</Link>}
+        subtitulo="Cada rota cobre alguns bairros e tem um responsável. Quem entra, a ordem e o caminho são montados a cada semana."
       />
 
-      {semRota.length > 0 && (
-        <div className="mb-5 flex items-start gap-3 rounded-xl bg-amber-50 shadow-sm p-4 text-sm text-amber-950">
+      {semRota.size > 0 && (
+        <div className="mb-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />
           <div>
-            <b>{semRota.length} cliente(s) de entrega ainda sem rota</b> — não entram nas listas até serem atribuídos:{" "}
-            {semRota.map((p, i) => (
-              <span key={p.cliente_id}>{i > 0 && ", "}<Link className="font-medium underline" href={`/clientes/${p.cliente_id}`}>{nomeCompleto(um(p.clientes as never))}</Link></span>
-            ))}
+            <b>{semRota.size} {semRota.size === 1 ? "cliente de entrega está" : "clientes de entrega estão"} em bairros sem rota</b> e não entram nas listas:{" "}
+            {[...semBairro.values()].map((b, i) => <span key={b.nome}>{i > 0 && ", "}<b className="font-semibold">{b.nome}</b> ({b.qtd})</span>)}.
+            Inclua esses bairros numa rota.
           </div>
         </div>
       )}
@@ -45,26 +65,18 @@ export default async function Rotas() {
       {!rotas?.length ? (
         <div className="cartao"><Vazio icone={RouteIcon} titulo="Nenhuma rota ainda" texto="Crie a primeira rota e depois atribua os clientes de entrega a ela." acao={<Link href="/rotas/nova" className="btn"><Plus size={16} />Nova rota</Link>} /></div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 2xl:grid-cols-2 xl:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-5 xl:grid-cols-2">
           {rotas.map((r) => {
-            const membros = (atrib ?? []).filter((a) => a.rota_id === r.id);
-            let paes = 0, valor = 0;
-            const bairros = new Set<string>();
-            for (const m of membros) {
-              const c = um(m.clientes as never) as Cli | null;
-              if (!c) continue;
-              if (c.bairro) bairros.add(c.bairro);
-              for (const a of c.assinaturas ?? []) {
-                const pl = um(a.planos as never) as { modalidade: string; paes_por_semana: number } | null;
-                if (a.status === "ativa" && pl?.modalidade === "entrega" && c.status === "ativo") { paes += pl.paes_por_semana; valor += a.valor_centavos; }
-              }
-            }
+            const g = porRota.get(r.id);
+            const membros = [...(g?.clientes ?? [])];
+            const paes = g?.paes ?? 0, valor = g?.valor ?? 0;
+            const lista = (r.bairros ?? []) as string[];
             const estourou = !!r.capacidade_paes && paes > r.capacidade_paes;
             const entregador = r.entregador_id ? nomeEnt.get(r.entregador_id) : null;
-            const lista = [...bairros];
+
             const ocupacao = r.capacidade_paes ? Math.min(100, Math.round((paes / r.capacidade_paes) * 100)) : null;
             return (
-              <Link key={r.id} href={`/rotas/${r.id}`} className={`group flex flex-col gap-4 rounded-[24px] bg-painel p-5 ring-1 ring-stone-900/[0.04] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_40px_-24px_rgba(28,25,23,.35)] hover:ring-stone-900/10 ${r.ativa ? "" : "opacity-60"}`}>
+              <Link key={r.id} href={`/rotas/${r.id}`} className={`group flex h-full flex-col gap-4 rounded-[24px] bg-painel p-5 ring-1 ring-stone-900/[0.04] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_18px_40px_-24px_rgba(28,25,23,.35)] hover:ring-stone-900/10 ${r.ativa ? "" : "opacity-60"}`}>
                 <div className="flex items-start gap-3.5">
                   <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-[0_8px_16px_-8px_rgba(28,25,23,.5)]" style={{ background: r.cor }}><RouteIcon size={20} /></span>
                   <div className="min-w-0 flex-1">
@@ -89,17 +101,22 @@ export default async function Rotas() {
                 </div>
                 {estourou && <p className="-mt-1 flex items-center gap-1.5 text-[13px] font-medium text-red-700"><AlertTriangle size={14} />Acima da capacidade da rota</p>}
 
-                <div className="flex items-center gap-2">
+                <div className="mt-auto flex items-center gap-2">
                   <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
                     {lista.slice(0, 5).map((b) => <span key={b} className="rounded-full bg-white px-2.5 py-0.5 text-xs text-stone-600 shadow-[0_0_0_1px_rgba(28,25,23,.06)]">{b}</span>)}
                     {lista.length > 5 && <span className="rounded-full px-2 py-0.5 text-xs text-stone-400">+{lista.length - 5}</span>}
-                    {!lista.length && <span className="flex items-center gap-1.5 text-[13px] text-stone-400"><Users size={13} />Sem clientes ainda</span>}
+                    {!lista.length && <span className="flex items-center gap-1.5 text-[13px] text-amber-700"><TriangleAlert size={13} />Nenhum bairro definido</span>}
                   </div>
                   <ChevronRight size={18} className="shrink-0 text-stone-300 transition group-hover:translate-x-0.5 group-hover:text-stone-500" />
                 </div>
               </Link>
             );
           })}
+          <Link href="/rotas/nova" className="cartao-novo group">
+            <span className="flex size-11 items-center justify-center rounded-full bg-stone-100 transition group-hover:bg-amber-100"><Plus size={20} /></span>
+            <span className="font-semibold">Nova rota</span>
+            <span className="text-[13px] text-stone-400">Defina o responsável e os bairros</span>
+          </Link>
         </div>
       )}
     </>

@@ -10,7 +10,10 @@ const nextConfig: NextConfig = {
     // "Semanas" virou "Planejamento": mantém links antigos funcionando.
     return [
       { source: "/semanas", destination: "/planejamento", permanent: true },
-      { source: "/semanas/:path*", destination: "/planejamento/:path*", permanent: true },
+      { source: "/semanas/:path*", destination: "/semana/:path*", permanent: true },
+      // endereços antigos da semana e do catálogo de pães
+      { source: "/planejamento/paes", destination: "/paes", permanent: true },
+      { source: "/planejamento/:id([0-9a-f-]{36})/:resto*", destination: "/semana/:id/:resto*", permanent: true },
     ];
   },
 };

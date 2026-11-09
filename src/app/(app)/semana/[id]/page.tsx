@@ -1,6 +1,7 @@
-import { AlertTriangle, ArrowLeft, ArrowRight, Bell, Check, CircleCheck, FileDown, Lock, LockOpen, MapPin, Moon, MoreHorizontal, PackageCheck, Plus, RotateCcw, Route as RouteIcon, SkipForward, Store, Trash2, Truck, Undo2, Users, Wheat, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Bell, ChevronDown, Check, CircleCheck, FileDown, Lock, LockOpen, MapPin, Moon, MoreHorizontal, PackageCheck, Plus, RotateCcw, Route as RouteIcon, SkipForward, Store, Trash2, Truck, Undo2, Users } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import BuscaTabela from "@/components/BuscaTabela";
 import ChipsBairro from "@/components/ChipsBairro";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
@@ -10,17 +11,19 @@ import SubmitButton from "@/components/ui/SubmitButton";
 import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
 import { dataBR } from "@/lib/format";
+import { organizarRotasDaSemana } from "@/lib/rota-semanal";
+import { semAcento } from "@/lib/dados";
 import { carregarSemanaCompleta, estaAtiva, type Grupo, type PaoSemana } from "@/lib/planejamento";
 import { ETAPAS, estadoEtapas, etapaAtual, type EstadoEtapa } from "@/lib/etapas";
 import { STATUS_SEMANA } from "@/lib/semana";
 import {
   adicionarPaesSemana, alternarListaFechada, alternarPuloLinha, alternarSemProducao, avisarSaborMembros, excluirSemana,
   marcarRetirada, moverClientes, removerPaoSemana, restaurarDivisao, salvarQuantidades, salvarSemana,
-} from "../actions";
-import FormPao from "../FormPao";
+} from "../../planejamento/actions";
+import FormPao from "../../planejamento/FormPao";
 
 const slug = (chave: string) => chave.replace(/[^a-z0-9]+/gi, "-");
-const pdfHref = (semana: string, chave: string) => `/planejamento/${semana}/pdf/${slug(chave).replace(/^rota-sem$/, "rota-sem")}`;
+const pdfHref = (semana: string, chave: string) => `/semana/${semana}/pdf/${slug(chave).replace(/^rota-sem$/, "rota-sem")}`;
 
 function BadgeSituacao({ status }: { status: string }) {
   if (status === "pulada") return <Badge tom="cinza">Pulou a semana</Badge>;
@@ -51,6 +54,10 @@ function CartaoGrupo({ g, paes, semanaId, rotas }: { g: Grupo; paes: PaoSemana[]
       </header>
       {semRota && <p className="bg-amber-50 px-5 py-2 text-sm text-amber-900">Estes clientes de entrega ainda não estão em nenhuma rota. Marque-os abaixo e mova para uma rota.</p>}
 
+      <details className="group/lista" open={semRota || g.linhas.length <= 8}>
+      <summary className="flex cursor-pointer list-none items-center gap-2 border-b border-stone-100 bg-stone-50/60 px-5 py-2 text-[13px] font-medium text-stone-500 marker:hidden hover:text-stone-800 [&::-webkit-details-marker]:hidden">
+        <ChevronDown size={14} className="transition group-open/lista:rotate-180" /><span className="group-open/lista:hidden">Mostrar os {g.linhas.length} clientes</span><span className="hidden group-open/lista:inline">Recolher a lista</span>
+      </summary>
       <form id={formId} action={salvarQuantidades}>
         <input type="hidden" name="semana_id" value={semanaId} />
         <button type="submit" tabIndex={-1} className="sr-only" aria-hidden>Salvar</button>
@@ -132,6 +139,7 @@ function CartaoGrupo({ g, paes, semanaId, rotas }: { g: Grupo; paes: PaoSemana[]
           </div>
         )}
       </form>
+      </details>
     </section>
   );
 }
@@ -141,7 +149,7 @@ function Checklist({ id, itens }: { id: string; itens: { ok: boolean; texto: str
     <ul className="cartao mb-5 flex flex-col gap-1 !p-3" aria-label="Antes de enviar">
       {itens.map((i) => (
         <li key={i.texto}>
-          <Link href={`/planejamento/${id}?etapa=${i.etapa}`} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-stone-50">
+          <Link href={`/semana/${id}?etapa=${i.etapa}`} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-stone-50">
             <span className={`flex size-6 shrink-0 items-center justify-center rounded-full ${i.ok ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{i.ok ? <Check size={14} /> : <AlertTriangle size={13} />}</span>
             <span className={i.ok ? "text-stone-600" : "font-medium text-stone-900"}>{i.texto}</span>
             {!i.ok && <ArrowRight size={14} className="ml-auto text-stone-400" />}
@@ -159,20 +167,21 @@ function ListaClientes({ grupos, semanaId }: { grupos: Grupo[]; semanaId: string
   const conta = (f: (s: string) => boolean) => linhas.filter(({ l }) => f(l.status)).length;
   const recebem = conta(estaAtiva), pulados = conta((x) => x === "pulada"), suspensos = conta((x) => x === "suspensa_atraso");
   return (
-    <section className="cartao overflow-hidden !p-0">
-      <header className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-stone-100 px-5 py-3.5">
+    <section id="lista-semana" className="cartao overflow-hidden !p-0">
+      <header className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-stone-100 px-5 py-3.5">
         <h2 className="font-semibold">Quem recebe nesta semana</h2>
         <span className="text-sm text-stone-500"><b className="text-stone-800">{recebem}</b> recebem</span>
         {pulados > 0 && <span className="text-sm text-stone-500"><b className="text-stone-800">{pulados}</b> pularam</span>}
         {suspensos > 0 && <span className="text-sm text-amber-800"><b>{suspensos}</b> suspensos por atraso</span>}
-        <Link href="/clientes/novo" className="btn-sec btn-pequeno ml-auto"><Plus size={14} />Novo cliente</Link>
+        <span className="ml-auto"><BuscaTabela alvo="#lista-semana" placeholder="Buscar cliente ou destino" /></span>
+        <Link href="/clientes/novo" className="btn-sec btn-pequeno"><Plus size={14} />Novo cliente</Link>
       </header>
       <p className="border-b border-stone-100 bg-stone-50/60 px-5 py-2.5 text-xs text-stone-500">Quem tem assinatura ativa entra sozinho. Quem estiver em atraso fica suspenso até pagar. Use “Pular” para quem não recebe só nesta semana.</p>
       <table className="tabela">
         <thead><tr><th>Cliente</th><th>Plano</th><th>Destino</th><th className="text-center">Pães</th><th>Situação</th><th /></tr></thead>
         <tbody>
           {linhas.map(({ l, g }) => (
-            <tr key={l.id} className={estaAtiva(l.status) ? "" : "opacity-65"}>
+            <tr key={l.id} data-busca={semAcento(`${l.nome} ${g.chave === "rota:sem" ? "sem rota" : g.nome} ${l.bairro ?? ""}`)} className={estaAtiva(l.status) ? "" : "opacity-65"}>
               <td><Link href={`/clientes/${l.cliente_id}`} className="font-medium hover:underline">{l.nome}</Link></td>
               <td className="text-sm text-stone-600">{l.paesPlano} {l.paesPlano > 1 ? "pães" : "pão"}/sem</td>
               <td className="text-sm text-stone-600">{g.chave === "rota:sem" ? <span className="text-amber-800">Sem rota</span> : g.nome}<span className="ml-1.5 text-xs text-stone-400">{g.tipo === "entrega" ? "entrega" : g.tipo === "padaria" ? "padaria" : "ponto"}</span></td>
@@ -198,7 +207,7 @@ function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: Estad
         return (
           <li key={e.id}>
             <Link
-              href={`/planejamento/${semanaId}?etapa=${e.id}`} aria-current={ativa ? "step" : undefined}
+              href={`/semana/${semanaId}?etapa=${e.id}`} aria-current={ativa ? "step" : undefined}
               className={`flex h-full items-start gap-3 rounded-2xl p-4 transition ${ativa ? "bg-white shadow-[0_10px_28px_-10px_rgba(28,25,23,.25)] ring-1 ring-stone-900/10" : "bg-painel ring-1 ring-stone-900/[0.04] hover:bg-white hover:shadow-md"}`}
             >
               <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${e.feita ? "bg-emerald-100 text-emerald-700" : ativa ? "bg-amber-700 text-white" : "bg-stone-100 text-stone-500"}`}>
@@ -279,9 +288,12 @@ export default async function Semana({ params, searchParams }: { params: Promise
 
   // Ao abrir a semana, quem tem assinatura ativa entra sozinho (idempotente): não existe mais "abrir semana".
   await supabase.rpc("preparar_semana", { p_semana: id });
+  // com a lista ainda aberta, a ordem das paradas e o caminho de cada rota seguem quem está na semana
+  const { data: aberta } = await supabase.from("semanas").select("lista_fechada").eq("id", id).maybeSingle();
+  if (aberta && !aberta.lista_fechada && ["alocar", "consolidar", "acompanhar"].includes(etapaPedida ?? "alocar")) await organizarRotasDaSemana(supabase, id);
   const [dados, { data: catalogo }, { data: rotas }] = await Promise.all([
     carregarSemanaCompleta(supabase, id),
-    supabase.from("paes").select("id, nome, ingredientes, alergenos").eq("ativo", true).order("nome"),
+    supabase.from("paes").select("id, nome, descricao, ingredientes, alergenos, tradicional").eq("ativo", true).order("nome"),
     supabase.from("rotas").select("id, nome, entregador_id").eq("ativa", true).order("nome"),
   ]);
   if (!dados) notFound();
@@ -291,7 +303,6 @@ export default async function Semana({ params, searchParams }: { params: Promise
   const somaTipo = (t: Grupo["tipo"]) => doTipo(t).reduce((a, g) => ({ c: a.c + g.ativos, p: a.p + g.totalPaes }), { c: 0, p: 0 });
   const entrega = somaTipo("entrega"), pontos = somaTipo("ponto"), padaria = somaTipo("padaria");
   const naSemana = new Set(paes.map((p) => p.id));
-  const disponiveis = (catalogo ?? []).filter((p) => !naSemana.has(p.id));
   const semAtribuir = grupos.find((g) => g.chave === "rota:sem")?.ativos ?? 0;
 
   const semEntregador = new Set((rotas ?? []).filter((r) => !r.entregador_id).map((r) => r.id));
@@ -305,7 +316,7 @@ export default async function Semana({ params, searchParams }: { params: Promise
   });
   const etapa = etapaAtual(estados, etapaPedida);
   const indice = estados.findIndex((e) => e.id === etapa);
-  const link = (e: string) => `/planejamento/${id}?etapa=${e}`;
+  const link = (e: string) => `/semana/${id}?etapa=${e}`;
 
   return (
     <>
@@ -343,58 +354,34 @@ export default async function Semana({ params, searchParams }: { params: Promise
       <Etapas semanaId={id} estados={estados} atual={etapa} />
 
       {etapa === "planejar" && (
-        <>
-      <section className="cartao !p-0">
-        <header className="flex items-center gap-3 border-b border-stone-100 px-5 py-3.5">
-          <h2 className="flex items-center gap-2 font-semibold"><Wheat size={17} className="text-stone-400" />Pães da semana <span className="font-normal text-stone-400">{paes.length}</span></h2>
-          <div className="ml-auto flex items-center gap-2">
-            <Modal titulo="Adicionar pão à semana" descricao="Escolha um pão já cadastrado ou cadastre um novo. O pão fica no catálogo e pode ser usado em outras semanas." gatilho={<><Plus size={16} />Adicionar pão</>} gatilhoClasse="btn" largo>
-              <div className="flex flex-col gap-6">
-                {disponiveis.length > 0 && (
-                  <form action={adicionarPaesSemana} className="flex flex-col gap-3">
-                    <input type="hidden" name="semana_id" value={id} />
-                    <div className="text-sm font-semibold">Do catálogo</div>
-                    <ul className="max-h-56 divide-y divide-stone-100 overflow-y-auto rounded-xl bg-stone-50/60 shadow-inner">
-                      {disponiveis.map((p) => (
-                        <li key={p.id}>
-                          <label className="flex cursor-pointer items-start gap-3 px-3 py-2.5 hover:bg-amber-50/60">
-                            <input type="checkbox" name="pao_id" value={p.id} className="mt-1 size-4 accent-amber-700" />
-                            <span className="text-sm"><b className="font-medium">{p.nome}</b>{p.ingredientes && <span className="block text-xs text-stone-500">{p.ingredientes}</span>}</span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="flex justify-end"><SubmitButton className="btn-sec">Adicionar os marcados</SubmitButton></div>
-                  </form>
-                )}
-                <div className={disponiveis.length ? "border-t border-stone-100 pt-5" : ""}>
-                  <div className="mb-3 text-sm font-semibold">{disponiveis.length ? "Ou cadastre um pão novo" : "Cadastrar pão"}</div>
-                  <FormPao semanaId={id} />
-                </div>
-              </div>
-            </Modal>
+        <section>
+          <header className="mb-4 flex flex-wrap items-baseline gap-x-3">
+            <h2 className="text-[17px] font-semibold tracking-tight">Quais pães saem nesta semana?</h2>
+            <span className="text-sm text-stone-400">{paes.length} {paes.length === 1 ? "escolhido" : "escolhidos"} · toque num pão para escolher ou tirar</span>
+          </header>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] items-stretch gap-3">
+            {[...(catalogo ?? [])].sort((x, y) => Number(naSemana.has(y.id)) - Number(naSemana.has(x.id)) || x.nome.localeCompare(y.nome, "pt-BR")).map((p) => {
+              const sel = naSemana.has(p.id);
+              return (
+                <form key={p.id} action={sel ? removerPaoSemana : adicionarPaesSemana} className="h-full">
+                  <input type="hidden" name="semana_id" value={id} /><input type="hidden" name="pao_id" value={p.id} />
+                  <button className={`flex h-full w-full flex-col gap-2 rounded-[22px] p-4 text-left transition active:scale-[.985] ${sel ? "bg-amber-50 shadow-[0_14px_30px_-18px_rgba(180,83,9,.6)]" : "bg-painel ring-1 ring-stone-900/[0.04] hover:bg-white hover:shadow-md"}`} aria-pressed={sel}>
+                    <span className="flex items-start gap-2">
+                      <b className="flex-1 leading-tight">{p.nome}</b>
+                      <span className={`flex size-6 shrink-0 items-center justify-center rounded-full transition ${sel ? "bg-amber-700 text-white" : "bg-white text-stone-400 shadow-[0_0_0_1px_rgba(28,25,23,.1)]"}`}>{sel ? <Check size={14} strokeWidth={3} /> : <Plus size={14} />}</span>
+                    </span>
+                    {p.tradicional && <span className="selo selo-ambar w-fit">Tradicional</span>}
+                    {(p.descricao || p.ingredientes) && <span className="line-clamp-2 text-[13px] leading-snug text-stone-500">{p.descricao || p.ingredientes}</span>}
+                    {sel && <span className="mt-auto pt-1 text-sm text-amber-900"><b className="text-lg font-semibold tabular-nums">{totaisPorPao[p.id] ?? 0}</b> a produzir</span>}
+                  </button>
+                </form>
+              );
+            })}
+            <Modal titulo="Cadastrar pão novo" descricao="Ele entra no catálogo e já é escolhido para esta semana." gatilho={<><span className="flex size-10 items-center justify-center rounded-full bg-stone-100 transition group-hover:bg-amber-100"><Plus size={18} /></span><span className="font-semibold">Novo pão</span></>} gatilhoClasse="cartao-novo group !min-h-[120px] !rounded-[22px]" largo><FormPao semanaId={id} /></Modal>
           </div>
-        </header>
-        {!paes.length ? (
-          <Vazio icone={Wheat} titulo="Nenhum pão nesta semana" texto="Adicione os pães: o sistema divide entre os clientes e calcula quanto produzir." />
-        ) : (
-          <ul className="grid grid-cols-3 gap-4 p-5">
-            {paes.map((p) => (
-              <li key={p.id} className="flex flex-col gap-1.5 rounded-xl bg-stone-50/80 p-4 shadow-sm">
-                <div className="flex items-start gap-2">
-                  <b className="flex-1 leading-tight">{p.nome}{p.tradicional && <span className="selo selo-ambar ml-2 align-middle">Tradicional</span>}</b>
-                  <form action={removerPaoSemana}><input type="hidden" name="semana_id" value={id} /><input type="hidden" name="pao_id" value={p.id} />
-                    <SubmitButton className="btn-ghost !p-1 hover:!bg-red-50 hover:!text-red-700"><span className="sr-only">Tirar da semana</span><X size={15} /></SubmitButton></form>
-                </div>
-                <div className="text-2xl font-semibold tracking-tight">{totaisPorPao[p.id] ?? 0}<span className="ml-1 text-sm font-normal text-stone-500">a produzir</span></div>
-                {p.ingredientes && <p className="text-xs text-stone-600">{p.ingredientes}</p>}
-                {p.alergenos && <div className="flex flex-wrap gap-1">{p.alergenos.split(",").map((a) => a.trim()).filter(Boolean).map((a) => <span key={a} className="selo selo-laranja">{a}</span>)}</div>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-        </>
+          {!(catalogo ?? []).length && <p className="mt-3 text-sm text-stone-500">O catálogo está vazio. Cadastre o primeiro pão no cartão acima.</p>}
+          <p className="mt-5 text-xs leading-relaxed text-stone-400">O sistema divide os pães de cada plano entre os pães escolhidos, o tradicional inclusive. Os clientes com quantidade fixa de tradicionais recebem essa quantidade primeiro.</p>
+        </section>
       )}
 
       {etapa === "consolidar" && (
@@ -407,7 +394,7 @@ export default async function Semana({ params, searchParams }: { params: Promise
       ]} />
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
         {paes.length > 0 && <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} /><SubmitButton className="btn-sec"><Bell size={16} />Avisar os clientes sobre os pães</SubmitButton></form>}
-        <a href={`/planejamento/${id}/pdf/producao`} target="_blank" className="btn-sec"><FileDown size={16} />PDF da produção</a>
+        <a href={`/semana/${id}/pdf/producao`} target="_blank" className="btn-sec"><FileDown size={16} />PDF da produção</a>
         <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
           <SubmitButton className={s.lista_fechada ? "btn-sec" : "btn"}>{s.lista_fechada ? <><LockOpen size={16} />Reabrir lista</> : <><Lock size={16} />Fechar a lista da semana</>}</SubmitButton></form>
       </div>

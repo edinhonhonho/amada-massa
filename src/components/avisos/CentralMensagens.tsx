@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CheckCheck, ChevronDown, Loader2, PenSquare, Repeat2, Search, Smartphone, TriangleAlert, UserCheck } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, Loader2, Repeat2, Search, Smartphone, TriangleAlert, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { detalheAviso, type DetalheAviso } from "@/app/(app)/mensagens/actions";
@@ -46,11 +46,10 @@ export default function CentralMensagens({ opcoes, modelos, historico, indicador
         {indicadores.leitura !== null && <span className="flex items-center gap-1.5"><CheckCheck size={13} className="text-stone-400" />leitura média de <b className="font-semibold text-stone-700">{indicadores.leitura}%</b> nos últimos 30 dias</span>}
       </p>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[1fr_330px]">
+      <div className="grid items-stretch gap-6 xl:grid-cols-[1fr_330px]">
         <div className="flex min-w-0 flex-col gap-7">
           <section ref={composer} aria-label="Novo aviso" className="scroll-mt-6 rounded-3xl bg-painel p-6 ring-1 ring-stone-900/[0.04]">
             <header className="mb-5 flex items-center gap-3">
-              <span className="flex size-10 items-center justify-center rounded-2xl bg-amber-700 text-white shadow-[0_8px_18px_-8px_rgba(180,83,9,.8)]"><PenSquare size={18} /></span>
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-semibold leading-tight tracking-tight">Novo aviso</h2>
                 <p className="text-[13px] text-stone-500">Chega no app Amada Massa e como notificação no celular.</p>
@@ -62,10 +61,11 @@ export default function CentralMensagens({ opcoes, modelos, historico, indicador
           <Enviados historico={historico} opcoes={opcoes} aoReusar={reusar} />
         </div>
 
-        <aside className="xl:sticky xl:top-6">
-          <section className="rounded-3xl bg-painel p-5 ring-1 ring-stone-900/[0.04]">
+        {/* no desktop o painel acompanha a altura do "Novo aviso": absolute não empurra a linha do grid */}
+        <aside className="relative min-h-[28rem]">
+          <section className="flex flex-col rounded-3xl bg-painel p-5 ring-1 ring-stone-900/[0.04] xl:absolute xl:inset-0">
             <ConviteApp qr={qr} link={link} />
-            <div className="my-4 h-px bg-stone-200/70" />
+            <div className="my-4 h-px shrink-0 bg-stone-200/70" />
             <NaoEntraram lista={naoEntraram} totalAtivos={indicadores.ativos} entraram={indicadores.entraram} />
           </section>
         </aside>
@@ -99,7 +99,7 @@ function NaoEntraram({ lista, totalAtivos, entraram }: { lista: NaoEntrou[]; tot
   const p = pct(entraram, totalAtivos);
 
   return (
-    <div>
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-baseline gap-2"><h2 className="font-semibold">Ainda não entraram</h2><span className="rounded-full bg-white px-2 text-xs font-medium tabular-nums text-stone-500 shadow-sm">{lista.length}</span></div>
       <div className="mt-3 flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-white shadow-inner" role="img" aria-label={`${p}% já entraram`}><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600" style={{ width: `${p}%` }} /></div>
@@ -114,7 +114,7 @@ function NaoEntraram({ lista, totalAtivos, entraram }: { lista: NaoEntrou[]; tot
               <input className="campo !rounded-xl !py-2 !pl-9 text-sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar nesta lista" aria-label="Buscar cliente que não entrou" />
             </div>
           )}
-          <div className="mt-3 max-h-[19rem] overflow-y-auto pr-1">
+          <div className="mt-3 min-h-0 flex-1 overflow-y-auto pr-1">
             {faltam.length > 0 && (
               <div className="mb-3">
                 <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800"><TriangleAlert size={12} />Faltam dados para entrar <span className="font-normal text-stone-400">{faltam.length}</span></div>

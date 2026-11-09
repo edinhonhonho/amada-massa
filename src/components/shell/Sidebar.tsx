@@ -8,7 +8,7 @@ import Avatar from "@/components/ui/Avatar";
 import Kbd from "@/components/ui/Kbd";
 import LogoApp from "@/components/LogoApp";
 import SairBotao from "@/components/SairBotao";
-import { GRUPOS } from "@/lib/nav";
+import { gruposVisiveis } from "@/lib/nav";
 import { useModificador } from "./useModificador";
 
 const ROTULO_PERFIL: Record<string, string> = { admin: "Administrador", operacao: "Operação", entregador: "Entregador" };
@@ -33,6 +33,13 @@ export default function Sidebar({
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
   }, []);
+  const [menuUsuario, setMenuUsuario] = useState(false);
+  useEffect(() => {
+    if (!menuUsuario) return;
+    const fora = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest("[data-menu-usuario]")) setMenuUsuario(false); };
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [menuUsuario]);
   const alternar = () => setRecolhida((v) => { try { localStorage.setItem("amada-lateral", v ? "0" : "1"); } catch { /* sem armazenamento */ } return !v; });
 
   return (
@@ -63,7 +70,7 @@ export default function Sidebar({
       </button>
 
       <nav className={`flex-1 overflow-y-auto pb-3 ${recolhida ? "px-3" : "px-4"}`}>
-        {GRUPOS.filter((g) => !g.admin || admin).map((g, gi) => (
+        {gruposVisiveis(admin).map((g, gi) => (
           <div key={gi} className="mt-4 first:mt-2">
             {g.titulo && (recolhida ? <div className="mx-3 mb-2 h-px bg-stone-200/80" aria-hidden /> : <div className="mb-1 px-2 text-[11.5px] font-medium tracking-wide text-stone-400">{g.titulo}</div>)}
             <ul className={g.fluxo ? "relative" : ""}>
@@ -100,25 +107,31 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div className={`mx-3 mb-1 flex rounded-2xl bg-white shadow-[0_0_0_1px_rgba(28,25,23,.05)] ${recolhida ? "flex-col items-center gap-1 p-2" : "items-center gap-2.5 p-2.5"}`}>
-        <span title={nome}><Avatar nome={nome} tamanho={34} /></span>
-        {!recolhida && (
-          <div className="min-w-0 flex-1 leading-tight">
-            <div className="truncate text-sm font-medium">{nome}</div>
-            <div className="text-xs text-stone-500">{ROTULO_PERFIL[perfil] ?? perfil}</div>
+      <div data-menu-usuario className="relative mx-3 mb-3">
+        {recolhida ? (
+          <>
+            <button type="button" onClick={() => setMenuUsuario((v) => !v)} aria-expanded={menuUsuario} aria-label="Menu do usuário" title={nome}
+              className="flex w-full justify-center rounded-2xl bg-white p-2 shadow-[0_0_0_1px_rgba(28,25,23,.05)] transition hover:shadow-md">
+              <Avatar nome={nome} tamanho={34} />
+            </button>
+            {menuUsuario && (
+              <div className="absolute bottom-0 left-full z-30 ml-3 w-56 rounded-2xl bg-white p-3 shadow-[0_20px_44px_-16px_rgba(28,25,23,.4),0_0_0_1px_rgba(28,25,23,.06)]">
+                <div className="mb-2 flex items-center gap-2.5"><Avatar nome={nome} tamanho={34} /><div className="min-w-0 leading-tight"><div className="truncate text-sm font-medium">{nome}</div><div className="text-xs text-stone-500">{ROTULO_PERFIL[perfil] ?? perfil}</div></div></div>
+                <form action={sair}><SairBotao className="btn-sec btn-pequeno w-full" icone={<LogOut size={14} />} titulo="Sair" rotulo="Sair" /></form>
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center gap-2.5 rounded-2xl bg-white p-2.5 shadow-[0_0_0_1px_rgba(28,25,23,.05)]">
+            <Avatar nome={nome} tamanho={34} />
+            <div className="min-w-0 flex-1 leading-tight">
+              <div className="truncate text-sm font-medium">{nome}</div>
+              <div className="text-xs text-stone-500">{ROTULO_PERFIL[perfil] ?? perfil}</div>
+            </div>
+            <form action={sair}><SairBotao className="btn-ghost !p-2" icone={<LogOut size={17} />} titulo="Sair" /></form>
           </div>
         )}
-        <form action={sair}>
-          <SairBotao className="btn-ghost !p-2" icone={<LogOut size={17} />} titulo="Sair" />
-        </form>
       </div>
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new Event("abrir-ajuda"))}
-        className="py-2.5 text-center text-xs text-stone-400 hover:text-stone-700"
-      >
-        {recolhida ? <Kbd>?</Kbd> : <>Atalhos de teclado <Kbd>?</Kbd></>}
-      </button>
     </aside>
   );
 }

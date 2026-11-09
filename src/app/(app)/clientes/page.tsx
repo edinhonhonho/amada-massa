@@ -1,16 +1,18 @@
-import { MessageCircle, Search, UserPlus, Users } from "lucide-react";
+import { MessageCircle, UserPlus, Users } from "lucide-react";
 import Link from "next/link";
 import Avatar from "@/components/ui/Avatar";
 import Badge, { type Tom } from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import Vazio from "@/components/ui/Vazio";
+import FiltrosClientes from "@/components/clientes/FiltrosClientes";
 import { exigirEquipe } from "@/lib/auth";
+import { normBairro, rotaDoCliente, type RotaBairros } from "@/lib/bairros";
 import { faixasEmCache } from "@/lib/cache";
-import { nomeCompleto, um } from "@/lib/dados";
+import { nomeCompleto, semAcento, um } from "@/lib/dados";
 import { MODALIDADES, hojeISO, linkWhatsApp, reais, soDigitos } from "@/lib/format";
 import { ROTULO_SITUACAO, pior, primeiroDoMes, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
 
-type Busca = { q?: string; status?: string; modalidade?: string; bairro?: string; pagamento?: string; plano?: string };
+type Busca = { status?: string; modalidade?: string; bairro?: string; pagamento?: string; plano?: string; rota?: string };
 type Assin = { status: string; valor_centavos: number; planos: { id: string; nome: string; modalidade: keyof typeof MODALIDADES; paes_por_semana: number } | null; pontos_coleta: { nome: string } | null };
 
 const TOM_STATUS: Record<string, Tom> = { ativo: "verde", pausado: "ambar", cancelado: "cinza" };
@@ -21,24 +23,16 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
   const b = await searchParams;
   const hoje = hojeISO();
 
-  let query = supabase
+  const query = supabase
     .from("clientes")
-    .select("id, nome, sobrenome, whatsapp, bairro, status, assinaturas(status, valor_centavos, planos(id, nome, modalidade, paes_por_semana), pontos_coleta(nome))")
+    .select("id, nome, sobrenome, email, whatsapp, bairro, status, assinaturas(status, valor_centavos, planos(id, nome, modalidade, paes_por_semana), pontos_coleta(nome))")
     .order("nome")
     .range(0, 999);
-  if (b.bairro) query = query.ilike("bairro", `%${b.bairro.replace(/[%,()]/g, "")}%`);
-  if (b.q) {
-    const t = b.q.replace(/[%,()*]/g, "").trim();
-    const d = soDigitos(t);
-    const partes = [`nome.ilike.%${t}%`, `sobrenome.ilike.%${t}%`, `email.ilike.%${t}%`];
-    if (d.length >= 3) partes.push(`whatsapp.ilike.%${d}%`);
-    query = query.or(partes.join(","));
-  }
-
-  const [{ data }, { data: cobs }, { data: atrib }, { data: planos }, faixas] = await Promise.all([
+  const [{ data }, { data: cobs }, { data: atrib }, { data: rotasDb }, { data: planos }, faixas] = await Promise.all([
     query,
     supabase.from("cobrancas").select("vencimento, status, assinaturas(cliente_id)").eq("competencia", primeiroDoMes(hoje)),
-    supabase.from("atribuicoes_rota").select("cliente_id, rotas(nome, cor)").is("fim", null),
+    supabase.from("atribuicoes_rota").select("cliente_id, rota_id").is("fim", null),
+    supabase.from("rotas").select("id, nome, cor, ativa, bairros").order("nome"),
     supabase.from("planos").select("id, nome").order("modalidade").order("paes_por_semana"),
     faixasEmCache(),
   ]);
@@ -48,13 +42,21 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
     const id = (um(c.assinaturas as never) as { cliente_id: string } | null)?.cliente_id;
     if (id) sit.set(id, [...(sit.get(id) ?? []), situacaoCobranca(c, hoje, faixas)]);
   }
-  const rotaDe = new Map((atrib ?? []).map((a) => [a.cliente_id, um(a.rotas as never) as { nome: string; cor: string } | null]));
+  const regras: RotaBairros[] = (rotasDb ?? []).map((r) => ({ id: r.id, nome: r.nome, ativa: r.ativa, bairros: (r.bairros ?? []) as string[] }));
+  const manual = new Map((atrib ?? []).map((a) => [a.cliente_id as string, a.rota_id as string]));
+  const rotaInfo = new Map((rotasDb ?? []).map((r) => [r.id as string, { nome: r.nome as string, cor: r.cor as string }]));
 
   const vigente = (c: NonNullable<typeof data>[number]) =>
     ((c.assinaturas as unknown as Assin[]) ?? []).find((a) => a.status === "ativa" || a.status === "pausada") ?? null;
   const planoDe = (c: NonNullable<typeof data>[number]) => { const a = vigente(c); return a ? { ...a, plano: um(a.planos as never) as Assin["planos"] } : null; };
 
+  const rotaDeCliente = (c: NonNullable<typeof data>[number]) => (planoDe(c)?.plano?.modalidade === "entrega" ? rotaDoCliente(c.bairro, manual.get(c.id), regras) : null);
+  const bairrosOpcoes = [...new Map((data ?? []).filter((c) => normBairro(c.bairro)).map((c) => [normBairro(c.bairro), (c.bairro ?? "").trim()])).entries()]
+    .map(([valor, rotulo]) => ({ valor, rotulo })).sort((x, y) => x.rotulo.localeCompare(y.rotulo, "pt-BR"));
+
   const base = (data ?? [])
+    .filter((c) => !b.bairro || normBairro(c.bairro) === b.bairro)
+    .filter((c) => !b.rota || (b.rota === "sem" ? planoDe(c)?.plano?.modalidade === "entrega" && !rotaDeCliente(c) : rotaDeCliente(c) === b.rota))
     .filter((c) => !b.modalidade || planoDe(c)?.plano?.modalidade === b.modalidade)
     .filter((c) => !b.plano || planoDe(c)?.plano?.id === b.plano)
     .filter((c) => !b.pagamento || (sit.has(c.id) && pior(sit.get(c.id)!) === b.pagamento));
@@ -71,7 +73,6 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
     return `/clientes${s ? `?${s}` : ""}`;
   };
   const abas = [["ativo", "Ativos", contagem.ativo], ["pausado", "Pausados", contagem.pausado], ["cancelado", "Cancelados", contagem.cancelado], ["todos", "Todos", contagem.todos]] as const;
-  const planoFiltrado = planos?.find((p) => p.id === b.plano);
 
   return (
     <>
@@ -93,27 +94,17 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
         })}
       </div>
 
-      <form className="mb-4 flex flex-wrap items-center gap-2">
-        <input type="hidden" name="status" value={statusAtual} />
-        <div className="relative min-w-64 flex-1">
-          <Search size={16} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-          <input className="campo !pl-10" name="q" defaultValue={b.q} placeholder="Buscar por nome, e-mail ou telefone" />
-        </div>
-        <select className="campo !w-auto" name="plano" defaultValue={b.plano ?? ""}>
-          <option value="">Todos os planos</option>
-          {planos?.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-        </select>
-        <select className="campo !w-auto" name="pagamento" defaultValue={b.pagamento ?? ""}>
-          <option value="">Pagamento: todos</option>
-          {Object.entries(ROTULO_SITUACAO).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <input className="campo !w-36" name="bairro" defaultValue={b.bairro} placeholder="Bairro" />
-        <button className="btn-sec">Filtrar</button>
-        {(b.q || b.plano || b.pagamento || b.bairro || b.modalidade) && <Link href={href({ q: undefined, plano: undefined, pagamento: undefined, bairro: undefined, modalidade: undefined })} className="btn-ghost">Limpar</Link>}
-      </form>
-      {planoFiltrado && <p className="mb-3 text-sm text-stone-600">Mostrando clientes do plano <b>{planoFiltrado.nome}</b>.</p>}
+      <FiltrosClientes
+        alvo="#lista-clientes" status={statusAtual}
+        filtros={{ plano: b.plano, modalidade: b.modalidade, pagamento: b.pagamento, rota: b.rota, bairro: b.bairro }}
+        planos={(planos ?? []).map((p) => ({ valor: p.id, rotulo: p.nome }))}
+        modalidades={Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor, rotulo }))}
+        pagamentos={Object.entries(ROTULO_SITUACAO).map(([valor, rotulo]) => ({ valor, rotulo }))}
+        rotas={[{ valor: "sem", rotulo: "Sem rota" }, ...(rotasDb ?? []).map((r) => ({ valor: r.id as string, rotulo: r.nome as string }))]}
+        bairros={bairrosOpcoes}
+      />
 
-      <div className="cartao overflow-hidden !p-0">
+      <div id="lista-clientes" className="cartao overflow-hidden !p-0">
         {!lista.length ? (
           <Vazio icone={Users} titulo="Nenhum cliente encontrado" texto="Ajuste os filtros ou cadastre quem acabou de confirmar a assinatura."
             acao={<Link href="/clientes/novo" className="btn"><UserPlus size={16} />Novo cliente</Link>} />
@@ -124,10 +115,11 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
               {lista.map((c) => {
                 const p = planoDe(c);
                 const s = sit.has(c.id) ? pior(sit.get(c.id)!) : null;
-                const rota = rotaDe.get(c.id);
+                const rotaId = rotaDeCliente(c);
+                const rota = rotaId ? rotaInfo.get(rotaId) : null;
                 const wa = linkWhatsApp(c.whatsapp);
                 return (
-                  <tr key={c.id}>
+                  <tr key={c.id} data-busca={semAcento(`${nomeCompleto(c)} ${c.email ?? ""} ${c.bairro ?? ""} ${p?.plano?.nome ?? ""} ${p?.plano ? MODALIDADES[p.plano.modalidade] : ""} ${rota?.nome ?? ""}`)} data-fone={soDigitos(c.whatsapp ?? "")}>
                     <td>
                       <Link href={`/clientes/${c.id}`} className="flex items-center gap-3">
                         <Avatar nome={nomeCompleto(c)} />

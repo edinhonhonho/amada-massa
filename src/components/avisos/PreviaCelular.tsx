@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Camera, Flashlight, Wifi } from "lucide-react";
+import { Bell, Camera, Flashlight, SlidersHorizontal, Wifi } from "lucide-react";
 import { useState } from "react";
 
 type Props = { titulo: string; corpo: string; nome?: string };
@@ -8,7 +8,7 @@ type Props = { titulo: string; corpo: string; nome?: string };
 function BarraStatus({ clara }: { clara?: boolean }) {
   const cor = clara ? "text-white" : "text-stone-900";
   return (
-    <div className={`absolute inset-x-0 top-0 z-10 flex items-center justify-between px-7 pt-3 text-[11px] font-semibold ${cor}`}>
+    <div className={`absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 pt-3.5 text-[11px] font-semibold ${cor}`}>
       <span className="tabular-nums">9:41</span>
       <span className="flex items-center gap-1">
         <span className="flex items-end gap-[1.5px]" aria-hidden>{[4, 6, 8, 10].map((h) => <i key={h} className="block w-[2.5px] rounded-[1px] bg-current" style={{ height: h }} />)}</span>
@@ -42,14 +42,13 @@ export default function PreviaCelular({ titulo, corpo, nome = "Maria" }: Props) 
         <div className="rounded-[2.9rem] bg-gradient-to-b from-stone-600 via-stone-800 to-stone-900 p-[3px] shadow-[0_34px_60px_-22px_rgba(28,25,23,.65)]">
           <div className="rounded-[2.75rem] bg-black p-[9px]">
             <div className={`relative h-[500px] overflow-hidden rounded-[2.15rem] ${aba === "tela" ? "bg-gradient-to-b from-amber-300 via-orange-300 to-rose-300" : "bg-gradient-to-b from-amber-50 to-stone-100"}`}>
-              <div className="absolute left-1/2 top-2.5 z-20 h-[22px] w-[78px] -translate-x-1/2 rounded-full bg-black" />
               {/* reflexo */}
               <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-br from-white/25 via-transparent to-transparent" />
 
               {aba === "tela" ? (
                 <>
                   <BarraStatus clara />
-                  <div className="pt-14 text-center text-white">
+                  <div className="pt-12 text-center text-white">
                     <div className="text-[12px] font-medium opacity-90">segunda-feira, 9 de novembro</div>
                     <div className="text-[58px] font-semibold leading-[1.02] tracking-tight">9:41</div>
                   </div>
@@ -73,31 +72,34 @@ export default function PreviaCelular({ titulo, corpo, nome = "Maria" }: Props) 
               ) : (
                 <>
                   <BarraStatus />
-                  <div className="px-3 pt-14">
-                    <div className="relative overflow-hidden rounded-[18px] bg-gradient-to-br from-amber-500 via-amber-600 to-amber-800 p-3.5 text-white shadow-lg">
-                      <i className="absolute -right-5 -top-6 size-20 rounded-full bg-white/10" aria-hidden />
-                      <div className="relative text-[10px] text-amber-100">Amada Massa</div>
-                      <div className="relative text-[18px] font-bold leading-tight">Olá, {nome}!</div>
-                      <div className="relative mt-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-medium"><Bell size={10} />1 aviso novo</div>
+                  <div className="px-3.5 pt-10">
+                    <div className="mb-3 flex items-center gap-1.5 text-[10px] font-semibold text-stone-500">
+                      <span className="flex size-[18px] items-center justify-center rounded-[6px] bg-gradient-to-br from-amber-500 to-amber-800 text-[9px] font-bold text-white">A</span>Amada Massa
                     </div>
-                    <div className="mt-3 px-1 text-[9px] font-semibold uppercase tracking-wider text-stone-400">Hoje</div>
-                    <div className="relative mt-1 flex gap-2.5 rounded-[18px] bg-white p-3 shadow-[0_10px_22px_-12px_rgba(146,64,14,.5)]">
-                      <span className="absolute right-3 top-3 size-2 rounded-full bg-amber-600 ring-4 ring-amber-100" />
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-base">📣</span>
-                      <div className="min-w-0 pr-3">
-                        <div className="line-clamp-2 text-[12.5px] font-semibold leading-snug [overflow-wrap:anywhere]">{t}</div>
-                        <div className="mt-0.5 line-clamp-5 whitespace-pre-line text-[12px] leading-snug text-stone-600 [overflow-wrap:anywhere]">{c}</div>
-                        <div className="mt-1.5 text-[10px] font-medium text-stone-400">09:41</div>
+                    <div className="text-[25px] font-bold leading-[1.05] tracking-tight text-stone-900">Olá, {nome}</div>
+                    <div className="mt-1 text-[11.5px] text-stone-500"><b className="font-semibold text-stone-900">1</b> aviso novo para você</div>
+
+                    <div className="mt-4 px-0.5 text-[9.5px] font-semibold text-stone-400">Hoje</div>
+                    <div className="relative mt-1.5 flex gap-2.5 rounded-[22px] bg-white p-3 shadow-[0_1px_2px_rgba(28,25,23,.04),0_14px_26px_-16px_rgba(28,25,23,.35)]">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-[15px]">📣</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start gap-1.5"><div className="line-clamp-2 min-w-0 flex-1 text-[12.5px] font-semibold leading-snug [overflow-wrap:anywhere]">{t}</div><span className="mt-1 size-2 shrink-0 rounded-full bg-amber-500" /></div>
+                        <div className="mt-0.5 line-clamp-5 whitespace-pre-line text-[11.5px] leading-snug text-stone-600 [overflow-wrap:anywhere]">{c}</div>
+                        <div className="mt-1.5 text-[9.5px] text-stone-400">09:41</div>
                       </div>
                     </div>
-                    <div className="mt-2 flex gap-2.5 rounded-[18px] bg-white/70 p-3 opacity-70">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-base">🚲</span>
-                      <div><div className="text-[12px] font-semibold">Sua rota iniciou</div><div className="text-[11px] text-stone-500">Ontem · 14:20</div></div>
+                    <div className="mt-2 flex gap-2.5 rounded-[22px] bg-white/70 p-3 opacity-80">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[15px]">🚲</span>
+                      <div><div className="text-[12px] font-semibold">Sua rota iniciou</div><div className="text-[10.5px] text-stone-500">Ontem · 14:20</div></div>
                     </div>
-                    <div className="mt-2 flex gap-2.5 rounded-[18px] bg-white/50 p-3 opacity-50">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-base">🍞</span>
-                      <div><div className="text-[12px] font-semibold">Seu pão chegou</div><div className="text-[11px] text-stone-500">Ontem · 15:02</div></div>
+                    <div className="mt-2 flex gap-2.5 rounded-[22px] bg-white/50 p-3 opacity-60">
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-[15px]">🍞</span>
+                      <div><div className="text-[12px] font-semibold">Seu pão chegou</div><div className="text-[10.5px] text-stone-500">Ontem · 15:02</div></div>
                     </div>
+                  </div>
+                  <div className="absolute inset-x-3 bottom-5 flex gap-0.5 rounded-full bg-white/90 p-1 shadow-[0_10px_24px_-10px_rgba(28,25,23,.45),0_0_0_1px_rgba(28,25,23,.05)] backdrop-blur">
+                    <span className="flex flex-1 items-center justify-center gap-1 rounded-full bg-stone-900 py-1.5 text-[10.5px] font-semibold text-white"><Bell size={11} />Avisos<i className="ml-0.5 rounded-full bg-amber-400 px-1 text-[9px] font-bold not-italic text-stone-900">1</i></span>
+                    <span className="flex flex-1 items-center justify-center gap-1 py-1.5 text-[10.5px] font-semibold text-stone-400"><SlidersHorizontal size={11} />Ajustes</span>
                   </div>
                   <div className="absolute inset-x-0 bottom-1.5 flex justify-center"><span className="h-1 w-24 rounded-full bg-stone-900/70" /></div>
                 </>

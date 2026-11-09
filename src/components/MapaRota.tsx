@@ -14,6 +14,8 @@ type Props = {
   cor: string;
   /** Destaca a parada atual (ex.: próxima do entregador). */
   destaque?: string | null;
+  /** Quando informado, os pontos podem ser arrastados para corrigir a localização (id da parada, ou "origem"). */
+  aoMover?: (id: string, lat: number, lng: number) => void;
 };
 
 const marcador = (n: string, cor: string, destaque = false) =>
@@ -32,10 +34,13 @@ const iconeOrigem = L.divIcon({
 });
 
 /** Mapa (OpenStreetMap) com ponto de partida, paradas numeradas e o trajeto. */
-export default function MapaRota({ origem, paradas, trajeto, cor, destaque }: Props) {
+export default function MapaRota({ origem, paradas, trajeto, cor, destaque, aoMover }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
   const camada = useRef<L.LayerGroup | null>(null);
+  const ultimaChave = useRef("");
+  const mover = useRef(aoMover);
+  mover.current = aoMover;
 
   useEffect(() => {
     if (!el.current || mapa.current) return;
@@ -63,15 +68,19 @@ export default function MapaRota({ origem, paradas, trajeto, cor, destaque }: Pr
       L.polyline(linha, { color: cor, weight: 5, opacity: 0.95, dashArray: trajeto?.length ? undefined : "8 8" }).addTo(g);
     }
     if (origem) {
-      L.marker([origem.lat, origem.lng], { icon: iconeOrigem, title: `Partida: ${origem.nome}`, zIndexOffset: 1000 }).bindTooltip(`Partida: ${origem.nome}`).addTo(g);
+      const mo = L.marker([origem.lat, origem.lng], { icon: iconeOrigem, title: `Partida: ${origem.nome}`, zIndexOffset: 1000, draggable: !!mover.current }).bindTooltip(`Partida: ${origem.nome}`).addTo(g);
+      mo.on("dragend", () => { const ll = mo.getLatLng(); mover.current?.("origem", ll.lat, ll.lng); });
       pts.push([origem.lat, origem.lng]);
     }
     paradas.forEach((p, i) => {
-      L.marker([p.lat, p.lng], { icon: marcador(String(i + 1), p.cor ?? cor, p.id === destaque), title: p.nome }).bindTooltip(`${i + 1}. ${p.nome}`).addTo(g);
+      const mk = L.marker([p.lat, p.lng], { icon: marcador(String(i + 1), p.cor ?? cor, p.id === destaque), title: p.nome, draggable: !!mover.current }).bindTooltip(`${i + 1}. ${p.nome}${mover.current ? " (arraste para corrigir)" : ""}`).addTo(g);
+      mk.on("dragend", () => { const ll = mk.getLatLng(); mover.current?.(p.id, ll.lat, ll.lng); });
       pts.push([p.lat, p.lng]);
     });
     for (const q of linha) pts.push(q);
-    if (pts.length) m.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 });
+    // só reenquadra quando o conjunto de pontos muda (arrastar um ponto não deve fazer o mapa pular)
+    const chave = `${origem ? "o" : ""}|${paradas.map((p) => p.id).join(",")}|${trajeto?.length ?? 0}`;
+    if (pts.length && chave !== ultimaChave.current) { m.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 }); ultimaChave.current = chave; }
   }, [origem, paradas, trajeto, cor, destaque]);
 
   return <div ref={el} className="size-full min-h-64 overflow-hidden rounded-2xl bg-stone-200" />;

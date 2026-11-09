@@ -25,4 +25,7 @@ $P -f tests/07_central_de_avisos.sql | tee /tmp/saida07.txt | grep -q ok7
 ! grep -E "^ *(.*)\| f$" /tmp/saida07.txt || { echo "teste 07 com verificação falsa"; cat /tmp/saida07.txt; exit 1; }
 $P -f migrations/0008_modelos_de_aviso.sql
 $P -f tests/08_modelos_aviso.sql | grep -q ok8
-echo "OK: migrações 0001-0008 e testes 01-08 passaram."
+$P -f migrations/0009_rotas_por_bairro.sql
+$P -f tests/09_rotas_bairro_tradicional.sql | tee /tmp/saida09.txt | grep -q ok9
+! grep -E "\| f$" /tmp/saida09.txt || { echo "teste 09 com verificação falsa"; cat /tmp/saida09.txt; exit 1; }
+echo "OK: migrações 0001-0009 e testes 01-09 passaram."

@@ -6,34 +6,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buscarClientes, type ResultadoBusca } from "@/app/(app)/busca-actions";
 import Avatar from "@/components/ui/Avatar";
 import Kbd from "@/components/ui/Kbd";
-import { GRUPOS, TODOS_ITENS } from "@/lib/nav";
-import { useModificador } from "./useModificador";
+import { TODOS_ITENS, gruposVisiveis } from "@/lib/nav";
 
 type Comando = { id: string; rotulo: string; grupo: string; href: string; icone: React.ReactNode; dica?: string; palavras?: string };
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-const ATALHOS_GERAIS = (mod: string): [string[], string][] => [
-  [[mod, "K"], "Abrir busca e comandos"],
-  [[mod, "B"], "Recolher ou abrir o menu lateral"],
-  [["/"], "Abrir busca e comandos"],
-  [["N"], "Novo cliente"],
-  [["?"], "Mostrar esta ajuda"],
-];
-
 /** Paleta de comandos (⌘K), atalhos "g + letra" e ajuda. Vive uma vez no layout. */
 export default function Atalhos({ admin }: { admin: boolean }) {
   const router = useRouter();
-  const mod = useModificador();
   const paleta = useRef<HTMLDialogElement>(null);
-  const ajuda = useRef<HTMLDialogElement>(null);
   const entrada = useRef<HTMLInputElement>(null);
   const [consulta, setConsulta] = useState("");
   const [clientes, setClientes] = useState<ResultadoBusca[]>([]);
   const [indice, setIndice] = useState(0);
 
   const comandos: Comando[] = useMemo(() => {
-    const paginas = GRUPOS.filter((g) => !g.admin || admin).flatMap((g) =>
+    const paginas = gruposVisiveis(admin).flatMap((g) =>
       g.itens.map((i) => ({ id: i.href, rotulo: i.rotulo, grupo: "Ir para", href: i.href, icone: <i.icone size={16} />, dica: i.atalho.toUpperCase().split("").join(" "), palavras: i.dica })),
     );
     return [
@@ -105,17 +94,14 @@ export default function Atalhos({ admin }: { admin: boolean }) {
       buffer = "";
       if (ev.key === "/") { ev.preventDefault(); abrirPaleta(); }
       else if (ev.key === "n") { ev.preventDefault(); router.push("/clientes/novo"); }
-      else if (ev.key === "?") { ev.preventDefault(); ajuda.current?.showModal(); }
+      else if (ev.key === "?") { ev.preventDefault(); router.push("/configuracoes#atalhos"); }
     };
     const abrir = () => abrirPaleta();
-    const abrirAjuda = () => ajuda.current?.showModal();
     window.addEventListener("keydown", tecla);
     window.addEventListener("abrir-paleta", abrir);
-    window.addEventListener("abrir-ajuda", abrirAjuda);
     return () => {
       window.removeEventListener("keydown", tecla);
       window.removeEventListener("abrir-paleta", abrir);
-      window.removeEventListener("abrir-ajuda", abrirAjuda);
     };
   }, [abrirPaleta, router]);
 
@@ -184,34 +170,6 @@ export default function Atalhos({ admin }: { admin: boolean }) {
         </div>
       </dialog>
 
-      <dialog ref={ajuda} className="modal" onClick={(e) => { if (e.target === ajuda.current) ajuda.current?.close(); }}>
-        <div className="max-h-[80vh] overflow-y-auto px-6 py-5">
-          <h2 className="text-lg font-semibold tracking-tight">Atalhos de teclado</h2>
-          <p className="mb-4 text-sm text-stone-500">Funcionam em qualquer tela, fora dos campos de texto. Para ir a uma tela, aperte a letra do grupo e depois a letra da página (por exemplo, <Kbd>C</Kbd> <Kbd>M</Kbd> abre Mensagens).</p>
-          <ul className="divide-y divide-stone-100">
-            {ATALHOS_GERAIS(mod).map(([teclas, texto]) => (
-              <li key={texto + teclas.join("")} className="flex items-center gap-3 py-2 text-sm">
-                <span className="flex-1">{texto}</span>
-                <span className="flex gap-1">{teclas.map((k) => <Kbd key={k}>{k}</Kbd>)}</span>
-              </li>
-            ))}
-          </ul>
-          {GRUPOS.filter((g) => !g.admin || admin).map((g) => (
-            <div key={g.titulo} className="mt-4">
-              <h3 className="mb-1 text-xs font-semibold text-stone-400">{g.titulo}</h3>
-              <ul className="divide-y divide-stone-100">
-                {g.itens.map((i) => (
-                  <li key={i.href} className="flex items-center gap-3 py-1.5 text-sm">
-                    <span className="flex-1">{i.rotulo}</span>
-                    <span className="flex gap-1">{i.atalho.toUpperCase().split("").map((k, n) => <Kbd key={n}>{k}</Kbd>)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-          <div className="mt-4 text-right"><button className="btn-sec" onClick={() => ajuda.current?.close()}>Fechar</button></div>
-        </div>
-      </dialog>
     </>
   );
 }

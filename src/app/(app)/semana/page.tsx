@@ -13,7 +13,7 @@ export default async function EstaSemana() {
   const { supabase } = await exigirEquipe();
   const atual = segundaDe(hojeISO());
   const { data } = await supabase.from("semanas").select("id").eq("inicio", atual).maybeSingle();
-  if (data) redirect(`/planejamento/${data.id}`);
+  if (data) redirect(`/semana/${data.id}`);
   const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   return (
     <>

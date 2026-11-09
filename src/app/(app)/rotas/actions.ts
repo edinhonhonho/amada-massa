@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { exigirEquipe } from "@/lib/auth";
-import { hojeISO } from "@/lib/format";
 
 export type PayloadRota = {
   id?: string;
@@ -16,32 +15,26 @@ export type PayloadRota = {
   capacidade_paes: number | null;
   ativa: boolean;
   origem_ponto_id: string | null;
-  /** Clientes na ordem das paradas. */
-  clientes: string[];
-  trajeto: [number, number][] | null;
-  distancia_m: number | null;
-  duracao_s: number | null;
+  bairros: string[];
 };
 export type ResultadoRota = { ok: true; id: string } | { ok: false; erro: string };
 
 /**
- * Cria ou atualiza a rota inteira: dados, clientes (com a ordem das paradas) e trajeto.
- * Quem já estava em outra rota é movido (a atribuição anterior é encerrada com data, preservando o histórico).
+ * Cria ou atualiza a rota: só os dados dela e os bairros que cobre. Quem entra, a ordem e o caminho
+ * são definidos a cada semana, a partir de quem tem assinatura de entrega ativa nesses bairros.
  */
-export async function salvarRotaCompleta(p: PayloadRota): Promise<ResultadoRota> {
+export async function salvarRota(p: PayloadRota): Promise<ResultadoRota> {
   try {
     const { supabase } = await exigirEquipe();
     const nome = p.nome.trim();
     if (!nome) return { ok: false, erro: "Informe o nome da rota." };
-    const hoje = hojeISO();
-
+    const bairros = [...new Set(p.bairros.map((b) => b.trim()).filter(Boolean))];
     const dados = {
       nome, descricao: p.descricao.trim() || null, cor: p.cor || "#b45309", dia_semana: p.dia_semana,
       janela_inicio: p.janela_inicio || null, janela_fim: p.janela_fim || null, entregador_id: p.entregador_id || null,
       capacidade_paes: p.capacidade_paes && p.capacidade_paes > 0 ? p.capacidade_paes : null, ativa: p.ativa,
-      origem_ponto_id: p.origem_ponto_id || null, trajeto: p.trajeto, distancia_m: p.distancia_m, duracao_s: p.duracao_s,
+      origem_ponto_id: p.origem_ponto_id || null, bairros,
     };
-
     let id = p.id;
     if (id) {
       const { error } = await supabase.from("rotas").update(dados).eq("id", id);
@@ -51,45 +44,32 @@ export async function salvarRotaCompleta(p: PayloadRota): Promise<ResultadoRota>
       if (error || !data) return { ok: false, erro: `Não foi possível criar a rota: ${error?.message ?? "erro desconhecido"}` };
       id = data.id;
     }
-
-    // atribuições ativas: desta rota, e dos clientes escolhidos (que podem estar em outra)
-    const escolhidos = [...new Set(p.clientes)];
-    const { data: ativas, error: e1 } = await supabase
-      .from("atribuicoes_rota").select("id, cliente_id, rota_id, ordem")
-      .is("fim", null).or(`rota_id.eq.${id}${escolhidos.length ? `,cliente_id.in.(${escolhidos.join(",")})` : ""}`);
-    if (e1) return { ok: false, erro: `Rota salva, mas não foi possível ler os clientes: ${e1.message}` };
-
-    const ops: PromiseLike<{ error: { message: string } | null }>[] = [];
-    for (const a of ativas ?? []) {
-      const naNovaLista = escolhidos.includes(a.cliente_id);
-      if (a.rota_id === id && !naNovaLista) ops.push(supabase.from("atribuicoes_rota").update({ fim: hoje }).eq("id", a.id)); // saiu da rota
-      else if (a.rota_id !== id && naNovaLista) ops.push(supabase.from("atribuicoes_rota").update({ fim: hoje }).eq("id", a.id)); // veio de outra
-    }
-    // fecha antes de abrir: o banco só admite uma atribuição ativa por cliente
-    const fechar = await Promise.all(ops);
-    const falha = fechar.find((r) => r.error);
-    if (falha?.error) return { ok: false, erro: `Não foi possível mover clientes de rota: ${falha.error.message}` };
-
-    const jaNaRota = new Map((ativas ?? []).filter((a) => a.rota_id === id).map((a) => [a.cliente_id, a]));
-    const gravar = escolhidos.map((cliente, i) => {
-      const atual = jaNaRota.get(cliente);
-      return atual
-        ? supabase.from("atribuicoes_rota").update({ ordem: i + 1 }).eq("id", atual.id)
-        : supabase.from("atribuicoes_rota").insert({ cliente_id: cliente, rota_id: id, ordem: i + 1, inicio: hoje });
-    });
-    const resultados = await Promise.all(gravar);
-    const erro = resultados.find((r) => r.error)?.error;
-    if (erro) return { ok: false, erro: `Não foi possível gravar as paradas: ${erro.message}` };
-
+    // semanas ainda abertas passam a usar os bairros novos
+    await supabase.rpc("realocar_rotas_abertas");
     revalidatePath("/rotas");
     revalidatePath(`/rotas/${id}`);
+    revalidatePath("/semana", "layout");
     return { ok: true, id: id! };
   } catch (e) {
     return { ok: false, erro: e instanceof Error ? e.message : "Erro inesperado ao salvar a rota." };
   }
 }
 
-/** Guarda as coordenadas já encontradas, para não geocodificar de novo. */
+/** Exclui a rota. As entregas das semanas ficam sem rota até serem alocadas em outra. */
+export async function excluirRota(id: string): Promise<{ ok: boolean; erro?: string }> {
+  try {
+    const { supabase } = await exigirEquipe();
+    const { error } = await supabase.from("rotas").delete().eq("id", id);
+    if (error) return { ok: false, erro: `Não foi possível excluir: ${error.message}` };
+    revalidatePath("/rotas");
+    revalidatePath("/semana", "layout");
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, erro: e instanceof Error ? e.message : "Erro inesperado ao excluir." };
+  }
+}
+
+/** Guarda as coordenadas encontradas ou corrigidas no mapa. */
 export async function salvarCoordenadas(itens: { tipo: "cliente" | "ponto"; id: string; lat: number; lng: number }[]): Promise<void> {
   const { supabase } = await exigirEquipe();
   await Promise.all(
