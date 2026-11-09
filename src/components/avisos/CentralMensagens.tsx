@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CheckCheck, ChevronDown, Loader2, PenSquare, Plus, Repeat2, Search, Smartphone, TriangleAlert, UserCheck, X } from "lucide-react";
+import { Check, CheckCheck, ChevronDown, Loader2, PenSquare, Repeat2, Search, Smartphone, TriangleAlert, UserCheck } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { detalheAviso, type DetalheAviso } from "@/app/(app)/mensagens/actions";
@@ -24,85 +24,71 @@ type Props = {
 
 const pct = (a: number, t: number) => (t ? Math.round((a / t) * 100) : 0);
 
-/** Botão do cabeçalho da página: o gesto principal de Mensagens. */
-export function BotaoNovoAviso() {
-  return (
-    <button type="button" onClick={() => window.dispatchEvent(new Event("novo-aviso"))} className="btn !rounded-2xl !px-6 !py-3.5 text-[15px] shadow-[0_10px_24px_-10px_rgba(180,83,9,.7)]">
-      <PenSquare size={18} />Novo aviso
-    </button>
-  );
-}
-
 export default function CentralMensagens({ opcoes, modelos, historico, indicadores, naoEntraram, qr, link, abrirInicial, segmentoInicial }: Props) {
-  const gaveta = useRef<HTMLDialogElement>(null);
+  const composer = useRef<HTMLElement>(null);
   const [rodada, setRodada] = useState(0);
   const [inicial, setInicial] = useState<Inicial | undefined>(undefined);
 
-  function abrir(i?: Inicial) {
+  /** "Usar de novo": recomeça o formulário com o texto de um aviso antigo e leva a tela até ele. */
+  function reusar(i: Inicial) {
     setInicial(i);
-    setRodada((r) => r + 1); // recomeça o formulário com o texto escolhido
-    gaveta.current?.showModal();
+    setRodada((r) => r + 1);
+    composer.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  useEffect(() => {
-    if (!abrirInicial) return;
-    setRodada((r) => r + 1);
-    gaveta.current?.showModal();
-  }, [abrirInicial]);
-
-  useEffect(() => {
-    const f = () => abrir();
-    window.addEventListener("novo-aviso", f);
-    return () => window.removeEventListener("novo-aviso", f);
-  }, []);
+  useEffect(() => { if (abrirInicial) composer.current?.scrollIntoView({ block: "start" }); }, [abrirInicial]);
 
   return (
     <>
       {/* números em tom baixo: contexto, não protagonistas */}
-      <p className="-mt-2 mb-7 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-stone-500">
+      <p className="-mt-2 mb-6 flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px] text-stone-500">
         <span className="flex items-center gap-1.5"><Smartphone size={13} className="text-stone-400" /><b className="font-semibold text-stone-700">{indicadores.entraram}</b> de {indicadores.ativos} já entraram no app</span>
         <span className="flex items-center gap-1.5"><UserCheck size={13} className="text-stone-400" /><b className="font-semibold text-stone-700">{indicadores.comAvisos}</b> com notificações ligadas</span>
         {indicadores.leitura !== null && <span className="flex items-center gap-1.5"><CheckCheck size={13} className="text-stone-400" />leitura média de <b className="font-semibold text-stone-700">{indicadores.leitura}%</b> nos últimos 30 dias</span>}
       </p>
 
-      <div className="grid items-start gap-8 xl:grid-cols-[1fr_360px]">
-        <section aria-labelledby="enviados">
-          <h2 id="enviados" className="mb-1 text-sm font-medium text-stone-500">Enviados</h2>
-          {!historico.length ? (
-            <div className="flex flex-col items-start gap-3 rounded-3xl bg-painel px-8 py-10">
-              <span className="flex size-12 items-center justify-center rounded-2xl bg-white text-amber-700 shadow-sm"><PenSquare size={22} /></span>
-              <div><h3 className="text-lg font-semibold">Escreva o primeiro aviso</h3><p className="mt-1 max-w-md text-sm text-stone-500">Avise todos os clientes sobre o pão da semana, lembre quem está com a mensalidade em aberto ou fale com uma rota inteira.</p></div>
-              <button type="button" onClick={() => abrir()} className="btn"><Plus size={16} />Novo aviso</button>
-            </div>
-          ) : (
-            <ul className="divide-y divide-stone-100">
-              {historico.map((a) => <LinhaAviso key={a.id} a={a} aoReusar={() => abrir({ titulo: a.titulo, corpo: a.corpo, segmento: opcoes.some((o) => o.codigo === a.segmento) ? a.segmento : undefined })} />)}
-            </ul>
-          )}
-        </section>
+      <div className="grid items-start gap-6 xl:grid-cols-[1fr_330px]">
+        <div className="flex min-w-0 flex-col gap-7">
+          <section ref={composer} aria-label="Novo aviso" className="scroll-mt-6 rounded-3xl bg-painel p-6 ring-1 ring-stone-900/[0.04]">
+            <header className="mb-5 flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-2xl bg-amber-700 text-white shadow-[0_8px_18px_-8px_rgba(180,83,9,.8)]"><PenSquare size={18} /></span>
+              <div className="min-w-0 flex-1">
+                <h2 className="text-lg font-semibold leading-tight tracking-tight">Novo aviso</h2>
+                <p className="text-[13px] text-stone-500">Chega no app Amada Massa e como notificação no celular.</p>
+              </div>
+              <GerenciarModelos modelos={modelos} />
+            </header>
+            <ComporAviso key={rodada} opcoes={opcoes} modelos={modelos} inicial={inicial} segmentoInicial={segmentoInicial} />
+          </section>
 
-        <aside className="flex flex-col gap-5 xl:sticky xl:top-6">
-          <ConviteApp qr={qr} link={link} />
-          <NaoEntraram lista={naoEntraram} totalAtivos={indicadores.ativos} entraram={indicadores.entraram} />
+          <Enviados historico={historico} opcoes={opcoes} aoReusar={reusar} />
+        </div>
+
+        <aside className="xl:sticky xl:top-6">
+          <section className="rounded-3xl bg-painel p-5 ring-1 ring-stone-900/[0.04]">
+            <ConviteApp qr={qr} link={link} />
+            <div className="my-4 h-px bg-stone-200/70" />
+            <NaoEntraram lista={naoEntraram} totalAtivos={indicadores.ativos} entraram={indicadores.entraram} />
+          </section>
         </aside>
       </div>
-
-      <dialog ref={gaveta} className="gaveta" aria-label="Novo aviso" onClick={(e) => { if (e.target === gaveta.current) gaveta.current?.close(); }}>
-        <div className="flex h-full min-h-0 flex-col">
-          <header className="flex items-center gap-3 border-b border-stone-100 px-6 py-4">
-            <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold tracking-tight">Novo aviso</h2>
-              <p className="text-sm text-stone-500">Chega no app Amada Massa e como notificação no celular.</p>
-            </div>
-            <GerenciarModelos modelos={modelos} />
-            <button type="button" onClick={() => gaveta.current?.close()} className="btn-ghost -mr-2 !p-2" aria-label="Fechar"><X size={19} /></button>
-          </header>
-          <div className="min-h-0 flex-1">
-            <ComporAviso key={rodada} opcoes={opcoes} modelos={modelos} inicial={inicial} segmentoInicial={segmentoInicial} aoConcluir={() => gaveta.current?.close()} />
-          </div>
-        </div>
-      </dialog>
     </>
+  );
+}
+
+/** Histórico enxuto: cinco linhas; o resto abre sob demanda. */
+function Enviados({ historico, opcoes, aoReusar }: { historico: LinhaHistorico[]; opcoes: Opcao[]; aoReusar: (i: Inicial) => void }) {
+  const [todos, setTodos] = useState(false);
+  if (!historico.length) return <p className="px-1 text-sm text-stone-400">Os avisos enviados aparecem aqui, com quem já leu.</p>;
+  const lista = todos ? historico : historico.slice(0, 5);
+  return (
+    <section aria-labelledby="enviados">
+      <h2 id="enviados" className="mb-1 px-1 text-[13px] font-medium text-stone-400">Enviados recentemente</h2>
+      <ul className="divide-y divide-stone-100">
+        {lista.map((a) => <LinhaAviso key={a.id} a={a} aoReusar={() => aoReusar({ titulo: a.titulo, corpo: a.corpo, segmento: opcoes.some((o) => o.codigo === a.segmento) ? a.segmento : undefined })} />)}
+      </ul>
+      {historico.length > 5 && <button type="button" onClick={() => setTodos((t) => !t)} className="mt-1 px-1 text-xs font-medium text-stone-500 hover:text-stone-900">{todos ? "Mostrar menos" : `Ver os outros ${historico.length - 5}`}</button>}
+    </section>
   );
 }
 
@@ -115,7 +101,7 @@ function NaoEntraram({ lista, totalAtivos, entraram }: { lista: NaoEntrou[]; tot
   const p = pct(entraram, totalAtivos);
 
   return (
-    <section className="rounded-3xl bg-painel p-5 ring-1 ring-stone-900/[0.04]">
+    <div>
       <div className="flex items-baseline gap-2"><h2 className="font-semibold">Ainda não entraram</h2><span className="rounded-full bg-white px-2 text-xs font-medium tabular-nums text-stone-500 shadow-sm">{lista.length}</span></div>
       <div className="mt-3 flex items-center gap-3">
         <div className="h-2 flex-1 overflow-hidden rounded-full bg-white shadow-inner" role="img" aria-label={`${p}% já entraram`}><div className="h-full rounded-full bg-gradient-to-r from-amber-400 to-amber-600" style={{ width: `${p}%` }} /></div>
@@ -130,7 +116,7 @@ function NaoEntraram({ lista, totalAtivos, entraram }: { lista: NaoEntrou[]; tot
               <input className="campo !rounded-xl !py-2 !pl-9 text-sm" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar nesta lista" aria-label="Buscar cliente que não entrou" />
             </div>
           )}
-          <div className="mt-3 max-h-[22rem] overflow-y-auto pr-1">
+          <div className="mt-3 max-h-[19rem] overflow-y-auto pr-1">
             {faltam.length > 0 && (
               <div className="mb-3">
                 <div className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800"><TriangleAlert size={12} />Faltam dados para entrar <span className="font-normal text-stone-400">{faltam.length}</span></div>
@@ -147,7 +133,7 @@ function NaoEntraram({ lista, totalAtivos, entraram }: { lista: NaoEntrou[]; tot
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }
 
@@ -163,7 +149,7 @@ function Linha({ c }: { c: NaoEntrou }) {
   );
 }
 
-/** Uma linha do histórico: discreta; os detalhes aparecem sob demanda. */
+/** Uma linha do histórico: título, grupo e leitura numa única linha; detalhes sob demanda. */
 function LinhaAviso({ a, aoReusar }: { a: LinhaHistorico; aoReusar: () => void }) {
   const [aberto, setAberto] = useState(false);
   const [detalhe, setDetalhe] = useState<DetalheAviso | null>(null);
@@ -180,28 +166,18 @@ function LinhaAviso({ a, aoReusar }: { a: LinhaHistorico; aoReusar: () => void }
   }
 
   return (
-    <li className="group py-3">
-      <div className="flex items-start gap-4">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline gap-x-2">
-            <h3 className="text-sm font-medium text-stone-800">{a.titulo}</h3>
-            <span className="text-xs text-stone-400">{a.segmento_rotulo}</span>
-          </div>
-          <p className="mt-0.5 line-clamp-1 text-[13px] text-stone-500">{a.corpo}</p>
-        </div>
-        <div className="shrink-0 text-right text-xs text-stone-400">
-          <div>{quando(a.criado_em)}</div>
-          <div className="mt-0.5 tabular-nums">{a.lidos}/{a.gravados} leram{a.gravados ? ` · ${lidos}%` : ""}</div>
-        </div>
-      </div>
-      <div className="mt-1.5 flex items-center gap-1 text-xs opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
-        <button type="button" onClick={alternar} aria-expanded={aberto} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-stone-500 hover:bg-stone-100 hover:text-stone-900">Quem leu<ChevronDown size={12} className={`transition ${aberto ? "rotate-180" : ""}`} /></button>
-        <button type="button" onClick={aoReusar} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-stone-500 hover:bg-stone-100 hover:text-stone-900"><Repeat2 size={12} />Usar de novo</button>
-        <span className="ml-1 text-stone-300">·</span>
-        <span className="flex items-center gap-1 px-1 text-stone-400"><Smartphone size={11} />{a.pushes} no celular</span>
+    <li className="group py-1.5">
+      <div className="flex items-center gap-3 text-[13px]">
+        <span className="min-w-0 flex-1 truncate"><b className="font-medium text-stone-700">{a.titulo}</b><span className="ml-2 text-stone-400">{a.segmento_rotulo}</span></span>
+        <span className="flex shrink-0 items-center gap-0.5 opacity-0 transition group-hover:opacity-100 focus-within:opacity-100">
+          <button type="button" onClick={alternar} aria-expanded={aberto} className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-900">Quem leu<ChevronDown size={12} className={`transition ${aberto ? "rotate-180" : ""}`} /></button>
+          <button type="button" onClick={aoReusar} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-900"><Repeat2 size={12} />Usar de novo</button>
+        </span>
+        <span className="w-28 shrink-0 text-right text-xs tabular-nums text-stone-400">{a.lidos}/{a.gravados} leram{a.gravados ? ` · ${lidos}%` : ""}</span>
+        <span className="w-24 shrink-0 text-right text-xs text-stone-400">{quando(a.criado_em)}</span>
       </div>
       {aberto && (
-        <div className="mt-2 grid gap-4 rounded-xl bg-stone-50 p-3 text-[13px] sm:grid-cols-2">
+        <div className="mt-1.5 grid gap-4 rounded-xl bg-stone-50 p-3 text-[13px] sm:grid-cols-2">
           {carregando || !detalhe ? <p className="flex items-center gap-2 text-stone-500 sm:col-span-2"><Loader2 size={13} className="animate-spin" />Carregando…</p> : (
             <>
               <div><div className="mb-1 text-xs font-semibold text-emerald-700">Leram ({detalhe.leram.length})</div><p className="text-stone-600">{detalhe.leram.join(", ") || "Ninguém ainda."}</p></div>

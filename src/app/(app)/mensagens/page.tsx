@@ -1,7 +1,7 @@
 import { TriangleAlert } from "lucide-react";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
-import CentralMensagens, { BotaoNovoAviso, type LinhaHistorico, type NaoEntrou } from "@/components/avisos/CentralMensagens";
+import CentralMensagens, { type LinhaHistorico, type NaoEntrou } from "@/components/avisos/CentralMensagens";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirEquipe } from "@/lib/auth";
 import { carregarModelosAviso, nomeCompleto } from "@/lib/dados";
@@ -45,7 +45,7 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader titulo="Mensagens" subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>} acoes={<BotaoNovoAviso />} />
+      <PageHeader titulo="Mensagens" subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>} />
       {problema && (
         <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />

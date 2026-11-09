@@ -159,7 +159,7 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
 
 
   const resumo = (
-    <div className="rounded-2xl bg-stone-50 p-4 text-sm shadow-[0_0_0_1px_rgba(28,25,23,.05)]">
+    <div className="cartao-branco p-4 text-sm">
       <div className="mb-2 flex items-center gap-2 font-semibold"><Users size={15} className="text-stone-400" />Resumo do envio</div>
       <dl className="flex flex-col gap-1.5">
         <div className="flex justify-between gap-3"><dt className="text-stone-500">Para</dt><dd className="truncate text-right font-medium">{rotuloDestino || "—"}</dd></div>
@@ -180,8 +180,8 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
   return (
     <>
       {gaveta ? (
-        <form ref={raiz} onSubmit={conferir} className="flex h-full min-h-0 flex-col">
-          <div className="grid min-h-0 flex-1 gap-8 overflow-y-auto p-6 lg:grid-cols-[1fr_320px]">
+        <form ref={raiz} onSubmit={conferir} className="flex flex-col gap-6">
+          <div className="grid gap-8 lg:grid-cols-[1fr_260px]">
             <div className="flex min-w-0 flex-col gap-7">
           {recuperado && gaveta && (
             <p className="flex items-center gap-2 rounded-xl bg-sky-50 px-4 py-2.5 text-sm text-sky-900">Recuperamos o rascunho que você não enviou.
@@ -235,7 +235,7 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
                 <div className="mb-2 text-xs font-medium text-stone-500">Comece por um modelo ou escreva do zero</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {modelos.slice(0, 6).map((m) => (
-                    <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-2xl bg-stone-50 p-3.5 text-left shadow-[0_0_0_1px_rgba(28,25,23,.05)] transition hover:bg-amber-50 hover:shadow-md active:scale-[.985]">
+                    <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-2xl bg-white p-3.5 text-left shadow-[0_0_0_1px_rgba(28,25,23,.07)] transition hover:bg-amber-50 hover:shadow-md active:scale-[.985]">
                       <span className="block text-sm font-semibold">{m.nome}</span>
                       <span className="mt-0.5 line-clamp-2 block text-xs text-stone-500">{m.corpo}</span>
                     </button>
@@ -246,7 +246,7 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="mr-1 text-xs text-stone-500">Modelos:</span>
                 {modelos.map((m) => (
-                  <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-full bg-stone-100 px-3 py-1 text-[13px] font-medium text-stone-700 transition hover:bg-amber-100 hover:text-amber-900">{m.nome}</button>
+                  <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-full bg-white px-3 py-1 text-[13px] font-medium text-stone-700 shadow-[0_0_0_1px_rgba(28,25,23,.09)] transition hover:bg-amber-50 hover:text-amber-900">{m.nome}</button>
                 ))}
               </div>
             )}
@@ -260,7 +260,7 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
               <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-stone-500">
                 <span>Inserir no {foco === "titulo" ? "título" : "texto"}:</span>
                 {VARIAVEIS_AVISO.map((v) => (
-                  <button key={v.chave} type="button" title={v.descricao} onMouseDown={(e) => e.preventDefault()} onClick={() => inserir(v.chave)} className="rounded-md bg-stone-100 px-2 py-0.5 font-mono text-[12px] text-stone-700 transition hover:bg-amber-100">{`{${v.chave}}`}</button>
+                  <button key={v.chave} type="button" title={v.descricao} onMouseDown={(e) => e.preventDefault()} onClick={() => inserir(v.chave)} className="rounded-md bg-white px-2 py-0.5 font-mono text-[12px] text-stone-700 shadow-[0_0_0_1px_rgba(28,25,23,.09)] transition hover:bg-amber-50">{`{${v.chave}}`}</button>
                 ))}
               </div>
             </div>
@@ -269,9 +269,9 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
           {erro && fase === "fechado" && <p className="flex items-center gap-2 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert"><AlertCircle size={16} />{erro}</p>}
 
             </div>
-            <aside className="hidden self-start lg:sticky lg:top-0 lg:block">{resumo}<div className="mt-5"><PreviaCelular titulo={personalizar(titulo, exemplo)} corpo={personalizar(corpo, exemplo)} nome={nomeExemplo} /></div></aside>
+            <aside className="hidden self-start lg:block">{resumo}<div className="mt-5"><PreviaCelular titulo={personalizar(titulo, exemplo)} corpo={personalizar(corpo, exemplo)} nome={nomeExemplo} /></div></aside>
           </div>
-          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 bg-white px-6 py-4">
+          <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/70 pt-5">
             {salvandoModelo === null ? (
               <button type="button" disabled={!titulo.trim() || !corpo.trim()} onClick={() => setSalvandoModelo("")} className="flex items-center gap-1.5 text-sm font-medium text-stone-500 hover:text-stone-900 disabled:opacity-40"><BookmarkPlus size={15} />Salvar como modelo</button>
             ) : (
@@ -324,7 +324,7 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
                 <div className="mb-2 text-xs font-medium text-stone-500">Comece por um modelo ou escreva do zero</div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {modelos.slice(0, 6).map((m) => (
-                    <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-2xl bg-stone-50 p-3.5 text-left shadow-[0_0_0_1px_rgba(28,25,23,.05)] transition hover:bg-amber-50 hover:shadow-md active:scale-[.985]">
+                    <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-2xl bg-white p-3.5 text-left shadow-[0_0_0_1px_rgba(28,25,23,.07)] transition hover:bg-amber-50 hover:shadow-md active:scale-[.985]">
                       <span className="block text-sm font-semibold">{m.nome}</span>
                       <span className="mt-0.5 line-clamp-2 block text-xs text-stone-500">{m.corpo}</span>
                     </button>
@@ -335,7 +335,7 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="mr-1 text-xs text-stone-500">Modelos:</span>
                 {modelos.map((m) => (
-                  <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-full bg-stone-100 px-3 py-1 text-[13px] font-medium text-stone-700 transition hover:bg-amber-100 hover:text-amber-900">{m.nome}</button>
+                  <button key={m.id} type="button" onClick={() => usarModelo(m)} className="rounded-full bg-white px-3 py-1 text-[13px] font-medium text-stone-700 shadow-[0_0_0_1px_rgba(28,25,23,.09)] transition hover:bg-amber-50 hover:text-amber-900">{m.nome}</button>
                 ))}
               </div>
             )}
@@ -349,7 +349,7 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
               <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-stone-500">
                 <span>Inserir no {foco === "titulo" ? "título" : "texto"}:</span>
                 {VARIAVEIS_AVISO.map((v) => (
-                  <button key={v.chave} type="button" title={v.descricao} onMouseDown={(e) => e.preventDefault()} onClick={() => inserir(v.chave)} className="rounded-md bg-stone-100 px-2 py-0.5 font-mono text-[12px] text-stone-700 transition hover:bg-amber-100">{`{${v.chave}}`}</button>
+                  <button key={v.chave} type="button" title={v.descricao} onMouseDown={(e) => e.preventDefault()} onClick={() => inserir(v.chave)} className="rounded-md bg-white px-2 py-0.5 font-mono text-[12px] text-stone-700 shadow-[0_0_0_1px_rgba(28,25,23,.09)] transition hover:bg-amber-50">{`{${v.chave}}`}</button>
                 ))}
               </div>
             </div>
