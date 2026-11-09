@@ -7,7 +7,7 @@ import { marcarLidas } from "@/app/membro/actions";
 export default function MarcarLidas({ temNaoLidas }: { temNaoLidas: boolean }) {
   useEffect(() => {
     if (!temNaoLidas) return;
-    const t = setTimeout(() => void marcarLidas(), 2500);
+    const t = setTimeout(() => { void marcarLidas(); (navigator as Navigator & { clearAppBadge?: () => Promise<void> }).clearAppBadge?.().catch(() => {}); }, 2500);
     return () => clearTimeout(t);
   }, [temNaoLidas]);
   return null;

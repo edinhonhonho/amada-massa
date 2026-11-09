@@ -2,8 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    // Voltar a uma tela já vista nos últimos 30 s é instantâneo. Salvar algo revalida o cache.
-    staleTimes: { dynamic: 30, static: 180 },
+    // Telas já vistas (ou pré-carregadas pelo menu) abrem na hora por 2 minutos.
+    // Salvar qualquer coisa pelo sistema renova o cache; mudanças feitas por outras pessoas aparecem em até 2 min.
+    staleTimes: { dynamic: 120, static: 300 },
   },
   async redirects() {
     // "Semanas" virou "Planejamento": mantém links antigos funcionando.

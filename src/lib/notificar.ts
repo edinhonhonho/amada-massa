@@ -11,37 +11,38 @@ function configurarPush(): boolean {
   return true;
 }
 
+export type ResultadoNotificar = { gravados: number; pushes: number };
+
 /**
- * Grava os avisos na caixa do membro e dispara o push. Avisos com `ref` repetido
+ * Grava os avisos na caixa do cliente e dispara o push. O aviso fica guardado mesmo para quem
+ * ainda não entrou no app: aparece na primeira vez que a pessoa entrar. Avisos com `ref` repetido
  * (mesmo cliente, tipo e ref) são ignorados, então desfazer e refazer uma entrega não avisa de novo.
  * Nunca lança erro: aviso é complemento e não pode derrubar o registro da entrega.
  */
-export async function notificar(avisos: Aviso[]): Promise<void> {
+export async function notificar(avisos: Aviso[]): Promise<ResultadoNotificar> {
+  const vazio = { gravados: 0, pushes: 0 };
   try {
-    if (!avisos.length) return;
+    if (!avisos.length) return vazio;
     const admin = createAdminClient();
-
-    // só quem tem conta de membro tem caixa de entrada
-    const { data: membros } = await admin.from("membros").select("cliente_id").in("cliente_id", [...new Set(avisos.map((a) => a.cliente_id))]);
-    const comConta = new Set((membros ?? []).map((m) => m.cliente_id));
-    const alvo = avisos.filter((a) => comConta.has(a.cliente_id));
+    const alvo = avisos;
 
     const novos: Aviso[] = [];
     for (let i = 0; i < alvo.length; i += 10) {
       await Promise.all(
         alvo.slice(i, i + 10).map(async (a) => {
           const { error } = await admin.from("notificacoes").insert({
-            cliente_id: a.cliente_id, tipo: a.tipo, titulo: a.titulo, corpo: a.corpo, url: a.url ?? "/membro", ref: a.ref ?? null,
+            cliente_id: a.cliente_id, tipo: a.tipo, titulo: a.titulo, corpo: a.corpo, url: a.url ?? "/membro", ref: a.ref ?? null, aviso_id: a.aviso_id ?? null,
           });
           if (!error) novos.push(a);
         }),
       );
     }
-    if (!novos.length || !configurarPush()) return;
+    if (!novos.length || !configurarPush()) return { gravados: novos.length, pushes: 0 };
 
     const { data: inscricoes } = await admin
       .from("push_inscricoes").select("id, cliente_id, endpoint, p256dh, auth").in("cliente_id", [...new Set(novos.map((a) => a.cliente_id))]);
     const mortas: string[] = [];
+    const comPush = new Set<string>();
     await Promise.all(
       (inscricoes ?? []).flatMap((s) =>
         novos.filter((a) => a.cliente_id === s.cliente_id).map(async (a) => {
@@ -51,6 +52,7 @@ export async function notificar(avisos: Aviso[]): Promise<void> {
               JSON.stringify({ title: a.titulo, body: a.corpo, url: a.url ?? "/membro", tag: a.tipo }),
               { TTL: 60 * 60 * 12 },
             );
+            comPush.add(`${s.cliente_id}:${a.tipo}:${a.ref ?? ""}`);
           } catch (e) {
             const status = (e as { statusCode?: number }).statusCode;
             if (status === 404 || status === 410) mortas.push(s.id);
@@ -59,7 +61,9 @@ export async function notificar(avisos: Aviso[]): Promise<void> {
       ),
     );
     if (mortas.length) await admin.from("push_inscricoes").delete().in("id", mortas);
+    return { gravados: novos.length, pushes: comPush.size };
   } catch (e) {
     console.error("falha ao notificar", e);
+    return vazio;
   }
 }

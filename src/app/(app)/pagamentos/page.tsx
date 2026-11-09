@@ -1,19 +1,26 @@
-import { BadgeCheck, CalendarRange, ChevronLeft, ChevronRight, HandCoins, MessageCircle, SlidersHorizontal, TriangleAlert, Wallet } from "lucide-react";
+import { BellRing, ChevronLeft, ChevronRight, HandCoins, SlidersHorizontal, Wallet } from "lucide-react";
 import Link from "next/link";
+import AvisoEnviado from "@/components/avisos/AvisoEnviado";
+import ComporAviso from "@/components/avisos/ComporAviso";
+import EvolucaoMeses, { type MesResumo } from "@/components/pagamentos/EvolucaoMeses";
+import FiltroLista from "@/components/pagamentos/FiltroLista";
+import ResumoMes from "@/components/pagamentos/ResumoMes";
 import Avatar from "@/components/ui/Avatar";
 import Badge, { type Tom } from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
-import Stat from "@/components/ui/Stat";
 import SubmitButton from "@/components/ui/SubmitButton";
 import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
-import { carregarFaixas, nomeCompleto, um } from "@/lib/dados";
+import { faixasEmCache } from "@/lib/cache";
+import { nomeCompleto, semAcento, um } from "@/lib/dados";
+import { opcoesSegmento } from "@/lib/destinatarios";
 import { MODALIDADES, dataBR, hojeISO, reais } from "@/lib/format";
 import { ROTULO_SITUACAO, ordemSituacao, primeiroDoMes, situacaoCobranca, somarMeses, type Situacao } from "@/lib/pagamentos";
+import { enviarAvisoApp, lembrarCobranca } from "../mensagens/actions";
 import { ajustarCobranca, darBaixa, estornarPagamento } from "./actions";
 
-type Busca = { mes?: string; modalidade?: string; rota?: string; q?: string };
+type Busca = { mes?: string; modalidade?: string; rota?: string; aviso?: string; n?: string; push?: string };
 const FORMAS = { pix: "PIX", transferencia: "Transferência (Papayas)", debito_automatico: "Débito automático", dinheiro: "Dinheiro", outro: "Outro" };
 const TOM_SIT: Record<Situacao, Tom> = { em_dia: "verde", a_vencer: "azul", vence_hoje: "ambar", atrasado: "laranja", atraso_critico: "vermelho", sem_cobranca: "cinza" };
 
@@ -29,17 +36,19 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
   const gera = mes >= atual && mes <= somarMeses(atual, 1);
   const buscaCobrancas = () => supabase
     .from("cobrancas")
-    .select("id, valor_centavos, vencimento, status, justificativa, assinaturas(cliente_id, clientes(nome, sobrenome, whatsapp), planos(nome, modalidade)), pagamentos(id, valor_centavos, data, forma, observacao)")
+    .select("id, valor_centavos, vencimento, status, justificativa, assinaturas(cliente_id, clientes(nome, sobrenome, whatsapp, email), planos(nome, modalidade)), pagamentos(id, valor_centavos, data, forma, observacao)")
     .eq("competencia", mes)
     .order("vencimento");
 
   // A geração é idempotente e barata; roda junto com as demais consultas, e depois relemos só se algo nasceu.
-  const [{ data: cobrancasInicial }, { data: rotas }, { data: atrib }, faixas, gerou] = await Promise.all([
+  const [{ data: cobrancasInicial }, { data: rotas }, { data: atrib }, faixas, gerou, { data: serie }, opcoesAviso] = await Promise.all([
     buscaCobrancas(),
     supabase.from("rotas").select("id, nome").order("nome"),
     supabase.from("atribuicoes_rota").select("cliente_id, rota_id").is("fim", null),
-    carregarFaixas(supabase),
+    faixasEmCache(),
     gera ? supabase.rpc("gerar_cobrancas", { p_competencia: mes }) : Promise.resolve({ data: 0 }),
+    supabase.rpc("resumo_cobrancas", { p_ini: somarMeses(mes, -5), p_fim: mes }),
+    opcoesSegmento(supabase, { rotas: [] }),
   ]);
   const cobrancas = Number(gerou.data) > 0 ? (await buscaCobrancas()).data : cobrancasInicial;
   const rotaDe = new Map((atrib ?? []).map((a) => [a.cliente_id, a.rota_id]));
@@ -47,7 +56,7 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
   const linhas = (cobrancas ?? [])
     .map((c) => {
       const a = um(c.assinaturas as never) as { cliente_id: string; clientes: never; planos: never } | null;
-      const cli = um(a?.clientes) as { nome: string; sobrenome: string; whatsapp: string | null } | null;
+      const cli = um(a?.clientes) as { nome: string; sobrenome: string; whatsapp: string | null; email: string | null } | null;
       const plano = um(a?.planos) as { nome: string; modalidade: keyof typeof MODALIDADES } | null;
       const pagos = (c.pagamentos as { id: string; valor_centavos: number; data: string; forma: keyof typeof FORMAS; observacao: string | null }[]) ?? [];
       const pago = pagos.reduce((s, p) => s + p.valor_centavos, 0);
@@ -55,16 +64,35 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
     })
     .filter((l) => !b.modalidade || l.plano?.modalidade === b.modalidade)
     .filter((l) => !b.rota || rotaDe.get(l.a?.cliente_id ?? "") === b.rota)
-    .filter((l) => !b.q || nomeCompleto(l.cli).toLowerCase().includes(b.q.toLowerCase()));
+    ;
 
   const ativas = linhas.filter((l) => l.c.status !== "isenta" && l.c.status !== "cancelada");
   const esperado = ativas.reduce((s, l) => s + l.c.valor_centavos, 0);
   const recebido = linhas.reduce((s, l) => s + l.pago, 0);
-  const emAtraso = ativas.filter((l) => l.sit === "atrasado" || l.sit === "atraso_critico").reduce((s, l) => s + l.restante, 0);
+  const atrasadas = ativas.filter((l) => l.sit === "atrasado" || l.sit === "atraso_critico");
+  const emAtraso = atrasadas.reduce((s, l) => s + l.restante, 0);
   const aReceber = Math.max(esperado - recebido, 0);
-  const pct = esperado ? Math.min(100, Math.round((recebido / esperado) * 100)) : 0;
+  const qtdRecebidas = ativas.filter((l) => l.restante === 0).length;
+
+  // série dos últimos 6 meses; meses sem cobrança entram zerados para a escala ficar honesta
+  type LinhaSerie = { competencia: string; esperado: number; recebido: number };
+  const porMes = new Map<string, LinhaSerie>(((serie ?? []) as LinhaSerie[]).map((m) => [m.competencia, m]));
+  const meses: MesResumo[] = [-5, -4, -3, -2, -1, 0].map((d) => {
+    const c = somarMeses(mes, d);
+    const m = porMes.get(c);
+    return { competencia: c, esperado: Number(m?.esperado ?? 0), recebido: Number(m?.recebido ?? 0) };
+  });
 
   const grupos = ordemSituacao.map((s) => ({ s, itens: linhas.filter((l) => l.sit === s) })).filter((g) => g.itens.length);
+  const conta = (f: (s: Situacao) => boolean) => linhas.filter((l) => f(l.sit)).length;
+  const chips = [
+    { chave: "todas", rotulo: "Todas", qtd: linhas.length },
+    { chave: "atrasados", rotulo: "Em atraso", qtd: conta((s) => s === "atrasado" || s === "atraso_critico") },
+    { chave: "vence_hoje", rotulo: "Vence hoje", qtd: conta((s) => s === "vence_hoje") },
+    { chave: "a_vencer", rotulo: "A vencer", qtd: conta((s) => s === "a_vencer") },
+    { chave: "em_dia", rotulo: "Em dia", qtd: conta((s) => s === "em_dia") },
+  ].filter((c) => c.chave === "todas" || c.qtd > 0);
+  const voltarUrl = `/pagamentos?mes=${mes.slice(0, 7)}`;
   const mesParam = (m: string) => `/pagamentos?mes=${m.slice(0, 7)}`;
   const nomeMes = new Date(`${mes}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -79,51 +107,45 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
             <Link className="btn-ghost !px-3" href="/pagamentos">Hoje</Link>
             <Link className="btn-ghost !p-2" href={mesParam(somarMeses(mes, 1))} aria-label="Próximo mês"><ChevronRight size={17} /></Link>
           </div>
-          <Link className="btn-sec" href={`/pagamentos/grade?ano=${mes.slice(0, 4)}`}><CalendarRange size={16} />Grade do ano</Link>
+          <Modal titulo="Avisar clientes pelo app" descricao="A notificação chega no aplicativo Amada Massa. Use {nome}, {valor} e {vencimento} para personalizar." gatilho={<><BellRing size={16} />Avisar pelo app</>} gatilhoClasse="btn" largo>
+            <ComporAviso compacto opcoes={opcoesAviso.filter((o) => ["todos", "atrasados", "pendentes"].includes(o.codigo))} acao={enviarAvisoApp} voltar={voltarUrl} segmentoInicial={atrasadas.length ? "atrasados" : "todos"} modelos={["geral", "pagamento", "atraso", "novidade"]} />
+          </Modal>
         </>}
       />
 
-      <div className="mb-5 grid grid-cols-4 gap-3">
-        <Stat rotulo="Esperado no mês" valor={reais(esperado)} icone={Wallet} detalhe={`${ativas.length} cobranças`} />
-        <Stat rotulo="Recebido" valor={reais(recebido)} icone={BadgeCheck} tom="verde" detalhe={<div className="mt-1 h-1.5 w-28 rounded-full bg-stone-100"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} /></div>} />
-        <Stat rotulo="A receber" valor={reais(aReceber)} icone={HandCoins} tom="azul" />
-        <Stat rotulo="Em atraso" valor={reais(emAtraso)} icone={TriangleAlert} tom={emAtraso ? "vermelho" : "neutro"} />
+      <AvisoEnviado aviso={b.aviso} n={b.n} push={b.push} />
+
+      <div className="mb-5 grid items-stretch gap-4 xl:grid-cols-[1.35fr_1fr]">
+        <ResumoMes esperado={esperado} recebido={recebido} aReceber={aReceber} emAtraso={emAtraso} cobrancas={ativas.length} qtdRecebidas={qtdRecebidas} qtdAtraso={atrasadas.length} />
+        <EvolucaoMeses meses={meses} atual={mes.slice(0, 7) + "-01"} />
       </div>
 
-      <form className="mb-5 flex flex-wrap items-center gap-2">
-        <input type="hidden" name="mes" value={mes.slice(0, 7)} />
-        <input className="campo !w-64" name="q" defaultValue={b.q} placeholder="Buscar cliente" />
-        <select className="campo !w-auto" name="modalidade" defaultValue={b.modalidade ?? ""}>
-          <option value="">Todas as modalidades</option>
-          {Object.entries(MODALIDADES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <select className="campo !w-auto" name="rota" defaultValue={b.rota ?? ""}>
-          <option value="">Todas as rotas</option>
-          {rotas?.map((r) => <option key={r.id} value={r.id}>{r.nome}</option>)}
-        </select>
-        <button className="btn-sec">Filtrar</button>
-      </form>
+      <FiltroLista
+        alvo="#lista-pagamentos" chips={chips} mes={mes.slice(0, 7)} modalidade={b.modalidade} rota={b.rota}
+        modalidades={Object.entries(MODALIDADES).map(([valor, rotulo]) => ({ valor, rotulo }))}
+        rotas={(rotas ?? []).map((r) => ({ valor: r.id, rotulo: r.nome }))}
+      />
 
       {!grupos.length && (
         <div className="cartao"><Vazio icone={Wallet} titulo="Nenhuma cobrança neste mês" texto="As cobranças nascem das assinaturas ativas. Cadastre clientes com plano para gerá-las." /></div>
       )}
 
-      <div className="flex flex-col gap-5">
+      <div id="lista-pagamentos" className="flex flex-col gap-5">
         {grupos.map(({ s, itens }) => (
-          <section key={s} className="cartao overflow-hidden !p-0">
+          <section key={s} data-grupo={s} className="cartao overflow-hidden !p-0">
             <h2 className="flex items-center gap-2 border-b border-stone-100 px-5 py-3 text-sm font-semibold">
               <Badge tom={TOM_SIT[s]} ponto>{ROTULO_SITUACAO[s]}</Badge>
-              <span className="text-stone-400">{itens.length} cobrança{itens.length > 1 ? "s" : ""} · {reais(itens.reduce((t, l) => t + l.restante, 0))} a receber</span>
+              <span className="text-stone-400"><span data-n>{itens.length}</span> {itens.length === 1 ? "cobrança" : "cobranças"} · {reais(itens.reduce((t, l) => t + l.restante, 0))} a receber</span>
             </h2>
             <table className="tabela table-fixed">
               <colgroup><col className="w-[30%]" /><col className="w-[20%]" /><col className="w-[16%]" /><col className="w-[14%]" /><col className="w-[20%]" /></colgroup>
               <thead><tr><th>Cliente</th><th>Plano</th><th>Vencimento</th><th>Valor</th><th>Ações</th></tr></thead>
               <tbody>
                 {itens.map(({ c, cli, plano, pagos, pago, restante, a }) => {
-                  const modelo = s === "atrasado" || s === "atraso_critico" ? "cobranca_atraso" : "lembrete_pagamento";
                   const nm = nomeCompleto(cli);
                   return (
-                    <tr key={c.id}>
+                    <tr key={c.id} data-sit={s} data-fone={(cli?.whatsapp ?? "").replace(/\D/g, "")}
+                      data-busca={semAcento(`${nm} ${cli?.email ?? ""} ${plano?.nome ?? ""} ${plano ? MODALIDADES[plano.modalidade] : ""} ${(c.valor_centavos / 100).toFixed(2).replace(".", ",")}`)}>
                       <td><Link href={`/clientes/${a?.cliente_id}`} className="flex items-center gap-3"><Avatar nome={nm} tamanho={32} /><span className="font-medium">{nm}</span></Link></td>
                       <td className="text-stone-600">{plano ? MODALIDADES[plano.modalidade] : "—"}<span className="block text-xs text-stone-400">{plano?.nome.split("·")[1]?.trim()}</span></td>
                       <td>{dataBR(c.vencimento)}{c.justificativa && <span className="block text-xs text-stone-400">{c.justificativa}</span>}</td>
@@ -145,8 +167,10 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
                             </Modal>
                           )}
                           {c.status === "paga" && <span className="mr-1 text-xs text-emerald-700">Paga {pagos[0] && dataBR(pagos[0].data)}</span>}
-                          {c.status === "pendente" && cli?.whatsapp && (
-                            <a className="btn-ghost !p-2" target="_blank" href={`/mensagens/enviar?cliente=${a?.cliente_id}&modelo=${modelo}&cobranca=${c.id}`} title="Enviar lembrete por WhatsApp"><MessageCircle size={17} /></a>
+                          {c.status === "pendente" && (
+                            <form action={lembrarCobranca.bind(null, c.id, voltarUrl)}>
+                              <button className="btn-ghost !p-2" title="Lembrar pelo app" aria-label={`Lembrar ${nm} pelo app`}><BellRing size={17} /></button>
+                            </form>
                           )}
                           <Modal titulo="Ajustes da cobrança" descricao={`${nm} · ${reais(c.valor_centavos)} · vence ${dataBR(c.vencimento)}`} gatilho={<SlidersHorizontal size={16} />} gatilhoClasse="btn-ghost !p-2">
                             <div className="flex flex-col gap-5">

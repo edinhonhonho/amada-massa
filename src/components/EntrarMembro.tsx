@@ -1,58 +1,57 @@
 "use client";
 
+import { Mail, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { solicitarCodigo, verificarCodigo } from "@/app/membro/actions";
+import { entrarNoApp } from "@/app/membro/actions";
+
+/** Máscara (51) 99999-8888 enquanto digita; aceita colar com +55. */
+function mascara(v: string): string {
+  let d = v.replace(/\D/g, "");
+  if (d.length > 11 && d.startsWith("55")) d = d.slice(2);
+  d = d.slice(0, 11);
+  if (d.length <= 2) return d ? `(${d}` : "";
+  if (d.length <= 6) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+}
 
 export default function EntrarMembro() {
   const router = useRouter();
-  const [etapa, setEtapa] = useState<"email" | "codigo">("email");
   const [email, setEmail] = useState("");
-  const [codigo, setCodigo] = useState("");
+  const [telefone, setTelefone] = useState("");
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, iniciar] = useTransition();
 
-  function pedir(ev?: React.FormEvent) {
-    ev?.preventDefault();
-    setErro(null);
-    iniciar(async () => {
-      const r = await solicitarCodigo(email);
-      if (r.ok) setEtapa("codigo"); else setErro(r.erro ?? "Erro.");
-    });
-  }
-  function confirmar(ev: React.FormEvent) {
+  function enviar(ev: React.FormEvent) {
     ev.preventDefault();
     setErro(null);
     iniciar(async () => {
-      const r = await verificarCodigo(email, codigo);
-      if (r.ok) router.replace("/membro"); else setErro(r.erro ?? "Erro.");
+      const r = await entrarNoApp(email, telefone);
+      if (r.ok) router.replace("/membro");
+      else setErro(r.erro ?? "Não foi possível entrar.");
     });
   }
 
   return (
-    <div className="cartao flex flex-col gap-4">
-      {erro && <p className="rounded-lg bg-red-50 p-3 text-red-800" role="alert">{erro}</p>}
-      {etapa === "email" ? (
-        <form onSubmit={pedir} className="flex flex-col gap-3">
-          <div>
-            <label className="rotulo" htmlFor="email">Seu e-mail</label>
-            <input className="campo" id="email" type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            <p className="mt-1 text-sm text-stone-600">Use o e-mail que você informou ao assinar o clube.</p>
-          </div>
-          <button className="btn py-3 text-lg" disabled={pendente}>{pendente ? "Enviando…" : "Receber código"}</button>
-        </form>
-      ) : (
-        <form onSubmit={confirmar} className="flex flex-col gap-3">
-          <p>Se <b>{email}</b> estiver cadastrado, enviamos um código. Confira também o spam.</p>
-          <div>
-            <label className="rotulo" htmlFor="codigo">Código</label>
-            <input className="campo text-center text-2xl tracking-widest" id="codigo" inputMode="numeric" autoComplete="one-time-code" maxLength={10} required value={codigo} onChange={(e) => setCodigo(e.target.value)} />
-          </div>
-          <button className="btn py-3 text-lg" disabled={pendente}>{pendente ? "Verificando…" : "Entrar"}</button>
-          <button type="button" className="text-sm underline" onClick={() => { setEtapa("email"); setCodigo(""); setErro(null); }}>Trocar e-mail</button>
-          <button type="button" className="text-sm underline" onClick={() => pedir()}>Reenviar código</button>
-        </form>
-      )}
-    </div>
+    <form onSubmit={enviar} className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-[0_20px_50px_-20px_rgba(120,53,15,.35)]">
+      {erro && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{erro}</p>}
+      <div>
+        <label className="rotulo" htmlFor="email">E-mail</label>
+        <div className="relative">
+          <Mail size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input className="campo !pl-10" id="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" required placeholder="voce@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+      </div>
+      <div>
+        <label className="rotulo" htmlFor="telefone">Telefone</label>
+        <div className="relative">
+          <Phone size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input className="campo !pl-10" id="telefone" type="tel" inputMode="tel" autoComplete="tel" required placeholder="(51) 99999-8888" value={telefone} onChange={(e) => setTelefone(mascara(e.target.value))} />
+        </div>
+        <p className="ajuda">Os mesmos dados que você informou ao assinar o clube.</p>
+      </div>
+      <button className="btn !rounded-2xl !py-3.5 text-base" disabled={pendente}>{pendente ? "Entrando…" : "Entrar"}</button>
+    </form>
   );
 }

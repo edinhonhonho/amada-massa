@@ -5,6 +5,7 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", (event) => {
   let dados = {};
   try { dados = event.data ? event.data.json() : {}; } catch { dados = { title: "Amada Massa", body: event.data ? event.data.text() : "" }; }
+  if (self.navigator && self.navigator.setAppBadge) self.navigator.setAppBadge().catch(() => {});
   event.waitUntil(
     self.registration.showNotification(dados.title || "Amada Massa", {
       body: dados.body || "",

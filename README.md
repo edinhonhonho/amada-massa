@@ -11,7 +11,7 @@ Sistema interno (Next.js + TypeScript + Tailwind) hospedado na **Vercel**, com *
 | 3 Rotas | Editor com seleção de clientes, ordem sugerida e trajeto de bicicleta no mapa; atribuição com histórico (uma ativa por cliente); mapa e navegação pelo Google Maps no app do entregador |
 | 4 Planejamento | Calendário do ano; catálogo de pães reutilizáveis; em cada semana, clientes com assinatura ativa agrupados por rota, ponto de coleta e padaria, quantidade de cada pão por cliente, total a produzir por destino e PDF para conferência, pular cliente, semana sem produção, entregas geradas com suspensão por atraso (volta ao pagar), listas de produção, entrega e coleta para imprimir |
 | 5 Entregas | App do entregador (PWA, fila offline, iniciar/finalizar rota, foto e observação por parada, sem dados financeiros), ocorrências, pendências, histórico com fotos |
-| 6 Comunicação e painel | Modelos de WhatsApp editáveis, envio em lote por segmento, painel inicial, 7 relatórios, CSV, configurações |
+| 6 Comunicação e relatórios | **Mensagens**: central de avisos pelo app Amada Massa (único canal): para todos, em atraso, com mensalidade em aberto ou uma rota, com `{nome}`, `{valor}`, `{vencimento}`, prévia no celular e histórico com quem leu; aviso individual na ficha do cliente e lembrete de cobrança em Pagamentos; 7 relatórios, CSV, configurações |
 
 Também: backup automático do banco (`.github/workflows/backup.yml`, ver `docs/backup.md`).
 App do membro com notificações push implementado. Ainda fora do escopo: mapa, conciliação de extrato, WhatsApp automático e formulário do Wix.
@@ -43,7 +43,7 @@ O SQL **apaga todos os clientes atuais** e importa clientes, assinaturas (modali
 
 ## Atalhos de teclado (gestão)
 
-`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. `G` e depois uma letra navega: `C` clientes, `L` planos, `P` pagamentos, `S` planejamento, `R` rotas, `E` entregas, `M` mensagens. `?` mostra a lista.
+`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. `G` e depois uma letra navega: `C` clientes, `L` planos, `P` pagamentos, `S` esta semana, `N` calendário, `R` rotas, `E` histórico de entregas, `M` mensagens. `?` mostra a lista.
 
 ## Os três apps
 
@@ -51,18 +51,17 @@ O SQL **apaga todos os clientes atuais** e importa clientes, assinaturas (modali
 | --- | --- | --- |
 | Gestão | `/` | Administrador e operação, no computador |
 | Entregador (PWA) | `/entregador` | Entregador, no celular: escolhe a rota, inicia, marca entregas com foto e observação, funciona sem sinal |
-| Membro (PWA) | `/membro` | Cliente: entra com e-mail + código, instala o app e recebe notificações (rota iniciou, você é o próximo, entregue, sabor) |
+| Amada Massa (PWA do cliente) | `/membro` | Central de avisos: o cliente entra com o **e-mail e o telefone do cadastro** (sem código, sem SMTP), instala o app e recebe notificações (rota iniciou, você é o próximo, entregue, pão da semana e avisos da equipe) |
 
 O membro só entra se o e-mail estiver na ficha do cliente (e o cliente não estiver cancelado).
 
 ## Configuração
 
-1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql`, `0003_apps_entregador_membro.sql`, `0004_planos_pontos_paes_mapa.sql`, `0005_catalogo_paes_quantidades.sql` e `0006_apoio_e_paes_tradicionais.sql` (esta última **sozinha**, antes de importar dados: ela adiciona a modalidade de apoio recorrente).
+1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql`, `0003_apps_entregador_membro.sql`, `0004_planos_pontos_paes_mapa.sql`, `0005_catalogo_paes_quantidades.sql` `0006_apoio_e_paes_tradicionais.sql` (**sozinha**, antes de importar dados: adiciona a modalidade de apoio recorrente) e `0007_central_de_avisos.sql` (histórico de avisos, freio de tentativas de login e resumo mensal de cobranças).
 2. **Supabase → Authentication**:
-   - *Sign In / Providers → Email*: deixe ligado; desligue **Allow new users to sign up**; comprimento do código (OTP length) = 6.
+   - *Sign In / Providers → Email*: deixe ligado; desligue **Allow new users to sign up**.
    - *URL Configuration*: Site URL = endereço do app; Redirect URLs = `https://SEU-APP/auth/callback` (e `http://localhost:3000/auth/callback`).
-   - *Emails → SMTP Settings*: ative um SMTP próprio (o envio padrão do Supabase só entrega para a equipe do projeto). Gmail com senha de app (`smtp.gmail.com`, porta 465) ou Brevo funcionam no plano gratuito. Depois, em *Rate Limits*, aumente "emails per hour".
-   - *Emails → Templates → Magic Link*: troque o texto por algo que mostre o código, ex.: `<p>Seu código do Amada Massa: <b>{{ .Token }}</b></p>`.
+   - O app Amada Massa **não envia e-mail**: o cliente entra com e-mail + telefone cadastrados e o servidor confere os dois. São permitidas 5 tentativas erradas por e-mail e 25 por endereço a cada 15 minutos. Como é uma verificação simples (quem souber e-mail e telefone de um cliente entra como ele), o app mostra somente os avisos recebidos, sem dados cadastrais. O SMTP só é necessário para a equipe usar "Esqueci minha senha".
 3. **Primeiro administrador**: *Authentication → Users → Add user* (marque Auto Confirm), depois no SQL Editor:
    ```sql
    update usuarios set perfil = 'admin' where id = (select id from auth.users where email = 'voce@exemplo.com');

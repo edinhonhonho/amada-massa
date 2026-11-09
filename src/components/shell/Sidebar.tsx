@@ -49,6 +49,7 @@ export default function Sidebar({
                   <li key={it.href}>
                     <Link
                       href={it.href}
+                      prefetch
                       title={it.dica}
                       className={`group relative flex items-center gap-2.5 rounded-lg px-2 py-2 text-sm transition ${
                         on ? "bg-amber-50 font-medium text-amber-900" : "text-stone-600 hover:bg-stone-100 hover:text-stone-900"

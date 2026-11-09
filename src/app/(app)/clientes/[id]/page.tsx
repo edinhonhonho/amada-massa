@@ -1,5 +1,5 @@
 import {
-  Ban, Bell, HeartHandshake, CalendarClock, Check, FileDown, History, MapPin, MessageCircle, Pause, Pencil, Play, Plus, Repeat, Trash2, Truck, Wallet,
+  Ban, Bell, HeartHandshake, CalendarClock, Check, FileDown, History, MapPin, Pause, Pencil, Play, Plus, Repeat, Trash2, Truck, Wallet,
 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,8 +9,13 @@ import Modal from "@/components/ui/Modal";
 import PageHeader from "@/components/ui/PageHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirEquipe } from "@/lib/auth";
-import { carregarFaixas, nomeCompleto, um } from "@/lib/dados";
-import { CANAIS, MODALIDADES, STATUS_CLIENTE, dataBR, hojeISO, linkWhatsApp, reais } from "@/lib/format";
+import { faixasEmCache } from "@/lib/cache";
+import { nomeCompleto, um } from "@/lib/dados";
+import AvisoEnviado from "@/components/avisos/AvisoEnviado";
+import ComporAviso from "@/components/avisos/ComporAviso";
+import { avisarCliente } from "../../mensagens/actions";
+import { chaveTelefone } from "@/lib/telefone";
+import { CANAIS, MODALIDADES, STATUS_CLIENTE, dataBR, hojeISO, reais } from "@/lib/format";
 import { ROTULO_SITUACAO, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
 import { STATUS_ENTREGA } from "@/lib/semana";
 import { concluirContato, definirTradicionais, excluirCliente, mudarStatus, registrarContato } from "../actions";
@@ -24,23 +29,23 @@ const Linha = ({ rotulo, children }: { rotulo: string; children: React.ReactNode
   <div className="flex gap-3 py-2 text-sm"><dt className="w-28 shrink-0 text-stone-500">{rotulo}</dt><dd className="min-w-0 flex-1 text-stone-900">{children}</dd></div>
 );
 
-export default async function Cliente({ params }: { params: Promise<{ id: string }> }) {
+export default async function Cliente({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ aviso?: string; n?: string; push?: string }> }) {
   const { id } = await params;
+  const av = await searchParams;
   const { supabase, usuario } = await exigirEquipe();
   const hoje = hojeISO();
 
-  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: modelos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }, faixas, { data: cobrancas }] = await Promise.all([
+  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }, faixas, { data: cobrancas }] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", id).single(),
     supabase.from("assinaturas").select("*, planos(nome, modalidade, paes_por_semana, valor_centavos), pontos_coleta(nome)").eq("cliente_id", id).order("inicio", { ascending: false }),
     supabase.from("contatos").select("*").eq("cliente_id", id).order("data", { ascending: false }).order("criado_em", { ascending: false }),
     supabase.from("planos").select("id, nome, modalidade, paes_por_semana, valor_centavos").eq("ativo", true).order("valor_centavos"),
     supabase.from("pontos_coleta").select("id, nome, tipo, endereco, horario_texto").eq("ativo", true).order("nome"),
-    supabase.from("modelos_mensagem").select("chave, nome").order("nome"),
     supabase.from("entregas").select("id, status, ocorrencia, rota_nome, ponto_nome, semanas(inicio, sabor)").eq("cliente_id", id).order("semana_id", { ascending: false }).limit(8),
     supabase.from("membros").select("criado_em").eq("cliente_id", id).maybeSingle(),
     supabase.from("push_inscricoes").select("*", { count: "exact", head: true }).eq("cliente_id", id),
     supabase.from("atribuicoes_rota").select("rotas(nome, cor)").eq("cliente_id", id).is("fim", null).maybeSingle(),
-    carregarFaixas(supabase),
+    faixasEmCache(),
     supabase.from("cobrancas").select("id, competencia, valor_centavos, vencimento, status, assinaturas!inner(cliente_id)").eq("assinaturas.cliente_id", id).order("competencia", { ascending: false }).limit(8),
   ]);
   if (!c) notFound();
@@ -49,7 +54,6 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   const planoAtual = um(atual?.planos as never) as { nome: string; modalidade: keyof typeof MODALIDADES; paes_por_semana: number; valor_centavos: number } | null;
   const pontoAtual = um(atual?.pontos_coleta as never) as { nome: string } | null;
   const rota = um(atrib?.rotas as never) as { nome: string; cor: string } | null;
-  const wa = linkWhatsApp(c.whatsapp);
   const nome = nomeCompleto(c);
   const endereco = [c.logradouro && `${c.logradouro}${c.numero ? ", " + c.numero : ""}`, c.complemento, c.bairro].filter(Boolean).join(" · ");
 
@@ -70,6 +74,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
 
   return (
     <>
+      <AvisoEnviado aviso={av.aviso} n={av.n} push={av.push} />
       <PageHeader
         voltar={{ href: "/clientes", rotulo: "Clientes" }}
         titulo={<span className="flex items-center gap-3"><Avatar nome={nome} tamanho={44} />{nome}</span>}
@@ -80,7 +85,9 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
           Cliente desde {dataBR(c.confirmado_em)}
         </>}
         acoes={<>
-          {wa && <a className="btn" href={wa} target="_blank" rel="noreferrer"><MessageCircle size={16} />WhatsApp</a>}
+          <Modal titulo="Avisar pelo app" descricao={`Notificação para ${nomeCompleto(c)} no aplicativo Amada Massa.`} gatilho={<><Bell size={16} />Avisar pelo app</>} gatilhoClasse="btn">
+            <ComporAviso compacto opcoes={[{ codigo: `clientes:${id}`, rotulo: nomeCompleto(c), qtd: 1 }]} acao={avisarCliente.bind(null, id)} modelos={["geral", "pagamento", "novidade"]} />
+          </Modal>
           <Modal titulo="Registrar contato" descricao="Fica na linha do tempo do cliente." gatilho={<><Plus size={16} />Contato</>}>
             <form action={registrarContato} className="flex flex-col gap-4">
               <input type="hidden" name="cliente_id" value={id} />
@@ -270,23 +277,12 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
           <section className="cartao">
             <div className="cartao-titulo"><Bell size={16} className="text-stone-400" />App do membro</div>
             <p className="text-sm">
-              {!c.email ? <span className="text-amber-800">Sem e-mail cadastrado: o cliente não consegue entrar.</span>
+              {!c.email || !chaveTelefone(c.whatsapp) ? <span className="text-amber-800">Falta {!c.email ? "e-mail" : "telefone com DDD"} no cadastro: o cliente só entra no app com e-mail e telefone.</span>
                 : !membro ? <span className="text-stone-600">Ainda não entrou no app.</span>
                 : aparelhos ? <span className="text-emerald-700">Recebe avisos em {aparelhos} aparelho{aparelhos > 1 ? "s" : ""}.</span>
                 : <span className="text-stone-600">Entrou, mas não ativou os avisos.</span>}
             </p>
           </section>
-
-          {c.whatsapp && (
-            <section className="cartao">
-              <div className="cartao-titulo"><MessageCircle size={16} className="text-stone-400" />Mensagem rápida</div>
-              <ul className="-mx-2">
-                {modelos?.map((m) => (
-                  <li key={m.chave}><a className="flex items-center justify-between rounded-lg px-2 py-1.5 text-sm text-stone-700 hover:bg-stone-100" target="_blank" href={`/mensagens/enviar?cliente=${id}&modelo=${m.chave}`}>{m.nome}<MessageCircle size={14} className="text-stone-400" /></a></li>
-                ))}
-              </ul>
-            </section>
-          )}
 
           {usuario.perfil === "admin" && (
             <section className="cartao ">

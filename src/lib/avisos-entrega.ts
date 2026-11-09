@@ -45,29 +45,11 @@ export async function avisarResultado(entregaId: string, entregador: string) {
   }
 }
 
-/** Membros ativos, de todos ou de uma rota. */
-async function membrosAtivos(rotaId?: string): Promise<string[]> {
-  const admin = createAdminClient();
-  const { data } = await admin.from("membros").select("cliente_id, clientes!inner(status)").eq("clientes.status", "ativo");
-  let ids = (data ?? []).map((m) => m.cliente_id);
-  if (rotaId) {
-    const { data: a } = await admin.from("atribuicoes_rota").select("cliente_id").eq("rota_id", rotaId).is("fim", null);
-    const naRota = new Set((a ?? []).map((x) => x.cliente_id));
-    ids = ids.filter((id) => naRota.has(id));
-  }
-  return ids;
-}
-
+/** O pão da semana vai para todos os clientes ativos. */
 export async function avisarSabor(semanaId: string, sabor: string) {
   const t = textoSabor(sabor);
-  const ids = await membrosAtivos();
+  const { data } = await createAdminClient().from("clientes").select("id").eq("status", "ativo").range(0, 4999);
+  const ids = (data ?? []).map((c) => c.id);
   await notificar(ids.map((id) => ({ cliente_id: id, tipo: "sabor", ...t, ref: semanaId })));
-  return ids.length;
-}
-
-export async function avisarLivre(titulo: string, corpo: string, rotaId?: string) {
-  const ids = await membrosAtivos(rotaId);
-  const ref = `livre:${Date.now()}`;
-  await notificar(ids.map((id) => ({ cliente_id: id, tipo: "aviso", titulo, corpo, ref })));
   return ids.length;
 }

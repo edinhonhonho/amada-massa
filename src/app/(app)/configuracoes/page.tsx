@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { renovarConfiguracoes } from "@/lib/cache";
 import PageHeader from "@/components/ui/PageHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirAdmin } from "@/lib/auth";
@@ -11,6 +12,7 @@ async function salvar(f: FormData) {
     if (typeof v === "string" && Number.isInteger(n) && n >= 0 && n <= 365) await supabase.from("configuracoes").update({ valor: n }).eq("chave", chave);
   }
   await supabase.rpc("reavaliar_entregas");
+  renovarConfiguracoes();
   revalidatePath("/configuracoes");
 }
 

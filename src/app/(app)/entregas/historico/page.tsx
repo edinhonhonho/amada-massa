@@ -57,7 +57,6 @@ export default async function Historico({ searchParams }: { searchParams: Promis
     <>
       <PageHeader
         titulo="Entregas"
-        etiqueta={<Badge tom="cinza">Passo 3 · Entregar</Badge>}
         subtitulo="Acompanhe a execução das rotas, as ocorrências e o histórico, com hora, observação e foto de cada parada."
         acoes={usuario.perfil === "admin" ? <Link className="btn-sec" href={`/exportar/entregas${semanaId ? `?semana=${semanaId}` : ""}`}><Download size={16} />Exportar CSV</Link> : undefined}
       />
@@ -112,7 +111,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
       )}
 
       <section className="cartao overflow-hidden !p-0">
-        {!data?.length ? <Vazio icone={Truck} titulo="Sem entregas nesta semana" texto="Abra a semana em Planejamento: as entregas são criadas a partir das assinaturas ativas." /> : (
+        {!data?.length ? <Vazio icone={Truck} titulo="Sem entregas nesta semana" texto="Abra a semana em Esta semana: as entregas são criadas a partir das assinaturas ativas." /> : (
           <table className="tabela">
             <thead><tr><th>Cliente</th><th>Rota ou ponto</th><th>Situação</th><th>Hora</th><th>Quem</th><th>Detalhes</th></tr></thead>
             <tbody>

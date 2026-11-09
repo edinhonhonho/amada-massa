@@ -1,4 +1,4 @@
-import { Bell, Check, FileDown, Lock, LockOpen, MapPin, Moon, MoreHorizontal, PackageCheck, Plus, RotateCcw, Route as RouteIcon, SkipForward, Store, Trash2, Truck, Undo2, Users, Wheat, X } from "lucide-react";
+import { AlertTriangle, ArrowLeft, ArrowRight, Bell, Check, CircleCheck, FileDown, Lock, LockOpen, MapPin, Moon, MoreHorizontal, PackageCheck, Plus, RotateCcw, Route as RouteIcon, SkipForward, Store, Trash2, Truck, Undo2, Users, Wheat, X } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ChipsBairro from "@/components/ChipsBairro";
@@ -11,6 +11,7 @@ import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
 import { dataBR } from "@/lib/format";
 import { carregarSemanaCompleta, estaAtiva, type Grupo, type PaoSemana } from "@/lib/planejamento";
+import { ETAPAS, estadoEtapas, etapaAtual, type EstadoEtapa } from "@/lib/etapas";
 import { STATUS_SEMANA } from "@/lib/semana";
 import {
   adicionarPaesSemana, alternarListaFechada, alternarPuloLinha, alternarSemProducao, avisarSaborMembros, excluirSemana,
@@ -146,9 +147,81 @@ function CartaoGrupo({ g, paes, semanaId, rotas }: { g: Grupo; paes: PaoSemana[]
   );
 }
 
-export default async function Semana({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ avisados?: string; erro?: string }> }) {
+function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: EstadoEtapa[]; atual: string }) {
+  return (
+    <ol className="mb-6 grid grid-cols-4 gap-3" aria-label="Etapas da semana">
+      {estados.map((e, i) => {
+        const ativa = e.id === atual;
+        return (
+          <li key={e.id}>
+            <Link
+              href={`/planejamento/${semanaId}?etapa=${e.id}`} aria-current={ativa ? "step" : undefined}
+              className={`flex h-full items-start gap-3 rounded-2xl p-4 transition ${ativa ? "bg-white shadow-[0_10px_30px_-10px_rgba(146,64,14,.35)]" : "bg-white/55 shadow-sm hover:bg-white hover:shadow-md"}`}
+            >
+              <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${e.feita ? "bg-emerald-100 text-emerald-700" : ativa ? "bg-amber-700 text-white" : "bg-stone-100 text-stone-500"}`}>
+                {e.feita ? <Check size={16} /> : i + 1}
+              </span>
+              <span className="min-w-0">
+                <span className={`block font-semibold leading-tight ${ativa ? "text-stone-900" : "text-stone-700"}`}>{e.rotulo}</span>
+                <span className="block truncate text-xs text-stone-500">{e.detalhe}</span>
+                {e.alerta && <span className="mt-1 flex items-center gap-1 text-xs font-medium text-amber-800"><AlertTriangle size={12} />{e.alerta}</span>}
+              </span>
+            </Link>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/** Etapa 4: como anda cada destino na semana, e o que precisa de atenção. */
+function Acompanhamento({ grupos }: { grupos: Grupo[] }) {
+  if (!grupos.length) return <div className="cartao"><Vazio icone={Truck} titulo="Nada para acompanhar" texto="Quando houver clientes na semana, o andamento de cada rota e ponto aparece aqui." /></div>;
+  const feitas = (g: Grupo) => g.linhas.filter((l) => l.status === "entregue" || l.status === "retirada").length;
+  const falhas = grupos.flatMap((g) => g.linhas.filter((l) => l.status === "nao_entregue" || l.status === "suspensa_atraso").map((l) => ({ l, g })));
+  return (
+    <div className="flex flex-col gap-5">
+      {falhas.length > 0 && (
+        <section className="cartao !p-0">
+          <header className="flex items-center gap-2 border-b border-stone-100 px-5 py-3.5 font-semibold"><AlertTriangle size={16} className="text-amber-700" />Precisam de atenção <span className="font-normal text-stone-400">{falhas.length}</span></header>
+          <ul className="divide-y divide-stone-100">
+            {falhas.map(({ l, g }) => (
+              <li key={l.id} className="flex items-center gap-3 px-5 py-3 text-sm">
+                <Link href={`/clientes/${l.cliente_id}`} className="font-medium hover:underline">{l.nome}</Link>
+                <span className="text-stone-400">{g.chave === "rota:sem" ? "Sem rota" : g.nome}</span>
+                <span className="ml-auto"><BadgeSituacao status={l.status} /></span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <div className="grid grid-cols-2 gap-4">
+        {grupos.map((g) => {
+          const ok = feitas(g);
+          const pct = g.ativos ? Math.round((ok / g.ativos) * 100) : 0;
+          const falta = g.linhas.filter((l) => l.status === "programada" || l.status === "reagendada");
+          const Icone = g.tipo === "entrega" ? Truck : g.tipo === "padaria" ? Store : MapPin;
+          return (
+            <section key={g.chave} className="cartao !p-4">
+              <div className="flex items-center gap-2.5">
+                <Icone size={16} className="text-stone-400" />
+                <h3 className="flex-1 font-semibold leading-tight">{g.chave === "rota:sem" ? "Entrega sem rota" : g.nome}</h3>
+                {pct === 100 && g.ativos > 0 ? <span className="selo selo-verde"><CircleCheck size={13} />Concluída</span> : <span className="text-sm tabular-nums text-stone-500">{ok} de {g.ativos}</span>}
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100" role="img" aria-label={`${pct}% concluído`}><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} /></div>
+              {falta.length > 0 && <p className="mt-2.5 text-xs text-stone-500">Falta: {falta.slice(0, 4).map((l) => l.nome.split(" ")[0]).join(", ")}{falta.length > 4 ? ` e mais ${falta.length - 4}` : ""}</p>}
+            </section>
+          );
+        })}
+      </div>
+      <p className="text-sm text-stone-500">As entregas são marcadas pelo entregador no app, ou aqui na etapa anterior (Retirou / Pular). Veja semanas passadas em <Link className="link" href="/entregas/historico">Histórico de entregas</Link>.</p>
+    </div>
+  );
+}
+
+export default async function Semana({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ avisados?: string; erro?: string; etapa?: string }> }) {
   const { id } = await params;
-  const { avisados, erro } = await searchParams;
+  const { avisados, erro, etapa: etapaPedida } = await searchParams;
   const { supabase } = await exigirEquipe();
 
   // Ao abrir a semana, quem tem assinatura ativa entra sozinho (idempotente): não existe mais "abrir semana".
@@ -156,7 +229,7 @@ export default async function Semana({ params, searchParams }: { params: Promise
   const [dados, { data: catalogo }, { data: rotas }] = await Promise.all([
     carregarSemanaCompleta(supabase, id),
     supabase.from("paes").select("id, nome, ingredientes, alergenos").eq("ativo", true).order("nome"),
-    supabase.from("rotas").select("id, nome").eq("ativa", true).order("nome"),
+    supabase.from("rotas").select("id, nome, entregador_id").eq("ativa", true).order("nome"),
   ]);
   if (!dados) notFound();
   const { semana: s, paes, grupos, totalPaes, totaisPorPao, clientes } = dados;
@@ -168,18 +241,25 @@ export default async function Semana({ params, searchParams }: { params: Promise
   const disponiveis = (catalogo ?? []).filter((p) => !naSemana.has(p.id));
   const semAtribuir = grupos.find((g) => g.chave === "rota:sem")?.ativos ?? 0;
 
+  const semEntregador = new Set((rotas ?? []).filter((r) => !r.entregador_id).map((r) => r.id));
+  const rotasSemEntregador = grupos.filter((g) => g.tipo === "entrega" && g.refId && g.ativos > 0 && semEntregador.has(g.refId)).length;
+  const concluidas = grupos.reduce((n, g) => n + g.linhas.filter((l) => l.status === "entregue" || l.status === "retirada").length, 0);
+  const estados = estadoEtapas({
+    paes: paes.length, totalPaes, semProducao: s.sem_producao, listaFechada: s.lista_fechada,
+    ativos: grupos.reduce((n, g) => n + g.ativos, 0), concluidas, semRota: semAtribuir, rotasSemEntregador,
+  });
+  const etapa = etapaAtual(estados, etapaPedida);
+  const indice = estados.findIndex((e) => e.id === etapa);
+  const link = (e: string) => `/planejamento/${id}?etapa=${e}`;
+
   return (
     <>
       <PageHeader
-        voltar={{ href: `/planejamento?ano=${s.inicio.slice(0, 4)}`, rotulo: `Planejamento ${s.inicio.slice(0, 4)}` }}
+        voltar={{ href: `/planejamento?ano=${s.inicio.slice(0, 4)}`, rotulo: `Calendário ${s.inicio.slice(0, 4)}` }}
         titulo={`Semana de ${dataBR(s.inicio)}`}
         etiqueta={<Badge tom={s.sem_producao ? "cinza" : "azul"} ponto>{s.sem_producao ? "Sem produção" : STATUS_SEMANA[s.status]}</Badge>}
         subtitulo={`${dataBR(s.inicio)} a ${dataBR(s.fim)}`}
         acoes={<>
-          <a href={`/planejamento/${id}/pdf/producao`} target="_blank" className="btn-sec"><FileDown size={16} />PDF da produção</a>
-          <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} /><SubmitButton className="btn-sec"><Bell size={16} />Avisar os pães</SubmitButton></form>
-          <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
-            <SubmitButton className="btn-sec">{s.lista_fechada ? <><LockOpen size={16} />Reabrir lista</> : <><Lock size={16} />Fechar lista</>}</SubmitButton></form>
           <Modal titulo="Mais opções da semana" gatilho={<MoreHorizontal size={18} />} gatilhoClasse="btn-sec !px-3">
             <div className="flex flex-col gap-5">
               <form action={salvarSemana} className="grid grid-cols-2 gap-3">
@@ -205,17 +285,15 @@ export default async function Semana({ params, searchParams }: { params: Promise
       {s.lista_fechada && <p className="mb-4 flex items-center gap-2 rounded-xl bg-stone-100 p-3 text-sm text-stone-700 shadow-sm"><Lock size={15} />Lista fechada: novos clientes e pagamentos não alteram esta semana. As quantidades ainda podem ser ajustadas.</p>}
       {s.sem_producao && <p className="mb-4 rounded-xl bg-stone-100 p-3 text-sm text-stone-700 shadow-sm">Semana sem produção: ninguém recebe pães.</p>}
 
-      <div className="mb-6 grid grid-cols-4 gap-3">
-        <Stat rotulo="Pães a produzir" valor={totalPaes} icone={PackageCheck} tom="ambar" detalhe={paes.length ? paes.map((p) => `${totaisPorPao[p.id] ?? 0} ${p.nome}`).join(" · ") : "Defina os pães da semana"} />
-        <Stat rotulo="Clientes na semana" valor={clientes} icone={Users} tom="azul" detalhe={semAtribuir ? `${semAtribuir} entrega(s) sem rota` : undefined} />
-        <Stat rotulo="Entrega em casa" valor={`${entrega.p} pães`} icone={Truck} tom="verde" detalhe={`${entrega.c} cliente(s)`} />
-        <Stat rotulo="Retirada" valor={`${pontos.p + padaria.p} pães`} icone={Store} tom="neutro" detalhe={`${pontos.c + padaria.c} cliente(s) · ${doTipo("ponto").length} ponto(s) e padaria`} />
-      </div>
+      <Etapas semanaId={id} estados={estados} atual={etapa} />
 
-      <section className="cartao mb-6 !p-0">
+      {etapa === "paes" && (
+        <>
+      <section className="cartao !p-0">
         <header className="flex items-center gap-3 border-b border-stone-100 px-5 py-3.5">
           <h2 className="flex items-center gap-2 font-semibold"><Wheat size={17} className="text-stone-400" />Pães da semana <span className="font-normal text-stone-400">{paes.length}</span></h2>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {paes.length > 0 && <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} /><SubmitButton className="btn-sec"><Bell size={16} />Avisar os clientes</SubmitButton></form>}
             <Modal titulo="Adicionar pão à semana" descricao="Escolha um pão já cadastrado ou cadastre um novo. O pão fica no catálogo e pode ser usado em outras semanas." gatilho={<><Plus size={16} />Adicionar pão</>} gatilhoClasse="btn" largo>
               <div className="flex flex-col gap-6">
                 {disponiveis.length > 0 && (
@@ -262,7 +340,22 @@ export default async function Semana({ params, searchParams }: { params: Promise
           </ul>
         )}
       </section>
+        </>
+      )}
 
+      {etapa === "producao" && (
+        <>
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+        <a href={`/planejamento/${id}/pdf/producao`} target="_blank" className="btn-sec"><FileDown size={16} />PDF da produção</a>
+        <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
+          <SubmitButton className={s.lista_fechada ? "btn-sec" : "btn"}>{s.lista_fechada ? <><LockOpen size={16} />Reabrir lista</> : <><Lock size={16} />Fechar a lista da semana</>}</SubmitButton></form>
+      </div>
+      <div className="mb-6 grid grid-cols-4 gap-3">
+        <Stat rotulo="Pães a produzir" valor={totalPaes} icone={PackageCheck} tom="ambar" detalhe={paes.length ? paes.map((p) => `${totaisPorPao[p.id] ?? 0} ${p.nome}`).join(" · ") : "Defina os pães da semana"} />
+        <Stat rotulo="Clientes na semana" valor={clientes} icone={Users} tom="azul" detalhe={semAtribuir ? `${semAtribuir} entrega(s) sem rota` : undefined} />
+        <Stat rotulo="Entrega em casa" valor={`${entrega.p} pães`} icone={Truck} tom="verde" detalhe={`${entrega.c} cliente(s)`} />
+        <Stat rotulo="Retirada" valor={`${pontos.p + padaria.p} pães`} icone={Store} tom="neutro" detalhe={`${pontos.c + padaria.c} cliente(s) · ${doTipo("ponto").length} ponto(s) e padaria`} />
+      </div>
       {grupos.length > 0 && !s.sem_producao && (
         <section className="cartao mb-6 overflow-hidden !p-0">
           <header className="border-b border-stone-100 px-5 py-3.5"><h2 className="font-semibold">Quanto produzir e para onde levar</h2></header>
@@ -283,7 +376,15 @@ export default async function Semana({ params, searchParams }: { params: Promise
           </table>
         </section>
       )}
+        </>
+      )}
 
+      {etapa === "distribuicao" && (
+        <>
+          {rotasSemEntregador > 0 && (
+            <p className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 shadow-sm"><AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              {rotasSemEntregador} {rotasSemEntregador === 1 ? "rota está" : "rotas estão"} sem entregador. Defina em <Link href="/rotas" className="font-medium underline">Rotas</Link> quem faz cada uma.</p>
+          )}
       {!s.sem_producao && (
         grupos.length === 0 ? (
           <div className="cartao"><Vazio icone={Users} titulo="Nenhum cliente com assinatura ativa" texto="Quando houver clientes com assinatura ativa, eles aparecem aqui nesta semana, agrupados por entrega, ponto de coleta e padaria." /></div>
@@ -300,6 +401,15 @@ export default async function Semana({ params, searchParams }: { params: Promise
           </div>
         )
       )}
+        </>
+      )}
+
+      {etapa === "entregas" && <Acompanhamento grupos={grupos} />}
+
+      <nav className="mt-8 flex items-center justify-between border-t border-stone-200/70 pt-5" aria-label="Etapas da semana">
+        {indice > 0 ? <Link href={link(ETAPAS[indice - 1].id)} className="btn-sec"><ArrowLeft size={16} />{ETAPAS[indice - 1].rotulo}</Link> : <span />}
+        {indice < ETAPAS.length - 1 && <Link href={link(ETAPAS[indice + 1].id)} className="btn">Próxima etapa: {ETAPAS[indice + 1].rotulo}<ArrowRight size={16} /></Link>}
+      </nav>
     </>
   );
 }

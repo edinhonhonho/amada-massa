@@ -5,7 +5,8 @@ import Badge, { type Tom } from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
-import { carregarFaixas, nomeCompleto, um } from "@/lib/dados";
+import { faixasEmCache } from "@/lib/cache";
+import { nomeCompleto, um } from "@/lib/dados";
 import { MODALIDADES, hojeISO, linkWhatsApp, reais, soDigitos } from "@/lib/format";
 import { ROTULO_SITUACAO, pior, primeiroDoMes, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
 
@@ -39,7 +40,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
     supabase.from("cobrancas").select("vencimento, status, assinaturas(cliente_id)").eq("competencia", primeiroDoMes(hoje)),
     supabase.from("atribuicoes_rota").select("cliente_id, rotas(nome, cor)").is("fim", null),
     supabase.from("planos").select("id, nome").order("modalidade").order("paes_por_semana"),
-    carregarFaixas(supabase),
+    faixasEmCache(),
   ]);
 
   const sit = new Map<string, Situacao[]>();

@@ -1,8 +1,8 @@
 {
   "id": "/membro",
-  "name": "Amada Massa — Clube do Pão",
+  "name": "Amada Massa",
   "short_name": "Amada Massa",
-  "description": "Avisos do seu Clube do Pão",
+  "description": "Central de avisos do Clube do Pão: rota, entregador e o pão da semana",
   "start_url": "/membro",
   "scope": "/membro",
   "display": "standalone",

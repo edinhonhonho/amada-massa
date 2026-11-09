@@ -19,9 +19,10 @@ const ATALHOS_AJUDA: [string[], string][] = [
   [["G", "C"], "Ir para Clientes"],
   [["G", "L"], "Ir para Planos"],
   [["G", "P"], "Ir para Pagamentos"],
-  [["G", "S"], "Ir para Planejamento"],
+  [["G", "S"], "Ir para Esta semana"],
+  [["G", "N"], "Ir para o Calendário"],
   [["G", "R"], "Ir para Rotas"],
-  [["G", "E"], "Ir para Entregas"],
+  [["G", "E"], "Ir para o Histórico de entregas"],
   [["G", "M"], "Ir para Mensagens"],
   [["?"], "Mostrar esta ajuda"],
 ];

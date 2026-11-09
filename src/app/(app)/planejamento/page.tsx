@@ -1,6 +1,5 @@
 import { BookOpen, CalendarPlus, Plus, Users, Wheat } from "lucide-react";
 import Link from "next/link";
-import Badge from "@/components/ui/Badge";
 import PageHeader from "@/components/ui/PageHeader";
 import SeletorAno from "@/components/SeletorAno";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -43,9 +42,8 @@ export default async function Planejamento({ searchParams }: { searchParams: Pro
   return (
     <>
       <PageHeader
-        titulo={`Planejamento ${ano}`}
-        etiqueta={<Badge tom="cinza">Passo 1</Badge>}
-        subtitulo="Defina os pães de cada semana e, dentro dela, quanto produzir e para onde levar."
+        titulo={`Calendário ${ano}`}
+        subtitulo="Todas as semanas do ano. Abra uma para definir pães, produção, distribuição e acompanhar as entregas."
         acoes={<>
           <Link className="btn-sec" href="/planejamento/paes"><BookOpen size={16} />Catálogo de pães</Link>
           <SeletorAno ano={ano} base="/planejamento" />

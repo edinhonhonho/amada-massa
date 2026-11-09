@@ -1,68 +1,92 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { chaveTelefone } from "@/lib/telefone";
 
 type R = { ok: boolean; erro?: string };
 const emailSchema = z.string().trim().toLowerCase().email();
 
-/**
- * Pede o código por e-mail. Só envia se o e-mail estiver na ficha de um cliente não cancelado.
- * A resposta é sempre a mesma, para não revelar quem é cliente.
- */
-async function pedirCodigo(entrada: string): Promise<R> {
-  const parsed = emailSchema.safeParse(entrada);
-  if (!parsed.success) return { ok: false, erro: "Informe um e-mail válido." };
-  const email = parsed.data;
-  const admin = createAdminClient();
+const MAX_POR_EMAIL = 5;
+const MAX_POR_IP = 25;
+const JANELA_MIN = 15;
+const NAO_CONFERE = "E-mail ou telefone não conferem com o cadastro do clube.";
 
-  const { data: clientes, error: erroBusca } = await admin.from("clientes").select("id").eq("email", email).neq("status", "cancelado").order("criado_em").limit(1);
-  if (erroBusca) throw erroBusca; // vira "serviço indisponível", não "e-mail não cadastrado"
-  const cliente = clientes?.[0];
-  if (!cliente) return { ok: true };
+type Admin = ReturnType<typeof createAdminClient>;
 
+async function tentativas(admin: Admin, chave: string): Promise<number> {
+  const desde = new Date(Date.now() - JANELA_MIN * 60_000).toISOString();
+  const { count } = await admin.from("tentativas_login").select("id", { count: "exact", head: true }).eq("chave", chave).gte("criada_em", desde);
+  return count ?? 0;
+}
+
+/** Cria (ou reaproveita) a conta de acesso do cliente. O e-mail real é preferido; se for de outra conta, usa um apelido com "+". */
+async function contaDoMembro(admin: Admin, cliente: { id: string }, email: string): Promise<string | null> {
   const { data: membro } = await admin.from("membros").select("user_id").eq("cliente_id", cliente.id).maybeSingle();
-  if (!membro) {
-    const criado = await admin.auth.admin.createUser({ email, email_confirm: true, app_metadata: { membro: true } });
-    // e-mail já pertence a outra conta (ex.: da equipe): não vincula nem envia
-    if (criado.error || !criado.data.user) return { ok: true };
+  if (membro) {
+    const { data: u } = await admin.auth.admin.getUserById(membro.user_id);
+    return u.user?.email ?? null;
+  }
+  const [local, dominio] = email.split("@");
+  const candidatos = [email, `${local}+m${cliente.id.slice(0, 8)}@${dominio}`];
+  for (const e of candidatos) {
+    const criado = await admin.auth.admin.createUser({ email: e, email_confirm: true, app_metadata: { membro: true } });
+    if (criado.error || !criado.data.user) continue;
     const { error } = await admin.from("membros").insert({ user_id: criado.data.user.id, cliente_id: cliente.id });
     if (error) {
       await admin.auth.admin.deleteUser(criado.data.user.id);
-      return { ok: true };
+      // outra tentativa simultânea já criou o vínculo
+      const { data: m } = await admin.from("membros").select("user_id").eq("cliente_id", cliente.id).maybeSingle();
+      if (m) return (await admin.auth.admin.getUserById(m.user_id)).data.user?.email ?? null;
+      return null;
     }
-  } else {
-    // o e-mail da ficha mudou desde o primeiro acesso: acompanha
-    const { data: u } = await admin.auth.admin.getUserById(membro.user_id);
-    if (u.user && u.user.email !== email) await admin.auth.admin.updateUserById(membro.user_id, { email, email_confirm: true });
+    return e;
   }
-
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
-  if (error) {
-    if (error.status === 429) return { ok: false, erro: "Aguarde um minuto antes de pedir outro código." };
-    console.error("signInWithOtp", error.message);
-    return { ok: false, erro: "Não foi possível enviar o código agora. Tente de novo em instantes." };
-  }
-  return { ok: true };
+  return null;
 }
 
-async function conferirCodigo(entrada: string, codigo: string): Promise<R> {
-  const parsed = emailSchema.safeParse(entrada);
-  const token = codigo.replace(/\s/g, "");
-  if (!parsed.success || !/^\d{6,10}$/.test(token)) return { ok: false, erro: "Código inválido." };
+/**
+ * Entra no app com o e-mail e o telefone que estão no cadastro do clube. Não envia e-mail nenhum:
+ * o servidor confere os dois dados e abre a sessão. Tentativas erradas são limitadas por e-mail e por endereço.
+ */
+async function entrar(entradaEmail: string, entradaTelefone: string): Promise<R> {
+  const parsed = emailSchema.safeParse(entradaEmail);
+  if (!parsed.success) return { ok: false, erro: "Informe um e-mail válido." };
+  const chave = chaveTelefone(entradaTelefone);
+  if (!chave) return { ok: false, erro: "Informe o telefone com DDD, por exemplo (51) 99999-8888." };
+  const email = parsed.data;
+  const admin = createAdminClient();
+
+  const h = await headers();
+  const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || "desconhecido";
+  const [porEmail, porIp] = await Promise.all([tentativas(admin, `email:${email}`), tentativas(admin, `ip:${ip}`)]);
+  if (porEmail >= MAX_POR_EMAIL || porIp >= MAX_POR_IP) {
+    return { ok: false, erro: `Muitas tentativas. Aguarde ${JANELA_MIN} minutos e tente de novo.` };
+  }
+
+  const { data: candidatos, error: erroBusca } = await admin.from("clientes").select("id, email, whatsapp").ilike("email", email.replace(/[\\%_]/g, "\\$&")).neq("status", "cancelado").order("criado_em").limit(10);
+  if (erroBusca) throw erroBusca; // vira "serviço indisponível", não "dados não conferem"
+  const cliente = (candidatos ?? []).find((c) => c.email?.trim().toLowerCase() === email && chaveTelefone(c.whatsapp) === chave);
+  if (!cliente) {
+    await admin.from("tentativas_login").insert([{ chave: `email:${email}` }, { chave: `ip:${ip}` }]);
+    // limpeza oportunista das tentativas antigas
+    await admin.from("tentativas_login").delete().lt("criada_em", new Date(Date.now() - 24 * 3600_000).toISOString());
+    return { ok: false, erro: NAO_CONFERE };
+  }
+
+  const emailConta = await contaDoMembro(admin, cliente, email);
+  if (!emailConta) return INDISPONIVEL;
+
+  const { data: link, error: erroLink } = await admin.auth.admin.generateLink({ type: "magiclink", email: emailConta });
+  if (erroLink || !link.properties?.hashed_token) throw erroLink ?? new Error("link de acesso não gerado");
 
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.verifyOtp({ email: parsed.data, token, type: "email" });
-  if (error || !data.user) return { ok: false, erro: "Código inválido ou expirado." };
-
-  const { data: membro } = await createAdminClient().from("membros").select("user_id").eq("user_id", data.user.id).maybeSingle();
-  if (!membro) {
-    await supabase.auth.signOut();
-    return { ok: false, erro: "Este e-mail não é de um membro." };
-  }
+  const { data, error } = await supabase.auth.verifyOtp({ token_hash: link.properties.hashed_token, type: "email" });
+  if (error || !data.user) throw error ?? new Error("sessão não aberta");
+  await admin.from("membros").update({ ultimo_acesso: new Date().toISOString() }).eq("user_id", data.user.id);
   return { ok: true };
 }
 
@@ -104,8 +128,7 @@ async function seguro(fn: () => Promise<R>): Promise<R> {
   try { return await fn(); } catch (e) { console.error("ação do membro falhou", e); return INDISPONIVEL; }
 }
 
-export async function solicitarCodigo(entrada: string): Promise<R> { return seguro(() => pedirCodigo(entrada)); }
-export async function verificarCodigo(entrada: string, codigo: string): Promise<R> { return seguro(() => conferirCodigo(entrada, codigo)); }
+export async function entrarNoApp(email: string, telefone: string): Promise<R> { return seguro(() => entrar(email, telefone)); }
 export async function salvarInscricao(sub: { endpoint: string; keys: { p256dh: string; auth: string } }, userAgent: string): Promise<R> {
   return seguro(() => gravarInscricao(sub, userAgent));
 }

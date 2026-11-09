@@ -1,5 +1,5 @@
 /** Textos das notificações para os membros. Puro, para ser testável. */
-export type Aviso = { cliente_id: string; tipo: string; titulo: string; corpo: string; url?: string; ref?: string };
+export type Aviso = { cliente_id: string; tipo: string; titulo: string; corpo: string; url?: string; ref?: string; aviso_id?: string };
 
 /** "20/10 às 14:32", no fuso de Porto Alegre. */
 export function quando(iso: string): string {
@@ -35,3 +35,43 @@ export const textoSabor = (sabor: string) => ({
   titulo: "Pão da semana",
   corpo: `O pão desta semana é ${sabor}.`,
 });
+
+/** Variáveis que o texto de um aviso aceita; cada cliente recebe com os próprios dados. */
+export const VARIAVEIS_AVISO = [
+  { chave: "nome", exemplo: "Maria", descricao: "Primeiro nome" },
+  { chave: "valor", exemplo: "R$ 80,00", descricao: "Valor em aberto (só em avisos de cobrança)" },
+  { chave: "vencimento", exemplo: "10/11/2026", descricao: "Vencimento mais antigo em aberto" },
+] as const;
+
+/** Textos prontos para começar um aviso. */
+export const MODELOS_AVISO = [
+  { id: "geral", rotulo: "Aviso geral", titulo: "Recado do Amada Massa", corpo: "Oi, {nome}! " },
+  { id: "pagamento", rotulo: "Lembrete de pagamento", titulo: "Sua mensalidade", corpo: "Oi, {nome}! Sua mensalidade de {valor} vence em {vencimento}. Qualquer dúvida é só responder por aqui." },
+  { id: "atraso", rotulo: "Cobrança em atraso", titulo: "Mensalidade em aberto", corpo: "Oi, {nome}! Identificamos {valor} em aberto desde {vencimento}. Assim que o pagamento for confirmado, sua entrega volta ao planejamento." },
+  { id: "sem_entrega", rotulo: "Semana sem entrega", titulo: "Semana sem entrega", corpo: "Oi, {nome}! Nesta semana não teremos produção. Voltamos na próxima, com pão fresquinho." },
+  { id: "novidade", rotulo: "Novidade", titulo: "Novidade no clube 🍞", corpo: "Oi, {nome}! Temos uma novidade para contar: " },
+] as const;
+
+/** Substitui {variavel}; sem valor, vira vazio e os espaços sobrando são limpos. */
+export function personalizar(texto: string, vars: Record<string, string | undefined>): string {
+  return texto.replace(/\{(\w+)\}/g, (_, k: string) => vars[k] ?? "").replace(/[ \t]{2,}/g, " ").replace(/[ \t]+\n/g, "\n").trim();
+}
+
+/** Emoji de cada tipo de aviso na caixa de entrada do app. */
+export const EMOJI_TIPO: Record<string, string> = {
+  rota_iniciada: "🚲", proximo: "📍", entregue: "🍞", nao_entregue: "📦", sabor: "🥖", aviso: "📣",
+};
+
+/** "Hoje", "Ontem" ou "20/10", no fuso de Porto Alegre. */
+export function rotuloDia(iso: string, agora: Date = new Date()): string {
+  const f = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Sao_Paulo" });
+  const dia = f.format(new Date(iso));
+  if (dia === f.format(agora)) return "Hoje";
+  if (dia === f.format(new Date(agora.getTime() - 86_400_000))) return "Ontem";
+  const [, m, d] = dia.split("-");
+  return `${d}/${m}`;
+}
+
+/** "14:32", no fuso de Porto Alegre. */
+export const horaCurta = (iso: string) =>
+  new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));

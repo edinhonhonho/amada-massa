@@ -11,3 +11,13 @@ test("textos usam só o primeiro nome do entregador", () => {
   assert.equal(textoRotaIniciada({ sabor: "Tananã", entregador: "Marcelo" }).corpo, "Hoje o pão é Tananã. Seu entregador é Marcelo.");
   assert.equal(textoRotaIniciada({ entregador: "Marcelo" }).corpo, "Seu entregador é Marcelo.");
 });
+
+test("rótulo do dia: hoje, ontem e data", async () => {
+  const { rotuloDia, personalizar } = await import("./avisos.ts");
+  const agora = new Date("2026-11-09T15:00:00Z");
+  assert.equal(rotuloDia("2026-11-09T13:00:00Z", agora), "Hoje");
+  assert.equal(rotuloDia("2026-11-08T13:00:00Z", agora), "Ontem");
+  assert.equal(rotuloDia("2026-11-01T13:00:00Z", agora), "01/11");
+  assert.equal(personalizar("Oi, {nome}! Você deve {valor}.", { nome: "Ana" }), "Oi, Ana! Você deve .");
+  assert.equal(personalizar("Oi, {nome}!", { nome: "Ana" }), "Oi, Ana!");
+});
