@@ -109,18 +109,7 @@ function CartaoGrupo({ g, paes, semanaId, rotas }: { g: Grupo; paes: PaoSemana[]
                       {paes.length > 0 && ativa && l.qtd !== l.paesPlano && <span className="block text-[11px] text-stone-400">plano: {l.paesPlano}</span>}
                     </td>
                     <td>
-                      <div className="flex items-center gap-1.5">
-                        <BadgeSituacao status={l.status} />
-                        {(l.status === "programada" || l.status === "reagendada") && l.modalidade !== "entrega" && (
-                          <button type="submit" formAction={marcarRetirada.bind(null, semanaId, l.id)} className="btn-ghost !px-2 !py-1 text-xs" title="Marcar que o cliente retirou"><Check size={13} />Retirou</button>
-                        )}
-                        {(l.status === "programada" || l.status === "reagendada") && (
-                          <button type="submit" formAction={alternarPuloLinha.bind(null, semanaId, l.assinatura_id)} className="btn-ghost !px-2 !py-1 text-xs" title="Não receberá nesta semana"><SkipForward size={13} />Pular</button>
-                        )}
-                        {l.status === "pulada" && (
-                          <button type="submit" formAction={alternarPuloLinha.bind(null, semanaId, l.assinatura_id)} className="btn-ghost !px-2 !py-1 text-xs"><Undo2 size={13} />Voltar</button>
-                        )}
-                      </div>
+                      <BadgeSituacao status={l.status} />
                     </td>
                   </tr>
                 );
@@ -147,9 +136,63 @@ function CartaoGrupo({ g, paes, semanaId, rotas }: { g: Grupo; paes: PaoSemana[]
   );
 }
 
+function Checklist({ id, itens }: { id: string; itens: { ok: boolean; texto: string; etapa: string }[] }) {
+  return (
+    <ul className="cartao mb-5 flex flex-col gap-1 !p-3" aria-label="Antes de enviar">
+      {itens.map((i) => (
+        <li key={i.texto}>
+          <Link href={`/planejamento/${id}?etapa=${i.etapa}`} className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm transition hover:bg-stone-50">
+            <span className={`flex size-6 shrink-0 items-center justify-center rounded-full ${i.ok ? "bg-emerald-100 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>{i.ok ? <Check size={14} /> : <AlertTriangle size={13} />}</span>
+            <span className={i.ok ? "text-stone-600" : "font-medium text-stone-900"}>{i.texto}</span>
+            {!i.ok && <ArrowRight size={14} className="ml-auto text-stone-400" />}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** Etapa 2: todos que recebem na semana, com o destino de cada um e a opção de pular. */
+function ListaClientes({ grupos, semanaId }: { grupos: Grupo[]; semanaId: string }) {
+  const linhas = grupos.flatMap((g) => g.linhas.map((l) => ({ l, g }))).sort((a, b) => a.l.nome.localeCompare(b.l.nome, "pt-BR"));
+  if (!linhas.length) return <div className="cartao"><Vazio icone={Users} titulo="Nenhum cliente com assinatura ativa" texto="Clientes com assinatura ativa entram sozinhos na semana. Cadastre ou reative um cliente para ele aparecer aqui." /></div>;
+  const conta = (f: (s: string) => boolean) => linhas.filter(({ l }) => f(l.status)).length;
+  const recebem = conta(estaAtiva), pulados = conta((x) => x === "pulada"), suspensos = conta((x) => x === "suspensa_atraso");
+  return (
+    <section className="cartao overflow-hidden !p-0">
+      <header className="flex flex-wrap items-center gap-x-5 gap-y-1 border-b border-stone-100 px-5 py-3.5">
+        <h2 className="font-semibold">Quem recebe nesta semana</h2>
+        <span className="text-sm text-stone-500"><b className="text-stone-800">{recebem}</b> recebem</span>
+        {pulados > 0 && <span className="text-sm text-stone-500"><b className="text-stone-800">{pulados}</b> pularam</span>}
+        {suspensos > 0 && <span className="text-sm text-amber-800"><b>{suspensos}</b> suspensos por atraso</span>}
+        <Link href="/clientes/novo" className="btn-sec btn-pequeno ml-auto"><Plus size={14} />Novo cliente</Link>
+      </header>
+      <p className="border-b border-stone-100 bg-stone-50/60 px-5 py-2.5 text-xs text-stone-500">Quem tem assinatura ativa entra sozinho. Quem estiver em atraso fica suspenso até pagar. Use “Pular” para quem não recebe só nesta semana.</p>
+      <table className="tabela">
+        <thead><tr><th>Cliente</th><th>Plano</th><th>Destino</th><th className="text-center">Pães</th><th>Situação</th><th /></tr></thead>
+        <tbody>
+          {linhas.map(({ l, g }) => (
+            <tr key={l.id} className={estaAtiva(l.status) ? "" : "opacity-65"}>
+              <td><Link href={`/clientes/${l.cliente_id}`} className="font-medium hover:underline">{l.nome}</Link></td>
+              <td className="text-sm text-stone-600">{l.paesPlano} pão{l.paesPlano > 1 ? "es" : ""}/sem</td>
+              <td className="text-sm text-stone-600">{g.chave === "rota:sem" ? <span className="text-amber-800">Sem rota</span> : g.nome}<span className="ml-1.5 text-xs text-stone-400">{g.tipo === "entrega" ? "entrega" : g.tipo === "padaria" ? "padaria" : "ponto"}</span></td>
+              <td className="text-center font-semibold">{l.qtd}</td>
+              <td><BadgeSituacao status={l.status} />{estaAtiva(l.status) && !["entregue", "retirada", "nao_entregue"].includes(l.status) && <span className="text-xs text-stone-400">Recebe</span>}</td>
+              <td className="text-right">
+                {(l.status === "programada" || l.status === "reagendada") && <form action={alternarPuloLinha.bind(null, semanaId, l.assinatura_id)}><SubmitButton className="btn-ghost !px-2 !py-1 text-xs"><SkipForward size={13} />Pular</SubmitButton></form>}
+                {l.status === "pulada" && <form action={alternarPuloLinha.bind(null, semanaId, l.assinatura_id)}><SubmitButton className="btn-ghost !px-2 !py-1 text-xs"><Undo2 size={13} />Voltar</SubmitButton></form>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: EstadoEtapa[]; atual: string }) {
   return (
-    <ol className="mb-6 grid grid-cols-4 gap-3" aria-label="Etapas da semana">
+    <ol className="mb-6 grid grid-cols-5 gap-3" aria-label="Etapas da semana">
       {estados.map((e, i) => {
         const ativa = e.id === atual;
         return (
@@ -175,7 +218,7 @@ function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: Estad
 }
 
 /** Etapa 4: como anda cada destino na semana, e o que precisa de atenção. */
-function Acompanhamento({ grupos }: { grupos: Grupo[] }) {
+function Acompanhamento({ grupos, semanaId }: { grupos: Grupo[]; semanaId: string }) {
   if (!grupos.length) return <div className="cartao"><Vazio icone={Truck} titulo="Nada para acompanhar" texto="Quando houver clientes na semana, o andamento de cada rota e ponto aparece aqui." /></div>;
   const feitas = (g: Grupo) => g.linhas.filter((l) => l.status === "entregue" || l.status === "retirada").length;
   const falhas = grupos.flatMap((g) => g.linhas.filter((l) => l.status === "nao_entregue" || l.status === "suspensa_atraso").map((l) => ({ l, g })));
@@ -209,12 +252,22 @@ function Acompanhamento({ grupos }: { grupos: Grupo[] }) {
                 {pct === 100 && g.ativos > 0 ? <span className="selo selo-verde"><CircleCheck size={13} />Concluída</span> : <span className="text-sm tabular-nums text-stone-500">{ok} de {g.ativos}</span>}
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100" role="img" aria-label={`${pct}% concluído`}><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${pct}%` }} /></div>
-              {falta.length > 0 && <p className="mt-2.5 text-xs text-stone-500">Falta: {falta.slice(0, 4).map((l) => l.nome.split(" ")[0]).join(", ")}{falta.length > 4 ? ` e mais ${falta.length - 4}` : ""}</p>}
+              {g.tipo === "entrega" && falta.length > 0 && <p className="mt-2.5 text-xs text-stone-500">Falta: {falta.slice(0, 4).map((l) => l.nome.split(" ")[0]).join(", ")}{falta.length > 4 ? ` e mais ${falta.length - 4}` : ""}</p>}
+              {g.tipo !== "entrega" && falta.length > 0 && (
+                <ul className="mt-3 divide-y divide-stone-100 text-sm">
+                  {falta.map((l) => (
+                    <li key={l.id} className="flex items-center gap-2 py-1.5">
+                      <span className="flex-1 truncate">{l.nome}</span>
+                      <form action={marcarRetirada.bind(null, semanaId, l.id)}><SubmitButton className="btn-ghost !px-2 !py-1 text-xs"><Check size={13} />Retirou</SubmitButton></form>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
           );
         })}
       </div>
-      <p className="text-sm text-stone-500">As entregas são marcadas pelo entregador no app, ou aqui na etapa anterior (Retirou / Pular). Veja semanas passadas em <Link className="link" href="/entregas/historico">Histórico de entregas</Link>.</p>
+      <p className="text-sm text-stone-500">As entregas em casa são marcadas pelo entregador no app; as retiradas, aqui. Veja semanas passadas em <Link className="link" href="/entregas/historico">Histórico de entregas</Link>.</p>
     </div>
   );
 }
@@ -244,9 +297,11 @@ export default async function Semana({ params, searchParams }: { params: Promise
   const semEntregador = new Set((rotas ?? []).filter((r) => !r.entregador_id).map((r) => r.id));
   const rotasSemEntregador = grupos.filter((g) => g.tipo === "entrega" && g.refId && g.ativos > 0 && semEntregador.has(g.refId)).length;
   const concluidas = grupos.reduce((n, g) => n + g.linhas.filter((l) => l.status === "entregue" || l.status === "retirada").length, 0);
+  const todas = grupos.flatMap((g) => g.linhas);
   const estados = estadoEtapas({
     paes: paes.length, totalPaes, semProducao: s.sem_producao, listaFechada: s.lista_fechada,
-    ativos: grupos.reduce((n, g) => n + g.ativos, 0), concluidas, semRota: semAtribuir, rotasSemEntregador,
+    ativos: grupos.reduce((n, g) => n + g.ativos, 0), suspensos: todas.filter((l) => l.status === "suspensa_atraso").length,
+    pulados: todas.filter((l) => l.status === "pulada").length, concluidas, semRota: semAtribuir, rotasSemEntregador,
   });
   const etapa = etapaAtual(estados, etapaPedida);
   const indice = estados.findIndex((e) => e.id === etapa);
@@ -287,13 +342,12 @@ export default async function Semana({ params, searchParams }: { params: Promise
 
       <Etapas semanaId={id} estados={estados} atual={etapa} />
 
-      {etapa === "paes" && (
+      {etapa === "planejar" && (
         <>
       <section className="cartao !p-0">
         <header className="flex items-center gap-3 border-b border-stone-100 px-5 py-3.5">
           <h2 className="flex items-center gap-2 font-semibold"><Wheat size={17} className="text-stone-400" />Pães da semana <span className="font-normal text-stone-400">{paes.length}</span></h2>
           <div className="ml-auto flex items-center gap-2">
-            {paes.length > 0 && <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} /><SubmitButton className="btn-sec"><Bell size={16} />Avisar os clientes</SubmitButton></form>}
             <Modal titulo="Adicionar pão à semana" descricao="Escolha um pão já cadastrado ou cadastre um novo. O pão fica no catálogo e pode ser usado em outras semanas." gatilho={<><Plus size={16} />Adicionar pão</>} gatilhoClasse="btn" largo>
               <div className="flex flex-col gap-6">
                 {disponiveis.length > 0 && (
@@ -343,9 +397,16 @@ export default async function Semana({ params, searchParams }: { params: Promise
         </>
       )}
 
-      {etapa === "producao" && (
+      {etapa === "consolidar" && (
         <>
+      <Checklist id={id} itens={[
+        { ok: s.sem_producao || paes.length > 0, texto: paes.length ? `${paes.length} ${paes.length === 1 ? "pão definido" : "pães definidos"} para a semana` : "Defina os pães da semana", etapa: "planejar" },
+        { ok: s.sem_producao || semAtribuir === 0, texto: semAtribuir ? `${semAtribuir} ${semAtribuir === 1 ? "entrega" : "entregas"} sem rota` : "Todos os clientes alocados em rota, ponto ou padaria", etapa: "alocar" },
+        { ok: s.sem_producao || rotasSemEntregador === 0, texto: rotasSemEntregador ? `${rotasSemEntregador} ${rotasSemEntregador === 1 ? "rota" : "rotas"} sem entregador` : "Todas as rotas têm entregador", etapa: "alocar" },
+        { ok: s.lista_fechada, texto: s.lista_fechada ? "Lista da semana fechada" : "Lista ainda aberta: feche para valer os números acima", etapa: "consolidar" },
+      ]} />
       <div className="mb-4 flex flex-wrap items-center justify-end gap-2">
+        {paes.length > 0 && <form action={avisarSaborMembros}><input type="hidden" name="id" value={id} /><SubmitButton className="btn-sec"><Bell size={16} />Avisar os clientes sobre os pães</SubmitButton></form>}
         <a href={`/planejamento/${id}/pdf/producao`} target="_blank" className="btn-sec"><FileDown size={16} />PDF da produção</a>
         <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
           <SubmitButton className={s.lista_fechada ? "btn-sec" : "btn"}>{s.lista_fechada ? <><LockOpen size={16} />Reabrir lista</> : <><Lock size={16} />Fechar a lista da semana</>}</SubmitButton></form>
@@ -379,7 +440,7 @@ export default async function Semana({ params, searchParams }: { params: Promise
         </>
       )}
 
-      {etapa === "distribuicao" && (
+      {etapa === "alocar" && (
         <>
           {rotasSemEntregador > 0 && (
             <p className="mb-4 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 shadow-sm"><AlertTriangle size={16} className="mt-0.5 shrink-0" />
@@ -404,7 +465,9 @@ export default async function Semana({ params, searchParams }: { params: Promise
         </>
       )}
 
-      {etapa === "entregas" && <Acompanhamento grupos={grupos} />}
+      {etapa === "clientes" && <ListaClientes grupos={grupos} semanaId={id} />}
+
+      {etapa === "acompanhar" && <Acompanhamento grupos={grupos} semanaId={id} />}
 
       <nav className="mt-8 flex items-center justify-between border-t border-stone-200/70 pt-5" aria-label="Etapas da semana">
         {indice > 0 ? <Link href={link(ETAPAS[indice - 1].id)} className="btn-sec"><ArrowLeft size={16} />{ETAPAS[indice - 1].rotulo}</Link> : <span />}

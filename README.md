@@ -11,7 +11,7 @@ Sistema interno (Next.js + TypeScript + Tailwind) hospedado na **Vercel**, com *
 | 3 Rotas | Editor com seleção de clientes, ordem sugerida e trajeto de bicicleta no mapa; atribuição com histórico (uma ativa por cliente); mapa e navegação pelo Google Maps no app do entregador |
 | 4 Planejamento | Calendário do ano; catálogo de pães reutilizáveis; em cada semana, clientes com assinatura ativa agrupados por rota, ponto de coleta e padaria, quantidade de cada pão por cliente, total a produzir por destino e PDF para conferência, pular cliente, semana sem produção, entregas geradas com suspensão por atraso (volta ao pagar), listas de produção, entrega e coleta para imprimir |
 | 5 Entregas | App do entregador (PWA, fila offline, iniciar/finalizar rota, foto e observação por parada, sem dados financeiros), ocorrências, pendências, histórico com fotos |
-| 6 Comunicação e relatórios | **Mensagens**: central de avisos pelo app Amada Massa (único canal): para todos, em atraso, com mensalidade em aberto ou uma rota, com `{nome}`, `{valor}`, `{vencimento}`, prévia no celular e histórico com quem leu; aviso individual na ficha do cliente e lembrete de cobrança em Pagamentos; 7 relatórios, CSV, configurações |
+| 6 Comunicação e relatórios | **Mensagens**: central de avisos pelo app Amada Massa (único canal): para todos, em atraso, com mensalidade em aberto ou uma rota, com `{nome}`, `{valor}`, `{vencimento}`, prévia no celular e histórico com quem leu; escolha de pessoas específicas, modelos editáveis, `{nome}` também no título, envio com barra de progresso; aviso individual na ficha do cliente e lembrete de cobrança em Pagamentos; 7 relatórios, CSV, configurações |
 
 Também: backup automático do banco (`.github/workflows/backup.yml`, ver `docs/backup.md`).
 App do membro com notificações push implementado. Ainda fora do escopo: mapa, conciliação de extrato, WhatsApp automático e formulário do Wix.
@@ -43,7 +43,7 @@ O SQL **apaga todos os clientes atuais** e importa clientes, assinaturas (modali
 
 ## Atalhos de teclado (gestão)
 
-`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. `G` e depois uma letra navega: `C` clientes, `L` planos, `P` pagamentos, `S` esta semana, `N` calendário, `R` rotas, `E` histórico de entregas, `M` mensagens. `?` mostra a lista.
+`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. cada tela tem um atalho de duas letras: a inicial do grupo e a inicial da página (`C` `M` = Comunicação > Mensagens, `F` `P` = Financeiro > Pagamentos, `R` `E` = Rotina da semana > Esta semana). `?` mostra a lista.
 
 ## Os três apps
 
@@ -57,7 +57,7 @@ O membro só entra se o e-mail estiver na ficha do cliente (e o cliente não est
 
 ## Configuração
 
-1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql`, `0003_apps_entregador_membro.sql`, `0004_planos_pontos_paes_mapa.sql`, `0005_catalogo_paes_quantidades.sql` `0006_apoio_e_paes_tradicionais.sql` (**sozinha**, antes de importar dados: adiciona a modalidade de apoio recorrente) e `0007_central_de_avisos.sql` (histórico de avisos, freio de tentativas de login e resumo mensal de cobranças).
+1. **Supabase** (região São Paulo): rode no SQL Editor, em ordem, `supabase/migrations/0001_base.sql`, `0002_financeiro_rotas_semanas.sql`, `0003_apps_entregador_membro.sql`, `0004_planos_pontos_paes_mapa.sql`, `0005_catalogo_paes_quantidades.sql` `0006_apoio_e_paes_tradicionais.sql` (**sozinha**, antes de importar dados: adiciona a modalidade de apoio recorrente) `0007_central_de_avisos.sql` (histórico de avisos, freio de tentativas de login e resumo mensal de cobranças) e `0008_modelos_de_aviso.sql` (modelos de aviso editáveis).
 2. **Supabase → Authentication**:
    - *Sign In / Providers → Email*: deixe ligado; desligue **Allow new users to sign up**.
    - *URL Configuration*: Site URL = endereço do app; Redirect URLs = `https://SEU-APP/auth/callback` (e `http://localhost:3000/auth/callback`).
@@ -67,7 +67,7 @@ O membro só entra se o e-mail estiver na ficha do cliente (e o cliente não est
    update usuarios set perfil = 'admin' where id = (select id from auth.users where email = 'voce@exemplo.com');
    ```
    Demais contas da equipe: mesmo caminho; ajuste `perfil` (`operacao` ou `entregador`) e o `nome` (aparece nos avisos aos membros, ex.: "Seu entregador é Marcelo").
-4. **Chaves de notificação**: rode `npm run vapid` e guarde as duas chaves.
+4. **Chaves de notificação**: rode `npm run vapid` e guarde as duas chaves. Sem elas os avisos ficam só dentro do app: a tela Mensagens mostra um alerta enquanto faltarem, e no app do cliente o botão "Enviar uma notificação de teste" diz o motivo de uma recusa. `VAPID_SUBJECT` é só um contato (`mailto:seu@email.com` ou o endereço do site).
 5. **Vercel**: importe o repositório e defina as variáveis de `.env.example`: URL e chave pública do Supabase, `SUPABASE_SERVICE_ROLE_KEY` (secreta!), `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`. Faça um redeploy depois de mudar variáveis.
 6. **Local**: `cp .env.example .env.local`, preencha e rode `npm install && npm run dev`.
 7. **Backup**: secret `SUPABASE_DB_URL` no GitHub (ver `docs/backup.md`).

@@ -5,15 +5,19 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("push", (event) => {
   let dados = {};
   try { dados = event.data ? event.data.json() : {}; } catch { dados = { title: "Amada Massa", body: event.data ? event.data.text() : "" }; }
-  if (self.navigator && self.navigator.setAppBadge) self.navigator.setAppBadge().catch(() => {});
   event.waitUntil(
-    self.registration.showNotification(dados.title || "Amada Massa", {
-      body: dados.body || "",
-      icon: "/icon-192.png",
-      badge: "/icon-192.png",
-      tag: dados.tag || undefined,
-      data: { url: dados.url || "/membro" },
-    }),
+    (async () => {
+      // mostrar o aviso vem primeiro: o contador no ícone é só um complemento
+      await self.registration.showNotification(dados.title || "Amada Massa", {
+        body: dados.body || "",
+        icon: "/icon-192.png",
+        badge: "/icon-192.png",
+        tag: dados.tag || undefined,
+        renotify: !!dados.tag,
+        data: { url: dados.url || "/membro" },
+      });
+      try { if (self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(); } catch (e) { /* sem suporte */ }
+    })(),
   );
 });
 

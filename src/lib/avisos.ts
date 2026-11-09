@@ -9,7 +9,8 @@ export function quando(iso: string): string {
   return `${data} às ${hora}`;
 }
 
-const primeiroNome = (n: string) => n.trim().split(/\s+/)[0] ?? n;
+export const primeiroNomeDe = (n: string) => n.trim().split(/\s+/)[0] ?? n;
+const primeiroNome = primeiroNomeDe;
 
 export const textoRotaIniciada = (p: { sabor?: string | null; entregador: string }) => ({
   titulo: "Sua rota iniciou 🚲",
@@ -41,15 +42,6 @@ export const VARIAVEIS_AVISO = [
   { chave: "nome", exemplo: "Maria", descricao: "Primeiro nome" },
   { chave: "valor", exemplo: "R$ 80,00", descricao: "Valor em aberto (só em avisos de cobrança)" },
   { chave: "vencimento", exemplo: "10/11/2026", descricao: "Vencimento mais antigo em aberto" },
-] as const;
-
-/** Textos prontos para começar um aviso. */
-export const MODELOS_AVISO = [
-  { id: "geral", rotulo: "Aviso geral", titulo: "Recado do Amada Massa", corpo: "Oi, {nome}! " },
-  { id: "pagamento", rotulo: "Lembrete de pagamento", titulo: "Sua mensalidade", corpo: "Oi, {nome}! Sua mensalidade de {valor} vence em {vencimento}. Qualquer dúvida é só responder por aqui." },
-  { id: "atraso", rotulo: "Cobrança em atraso", titulo: "Mensalidade em aberto", corpo: "Oi, {nome}! Identificamos {valor} em aberto desde {vencimento}. Assim que o pagamento for confirmado, sua entrega volta ao planejamento." },
-  { id: "sem_entrega", rotulo: "Semana sem entrega", titulo: "Semana sem entrega", corpo: "Oi, {nome}! Nesta semana não teremos produção. Voltamos na próxima, com pão fresquinho." },
-  { id: "novidade", rotulo: "Novidade", titulo: "Novidade no clube 🍞", corpo: "Oi, {nome}! Temos uma novidade para contar: " },
 ] as const;
 
 /** Substitui {variavel}; sem valor, vira vazio e os espaços sobrando são limpos. */

@@ -1,22 +1,24 @@
-import { BellRing, CheckCheck, Smartphone, Users } from "lucide-react";
+import { BellRing, CheckCheck, Smartphone, TriangleAlert, Users } from "lucide-react";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
 import PageHeader from "@/components/ui/PageHeader";
 import ComporAviso from "@/components/avisos/ComporAviso";
 import CopiarLink from "@/components/avisos/CopiarLink";
 import Vazio from "@/components/ui/Vazio";
-import AvisoEnviado from "@/components/avisos/AvisoEnviado";
+import GerenciarModelos from "@/components/avisos/GerenciarModelos";
 import { exigirEquipe } from "@/lib/auth";
 import { opcoesSegmento } from "@/lib/destinatarios";
 import { quando } from "@/lib/avisos";
-import { enviarAvisoApp } from "./actions";
+import { carregarModelosAviso } from "@/lib/dados";
+import { diagnosticoPush } from "@/lib/notificar";
 
-export default async function Mensagens({ searchParams }: { searchParams: Promise<{ aviso?: string; n?: string; push?: string; para?: string }> }) {
+export default async function Mensagens({ searchParams }: { searchParams: Promise<{ para?: string }> }) {
   const { supabase } = await exigirEquipe();
   const b = await searchParams;
 
-  const [opcoes, { data: historico }, { count: ativos }, { count: entraram }, { data: pushes }] = await Promise.all([
+  const [opcoes, modelos, { data: historico }, { count: ativos }, { count: entraram }, { data: pushes }] = await Promise.all([
     opcoesSegmento(supabase),
+    carregarModelosAviso(supabase),
     supabase.from("avisos_resumo").select("*").order("criado_em", { ascending: false }).limit(30),
     supabase.from("clientes").select("id", { count: "exact", head: true }).eq("status", "ativo"),
     supabase.from("membros").select("user_id, clientes!inner(status)", { count: "exact", head: true }).eq("clientes.status", "ativo"),
@@ -38,15 +40,22 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
         titulo="Mensagens"
         subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>}
       />
-      <AvisoEnviado aviso={b.aviso} n={b.n} push={b.push} />
+      {diagnosticoPush().length > 0 && (
+        <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
+          <TriangleAlert size={18} className="mt-0.5 shrink-0" />
+          <div>
+            <b>As notificações no celular ainda não estão configuradas.</b> Faltam na Vercel: <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">{diagnosticoPush().join(", ")}</code>. Os avisos aparecem só dentro do app. Depois de incluir as variáveis, faça um redeploy.
+          </div>
+        </div>
+      )}
+
+      <section className="cartao mb-6 !p-6">
+            <div className="cartao-titulo"><BellRing size={16} className="text-amber-700" />Novo aviso<span className="ml-auto"><GerenciarModelos modelos={modelos} /></span></div>
+            <ComporAviso opcoes={opcoes} modelos={modelos} segmentoInicial={b.para} />
+      </section>
 
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_320px]">
         <div className="flex flex-col gap-6">
-          <section className="cartao">
-            <div className="cartao-titulo"><BellRing size={16} className="text-amber-700" />Novo aviso</div>
-            <ComporAviso opcoes={opcoes} acao={enviarAvisoApp} segmentoInicial={b.para} />
-          </section>
-
           <section>
             <h2 className="mb-3 text-[15px] font-semibold">Enviados</h2>
             {!historico?.length ? (

@@ -88,3 +88,4 @@ body { background: var(--color-fundo); letter-spacing: -0.006em; }
   nav, aside, .nao-imprimir { display: none !important; }
   body { background: white; }
 }
+@keyframes barra { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }

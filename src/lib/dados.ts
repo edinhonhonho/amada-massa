@@ -28,3 +28,10 @@ export const BAIRROS_BIKE = [
 export const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 export const bairroAtendido = (b?: string | null) =>
   !!b && BAIRROS_BIKE.some((x) => semAcento(x) === semAcento(b));
+
+export type ModeloAviso = { id: string; nome: string; titulo: string; corpo: string; segmento_sugerido: string | null };
+/** Modelos de aviso da equipe, na ordem em que aparecem. */
+export async function carregarModelosAviso(supabase: SupabaseClient): Promise<ModeloAviso[]> {
+  const { data } = await supabase.from("modelos_aviso").select("id, nome, titulo, corpo, segmento_sugerido").order("ordem");
+  return (data ?? []) as ModeloAviso[];
+}

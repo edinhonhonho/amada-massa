@@ -12,18 +12,10 @@ type Comando = { id: string; rotulo: string; grupo: string; href: string; icone:
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-const ATALHOS_AJUDA: [string[], string][] = [
+const ATALHOS_GERAIS: [string[], string][] = [
   [["⌘", "K"], "Abrir busca e comandos"],
   [["/"], "Abrir busca e comandos"],
   [["N"], "Novo cliente"],
-  [["G", "C"], "Ir para Clientes"],
-  [["G", "L"], "Ir para Planos"],
-  [["G", "P"], "Ir para Pagamentos"],
-  [["G", "S"], "Ir para Esta semana"],
-  [["G", "N"], "Ir para o Calendário"],
-  [["G", "R"], "Ir para Rotas"],
-  [["G", "E"], "Ir para o Histórico de entregas"],
-  [["G", "M"], "Ir para Mensagens"],
   [["?"], "Mostrar esta ajuda"],
 ];
 
@@ -39,7 +31,7 @@ export default function Atalhos({ admin }: { admin: boolean }) {
 
   const comandos: Comando[] = useMemo(() => {
     const paginas = GRUPOS.filter((g) => !g.admin || admin).flatMap((g) =>
-      g.itens.map((i) => ({ id: i.href, rotulo: i.rotulo, grupo: "Ir para", href: i.href, icone: <i.icone size={16} />, dica: `G ${i.atalho.toUpperCase()}`, palavras: i.dica })),
+      g.itens.map((i) => ({ id: i.href, rotulo: i.rotulo, grupo: "Ir para", href: i.href, icone: <i.icone size={16} />, dica: i.atalho.toUpperCase().split("").join(" "), palavras: i.dica })),
     );
     return [
       { id: "novo-cliente", rotulo: "Novo cliente", grupo: "Criar", href: "/clientes/novo", icone: <UserPlus size={16} />, dica: "N", palavras: "cadastrar adicionar assinante" },
@@ -88,7 +80,8 @@ export default function Atalhos({ admin }: { admin: boolean }) {
 
   // atalhos globais
   useEffect(() => {
-    let aguardandoG = 0;
+    let buffer = "";
+    let quando = 0;
     const digitando = (el: EventTarget | null) => {
       const e = el as HTMLElement | null;
       return !!e && (["INPUT", "TEXTAREA", "SELECT"].includes(e.tagName) || e.isContentEditable);
@@ -96,14 +89,17 @@ export default function Atalhos({ admin }: { admin: boolean }) {
     const tecla = (ev: KeyboardEvent) => {
       if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "k") { ev.preventDefault(); abrirPaleta(); return; }
       if (ev.metaKey || ev.ctrlKey || ev.altKey || digitando(ev.target) || document.querySelector("dialog[open]")) return;
-      if (aguardandoG && Date.now() - aguardandoG < 1200) {
-        const item = TODOS_ITENS.find((i) => i.atalho === ev.key.toLowerCase());
-        aguardandoG = 0;
-        if (item) { ev.preventDefault(); router.push(item.href); }
+      if (ev.key.length === 1 && /[a-z]/i.test(ev.key) && ev.key.toLowerCase() !== "n") {
+        // atalho de duas letras: 1ª do grupo + 1ª da página (ex.: C e M abrem Mensagens)
+        const agora = Date.now();
+        buffer = agora - quando < 1200 ? buffer + ev.key.toLowerCase() : ev.key.toLowerCase();
+        quando = agora;
+        const item = TODOS_ITENS.find((i) => i.atalho === buffer);
+        if (item) { ev.preventDefault(); buffer = ""; router.push(item.href); }
+        else if (buffer.length >= 2) buffer = "";
         return;
       }
-      aguardandoG = 0;
-      if (ev.key === "g") { aguardandoG = Date.now(); return; }
+      buffer = "";
       if (ev.key === "/") { ev.preventDefault(); abrirPaleta(); }
       else if (ev.key === "n") { ev.preventDefault(); router.push("/clientes/novo"); }
       else if (ev.key === "?") { ev.preventDefault(); ajuda.current?.showModal(); }
@@ -166,7 +162,7 @@ export default function Atalhos({ admin }: { admin: boolean }) {
                   ) : <Avatar nome={l.r.nome} tamanho={28} />}
                   <span className="flex-1 truncate">{l.tipo === "cmd" ? l.c.rotulo : l.r.nome}</span>
                   {l.tipo === "cli" && l.r.detalhe && <span className="text-xs text-stone-500">{l.r.detalhe}</span>}
-                  {l.tipo === "cmd" && l.c.dica && <span className="flex gap-0.5">{l.c.dica.split(" ").map((k) => <Kbd key={k}>{k}</Kbd>)}</span>}
+                  {l.tipo === "cmd" && l.c.dica && <span className="flex gap-0.5">{l.c.dica.split(" ").map((k, n) => <Kbd key={n}>{k}</Kbd>)}</span>}
                   {i === indice && <CornerDownLeft size={14} className="text-stone-400" />}
                 </button>
               </li>
@@ -186,17 +182,30 @@ export default function Atalhos({ admin }: { admin: boolean }) {
       </dialog>
 
       <dialog ref={ajuda} className="modal" onClick={(e) => { if (e.target === ajuda.current) ajuda.current?.close(); }}>
-        <div className="px-6 py-5">
+        <div className="max-h-[80vh] overflow-y-auto px-6 py-5">
           <h2 className="text-lg font-semibold tracking-tight">Atalhos de teclado</h2>
-          <p className="mb-4 text-sm text-stone-500">Funcionam em qualquer tela, fora dos campos de texto. Para ir a uma tela, aperte <Kbd>G</Kbd> e depois a letra.</p>
+          <p className="mb-4 text-sm text-stone-500">Funcionam em qualquer tela, fora dos campos de texto. Para ir a uma tela, aperte a letra do grupo e depois a letra da página (por exemplo, <Kbd>C</Kbd> <Kbd>M</Kbd> abre Mensagens).</p>
           <ul className="divide-y divide-stone-100">
-            {ATALHOS_AJUDA.map(([teclas, texto]) => (
+            {ATALHOS_GERAIS.map(([teclas, texto]) => (
               <li key={texto + teclas.join("")} className="flex items-center gap-3 py-2 text-sm">
                 <span className="flex-1">{texto}</span>
                 <span className="flex gap-1">{teclas.map((k) => <Kbd key={k}>{k}</Kbd>)}</span>
               </li>
             ))}
           </ul>
+          {GRUPOS.filter((g) => !g.admin || admin).map((g) => (
+            <div key={g.titulo} className="mt-4">
+              <h3 className="mb-1 text-xs font-semibold text-stone-400">{g.titulo}</h3>
+              <ul className="divide-y divide-stone-100">
+                {g.itens.map((i) => (
+                  <li key={i.href} className="flex items-center gap-3 py-1.5 text-sm">
+                    <span className="flex-1">{i.rotulo}</span>
+                    <span className="flex gap-1">{i.atalho.toUpperCase().split("").map((k, n) => <Kbd key={n}>{k}</Kbd>)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
           <div className="mt-4 text-right"><button className="btn-sec" onClick={() => ajuda.current?.close()}>Fechar</button></div>
         </div>
       </dialog>

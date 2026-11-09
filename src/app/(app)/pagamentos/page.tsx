@@ -1,6 +1,6 @@
 import { BellRing, ChevronLeft, ChevronRight, HandCoins, SlidersHorizontal, Wallet } from "lucide-react";
 import Link from "next/link";
-import AvisoEnviado from "@/components/avisos/AvisoEnviado";
+import BotaoLembrar from "@/components/avisos/BotaoLembrar";
 import ComporAviso from "@/components/avisos/ComporAviso";
 import EvolucaoMeses, { type MesResumo } from "@/components/pagamentos/EvolucaoMeses";
 import FiltroLista from "@/components/pagamentos/FiltroLista";
@@ -13,14 +13,13 @@ import SubmitButton from "@/components/ui/SubmitButton";
 import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
 import { faixasEmCache } from "@/lib/cache";
-import { nomeCompleto, semAcento, um } from "@/lib/dados";
+import { carregarModelosAviso, nomeCompleto, semAcento, um } from "@/lib/dados";
 import { opcoesSegmento } from "@/lib/destinatarios";
 import { MODALIDADES, dataBR, hojeISO, reais } from "@/lib/format";
 import { ROTULO_SITUACAO, ordemSituacao, primeiroDoMes, situacaoCobranca, somarMeses, type Situacao } from "@/lib/pagamentos";
-import { enviarAvisoApp, lembrarCobranca } from "../mensagens/actions";
 import { ajustarCobranca, darBaixa, estornarPagamento } from "./actions";
 
-type Busca = { mes?: string; modalidade?: string; rota?: string; aviso?: string; n?: string; push?: string };
+type Busca = { mes?: string; modalidade?: string; rota?: string };
 const FORMAS = { pix: "PIX", transferencia: "Transferência (Papayas)", debito_automatico: "Débito automático", dinheiro: "Dinheiro", outro: "Outro" };
 const TOM_SIT: Record<Situacao, Tom> = { em_dia: "verde", a_vencer: "azul", vence_hoje: "ambar", atrasado: "laranja", atraso_critico: "vermelho", sem_cobranca: "cinza" };
 
@@ -41,7 +40,7 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
     .order("vencimento");
 
   // A geração é idempotente e barata; roda junto com as demais consultas, e depois relemos só se algo nasceu.
-  const [{ data: cobrancasInicial }, { data: rotas }, { data: atrib }, faixas, gerou, { data: serie }, opcoesAviso] = await Promise.all([
+  const [{ data: cobrancasInicial }, { data: rotas }, { data: atrib }, faixas, gerou, { data: serie }, opcoesAviso, modelosAviso] = await Promise.all([
     buscaCobrancas(),
     supabase.from("rotas").select("id, nome").order("nome"),
     supabase.from("atribuicoes_rota").select("cliente_id, rota_id").is("fim", null),
@@ -49,6 +48,7 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
     gera ? supabase.rpc("gerar_cobrancas", { p_competencia: mes }) : Promise.resolve({ data: 0 }),
     supabase.rpc("resumo_cobrancas", { p_ini: somarMeses(mes, -5), p_fim: mes }),
     opcoesSegmento(supabase, { rotas: [] }),
+    carregarModelosAviso(supabase),
   ]);
   const cobrancas = Number(gerou.data) > 0 ? (await buscaCobrancas()).data : cobrancasInicial;
   const rotaDe = new Map((atrib ?? []).map((a) => [a.cliente_id, a.rota_id]));
@@ -92,7 +92,6 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
     { chave: "a_vencer", rotulo: "A vencer", qtd: conta((s) => s === "a_vencer") },
     { chave: "em_dia", rotulo: "Em dia", qtd: conta((s) => s === "em_dia") },
   ].filter((c) => c.chave === "todas" || c.qtd > 0);
-  const voltarUrl = `/pagamentos?mes=${mes.slice(0, 7)}`;
   const mesParam = (m: string) => `/pagamentos?mes=${m.slice(0, 7)}`;
   const nomeMes = new Date(`${mes}T12:00:00Z`).toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
 
@@ -108,12 +107,10 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
             <Link className="btn-ghost !p-2" href={mesParam(somarMeses(mes, 1))} aria-label="Próximo mês"><ChevronRight size={17} /></Link>
           </div>
           <Modal titulo="Avisar clientes pelo app" descricao="A notificação chega no aplicativo Amada Massa. Use {nome}, {valor} e {vencimento} para personalizar." gatilho={<><BellRing size={16} />Avisar pelo app</>} gatilhoClasse="btn" largo>
-            <ComporAviso compacto opcoes={opcoesAviso.filter((o) => ["todos", "atrasados", "pendentes"].includes(o.codigo))} acao={enviarAvisoApp} voltar={voltarUrl} segmentoInicial={atrasadas.length ? "atrasados" : "todos"} modelos={["geral", "pagamento", "atraso", "novidade"]} />
+            <ComporAviso compacto opcoes={opcoesAviso.filter((o) => ["todos", "atrasados", "pendentes"].includes(o.codigo))} modelos={modelosAviso} segmentoInicial={atrasadas.length ? "atrasados" : "todos"} />
           </Modal>
         </>}
       />
-
-      <AvisoEnviado aviso={b.aviso} n={b.n} push={b.push} />
 
       <div className="mb-5 grid items-stretch gap-4 xl:grid-cols-[1.35fr_1fr]">
         <ResumoMes esperado={esperado} recebido={recebido} aReceber={aReceber} emAtraso={emAtraso} cobrancas={ativas.length} qtdRecebidas={qtdRecebidas} qtdAtraso={atrasadas.length} />
@@ -168,9 +165,7 @@ export default async function Pagamentos({ searchParams }: { searchParams: Promi
                           )}
                           {c.status === "paga" && <span className="mr-1 text-xs text-emerald-700">Paga {pagos[0] && dataBR(pagos[0].data)}</span>}
                           {c.status === "pendente" && (
-                            <form action={lembrarCobranca.bind(null, c.id, voltarUrl)}>
-                              <button className="btn-ghost !p-2" title="Lembrar pelo app" aria-label={`Lembrar ${nm} pelo app`}><BellRing size={17} /></button>
-                            </form>
+                            <BotaoLembrar cobrancaId={c.id} nome={nm} />
                           )}
                           <Modal titulo="Ajustes da cobrança" descricao={`${nm} · ${reais(c.valor_centavos)} · vence ${dataBR(c.vencimento)}`} gatilho={<SlidersHorizontal size={16} />} gatilhoClasse="btn-ghost !p-2">
                             <div className="flex flex-col gap-5">

@@ -9,7 +9,7 @@ export default function Entrar() {
         <LogoApp tamanho={72} />
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-stone-900">Amada Massa</h1>
-          <p className="mt-1 text-stone-600">Seus avisos do Clube do Pão: rota, entregador e o pão da semana.</p>
+          <p className="mt-1 text-stone-600">Seus avisos do Clube do Pão: rota, entregador e o pão da semana, direto no celular.</p>
         </div>
       </header>
       <EntrarMembro />

@@ -10,10 +10,8 @@ import PageHeader from "@/components/ui/PageHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirEquipe } from "@/lib/auth";
 import { faixasEmCache } from "@/lib/cache";
-import { nomeCompleto, um } from "@/lib/dados";
-import AvisoEnviado from "@/components/avisos/AvisoEnviado";
+import { carregarModelosAviso, nomeCompleto, um } from "@/lib/dados";
 import ComporAviso from "@/components/avisos/ComporAviso";
-import { avisarCliente } from "../../mensagens/actions";
 import { chaveTelefone } from "@/lib/telefone";
 import { CANAIS, MODALIDADES, STATUS_CLIENTE, dataBR, hojeISO, reais } from "@/lib/format";
 import { ROTULO_SITUACAO, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
@@ -29,13 +27,12 @@ const Linha = ({ rotulo, children }: { rotulo: string; children: React.ReactNode
   <div className="flex gap-3 py-2 text-sm"><dt className="w-28 shrink-0 text-stone-500">{rotulo}</dt><dd className="min-w-0 flex-1 text-stone-900">{children}</dd></div>
 );
 
-export default async function Cliente({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ aviso?: string; n?: string; push?: string }> }) {
+export default async function Cliente({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const av = await searchParams;
   const { supabase, usuario } = await exigirEquipe();
   const hoje = hojeISO();
 
-  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }, faixas, { data: cobrancas }] = await Promise.all([
+  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }, faixas, { data: cobrancas }, modelosAviso] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", id).single(),
     supabase.from("assinaturas").select("*, planos(nome, modalidade, paes_por_semana, valor_centavos), pontos_coleta(nome)").eq("cliente_id", id).order("inicio", { ascending: false }),
     supabase.from("contatos").select("*").eq("cliente_id", id).order("data", { ascending: false }).order("criado_em", { ascending: false }),
@@ -47,6 +44,7 @@ export default async function Cliente({ params, searchParams }: { params: Promis
     supabase.from("atribuicoes_rota").select("rotas(nome, cor)").eq("cliente_id", id).is("fim", null).maybeSingle(),
     faixasEmCache(),
     supabase.from("cobrancas").select("id, competencia, valor_centavos, vencimento, status, assinaturas!inner(cliente_id)").eq("assinaturas.cliente_id", id).order("competencia", { ascending: false }).limit(8),
+    carregarModelosAviso(supabase),
   ]);
   if (!c) notFound();
 
@@ -74,7 +72,6 @@ export default async function Cliente({ params, searchParams }: { params: Promis
 
   return (
     <>
-      <AvisoEnviado aviso={av.aviso} n={av.n} push={av.push} />
       <PageHeader
         voltar={{ href: "/clientes", rotulo: "Clientes" }}
         titulo={<span className="flex items-center gap-3"><Avatar nome={nome} tamanho={44} />{nome}</span>}
@@ -86,7 +83,7 @@ export default async function Cliente({ params, searchParams }: { params: Promis
         </>}
         acoes={<>
           <Modal titulo="Avisar pelo app" descricao={`Notificação para ${nomeCompleto(c)} no aplicativo Amada Massa.`} gatilho={<><Bell size={16} />Avisar pelo app</>} gatilhoClasse="btn">
-            <ComporAviso compacto opcoes={[{ codigo: `clientes:${id}`, rotulo: nomeCompleto(c), qtd: 1 }]} acao={avisarCliente.bind(null, id)} modelos={["geral", "pagamento", "novidade"]} />
+            <ComporAviso compacto fixo={{ codigo: `clientes:${id}`, rotulo: nomeCompleto(c) }} opcoes={[]} modelos={modelosAviso} />
           </Modal>
           <Modal titulo="Registrar contato" descricao="Fica na linha do tempo do cliente." gatilho={<><Plus size={16} />Contato</>}>
             <form action={registrarContato} className="flex flex-col gap-4">

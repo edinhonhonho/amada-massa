@@ -1,28 +1,37 @@
-/** As quatro etapas da semana, em ordem de trabalho, e como saber em qual o time está. */
-export type EtapaId = "paes" | "producao" | "distribuicao" | "entregas";
+/**
+ * A semana em cinco etapas, na ordem do trabalho:
+ * planejar os pães, ver quem recebe, alocar nos pontos e rotas, consolidar e enviar, acompanhar.
+ */
+export type EtapaId = "planejar" | "clientes" | "alocar" | "consolidar" | "acompanhar";
 export const ETAPAS: { id: EtapaId; rotulo: string; curto: string }[] = [
-  { id: "paes", rotulo: "Pães", curto: "Quais pães saem" },
-  { id: "producao", rotulo: "Produção", curto: "Quanto produzir" },
-  { id: "distribuicao", rotulo: "Distribuição", curto: "Rotas, pontos e quantidades" },
-  { id: "entregas", rotulo: "Entregas", curto: "Acompanhar a semana" },
+  { id: "planejar", rotulo: "Planejar", curto: "Quais pães saem na semana" },
+  { id: "clientes", rotulo: "Clientes", curto: "Quem recebe nesta semana" },
+  { id: "alocar", rotulo: "Pontos e rotas", curto: "Onde cada cliente recebe" },
+  { id: "consolidar", rotulo: "Consolidar e enviar", curto: "Fechar a lista e avisar" },
+  { id: "acompanhar", rotulo: "Acompanhar", curto: "Entregas e retiradas" },
 ];
 
 export type EntradaEtapas = {
   paes: number; totalPaes: number; semProducao: boolean; listaFechada: boolean;
-  ativos: number; concluidas: number; semRota: number; rotasSemEntregador: number;
+  ativos: number; suspensos: number; pulados: number; concluidas: number; semRota: number; rotasSemEntregador: number;
 };
 export type EstadoEtapa = { id: EtapaId; rotulo: string; curto: string; feita: boolean; detalhe: string; alerta?: string };
 
+const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+
 export function estadoEtapas(e: EntradaEtapas): EstadoEtapa[] {
   const base = Object.fromEntries(ETAPAS.map((x) => [x.id, x])) as Record<EtapaId, (typeof ETAPAS)[number]>;
-  const alertaDist = e.semRota
-    ? `${e.semRota} ${e.semRota === 1 ? "entrega" : "entregas"} sem rota`
-    : e.rotasSemEntregador ? `${e.rotasSemEntregador} ${e.rotasSemEntregador === 1 ? "rota" : "rotas"} sem entregador` : undefined;
+  const alertaAlocar = e.semRota
+    ? `${plural(e.semRota, "entrega", "entregas")} sem rota`
+    : e.rotasSemEntregador ? `${plural(e.rotasSemEntregador, "rota", "rotas")} sem entregador` : undefined;
+  const nada = e.semProducao;
   return [
-    { ...base.paes, feita: e.semProducao || e.paes > 0, detalhe: e.semProducao ? "Semana sem produção" : e.paes ? `${e.paes} ${e.paes === 1 ? "pão" : "pães"}` : "Defina os pães" },
-    { ...base.producao, feita: e.semProducao || e.listaFechada, detalhe: e.semProducao ? "Nada a produzir" : e.listaFechada ? `Lista fechada · ${e.totalPaes} pães` : `${e.totalPaes} pães a produzir` },
-    { ...base.distribuicao, feita: e.semProducao || (e.ativos > 0 && !alertaDist), detalhe: e.semProducao ? "Nada a distribuir" : `${e.ativos} ${e.ativos === 1 ? "cliente" : "clientes"}`, alerta: e.semProducao ? undefined : alertaDist },
-    { ...base.entregas, feita: e.semProducao || (e.ativos > 0 && e.concluidas >= e.ativos), detalhe: e.semProducao ? "—" : `${e.concluidas} de ${e.ativos} concluídas` },
+    { ...base.planejar, feita: nada || e.paes > 0, detalhe: nada ? "Semana sem produção" : e.paes ? plural(e.paes, "pão", "pães") : "Defina os pães" },
+    { ...base.clientes, feita: nada || e.ativos > 0, detalhe: nada ? "Ninguém recebe" : plural(e.ativos, "cliente", "clientes"),
+      alerta: nada || !e.suspensos ? undefined : `${plural(e.suspensos, "suspenso", "suspensos")} por atraso` },
+    { ...base.alocar, feita: nada || (e.ativos > 0 && !alertaAlocar), detalhe: nada ? "Nada a alocar" : alertaAlocar ? "Falta alocar" : "Tudo alocado", alerta: nada ? undefined : alertaAlocar },
+    { ...base.consolidar, feita: nada || e.listaFechada, detalhe: nada ? "Nada a enviar" : e.listaFechada ? `Fechada · ${e.totalPaes} pães` : `${e.totalPaes} pães a produzir` },
+    { ...base.acompanhar, feita: nada || (e.ativos > 0 && e.concluidas >= e.ativos), detalhe: nada ? "—" : `${e.concluidas} de ${e.ativos} concluídas` },
   ];
 }
 

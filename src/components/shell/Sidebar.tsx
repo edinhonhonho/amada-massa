@@ -64,7 +64,7 @@ export default function Sidebar({
                         <Icone size={18} className={on ? "text-amber-700" : "text-stone-400 group-hover:text-stone-600"} />
                       )}
                       <span className="flex-1 truncate">{it.rotulo}</span>
-                      <span className="hidden items-center gap-0.5 group-hover:flex"><Kbd>G</Kbd><Kbd>{it.atalho.toUpperCase()}</Kbd></span>
+                      <span className="hidden items-center gap-0.5 group-hover:flex">{it.atalho.toUpperCase().split("").map((k, n) => <Kbd key={n}>{k}</Kbd>)}</span>
                     </Link>
                   </li>
                 );

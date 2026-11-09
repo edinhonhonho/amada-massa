@@ -122,7 +122,7 @@ export async function avisarSaborMembros(f: FormData) {
   const { data: s } = await supabase.from("semanas").select("sabor").eq("id", id).single();
   if (!s?.sabor) return falhou(id, "Cadastre ao menos um pão antes de avisar os membros.");
   const n = await avisarSabor(id, s.sabor);
-  redirect(`/planejamento/${id}?etapa=paes&avisados=${n}`);
+  redirect(`/planejamento/${id}?etapa=consolidar&avisados=${n}`);
 }
 
 // ------------------------------------------------------------------ pães
