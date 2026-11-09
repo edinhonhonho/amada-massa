@@ -190,26 +190,38 @@ export default function ComporAviso({ opcoes, modelos, segmentoInicial, fixo, pe
           {!fixo && (
             <fieldset>
               <legend className="mb-2 flex items-center gap-2 text-sm font-semibold"><span className="flex size-5 items-center justify-center rounded-full bg-stone-900 text-[11px] text-white">1</span>Para quem</legend>
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                {[...opcoes, ...(pessoas ? [{ codigo: "pessoas", rotulo: "Pessoas específicas", detalhe: "Escolha a dedo", qtd: escolhidas.length }] : [])].map((o) => {
+              {(() => {
+                const principais = opcoes.filter((o) => !o.codigo.startsWith("rota:"));
+                const rotas = opcoes.filter((o) => o.codigo.startsWith("rota:"));
+                const chip = (o: { codigo: string; rotulo: string; qtd: number }, pequeno = false) => {
                   const ativa = o.codigo === segmento;
-                  const Icone = ICONE[o.codigo] ?? Route;
-                  const vazio = o.codigo !== "pessoas" && o.qtd === 0;
+                  const Icone = ICONE[o.codigo];
                   return (
                     <button
                       key={o.codigo} type="button" onClick={() => setSegmento(o.codigo)} aria-pressed={ativa}
-                      className={`relative flex items-start gap-3 rounded-2xl p-3.5 pr-8 text-left transition active:scale-[.985] ${ativa ? "bg-amber-50 shadow-[0_8px_24px_-10px_rgba(180,83,9,.55)] ring-2 ring-amber-600/70" : "bg-white shadow-[0_1px_2px_rgba(28,25,23,.08),0_0_0_1px_rgba(28,25,23,.04)] hover:shadow-md"} ${vazio && !ativa ? "opacity-60" : ""}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full transition active:scale-[.97] ${pequeno ? "px-2.5 py-1 text-[12.5px]" : "px-3.5 py-1.5 text-[13.5px]"} font-medium ${ativa ? "bg-stone-900 text-white shadow-md" : "bg-white text-stone-700 shadow-[0_0_0_1px_rgba(28,25,23,.1)] hover:bg-stone-50"} ${o.qtd === 0 && o.codigo !== "pessoas" && !ativa ? "opacity-50" : ""}`}
                     >
-                      <span className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${ativa ? "bg-amber-700 text-white" : "bg-stone-100 text-stone-500"}`}><Icone size={17} /></span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold leading-tight">{o.rotulo}</span>
-                        <span className="mt-0.5 block text-xs text-stone-500">{o.codigo === "pessoas" ? (o.qtd ? `${o.qtd} escolhida${o.qtd > 1 ? "s" : ""}` : o.detalhe) : `${o.qtd} ${o.qtd === 1 ? "pessoa" : "pessoas"}`}</span>
-                      </span>
-                      {ativa && <span className="absolute right-2.5 top-2.5 flex size-4 items-center justify-center rounded-full bg-amber-700 text-white"><Check size={11} strokeWidth={3} /></span>}
+                      {Icone && <Icone size={pequeno ? 12 : 14} className={ativa ? "text-amber-300" : "text-stone-400"} />}
+                      {o.rotulo}
+                      <span className={`rounded-full px-1.5 text-[11px] tabular-nums ${ativa ? "bg-white/20" : "bg-stone-100 text-stone-500"}`}>{o.qtd}</span>
                     </button>
                   );
-                })}
-              </div>
+                };
+                return (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {principais.map((o) => chip(o))}
+                      {pessoas && chip({ codigo: "pessoas", rotulo: "Pessoas específicas", qtd: escolhidas.length })}
+                    </div>
+                    {rotas.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="mr-0.5 flex items-center gap-1 text-xs text-stone-400"><Route size={12} />Rotas</span>
+                        {rotas.map((o) => chip(o, true))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               {porPessoas && <div className="mt-3"><SeletorPessoas escolhidas={escolhidas} aoMudar={setEscolhidas} /></div>}
               {!porPessoas && <p className="mt-2 text-xs text-stone-500">{opcao?.detalhe ? `${opcao.detalhe}. ` : ""}Quem ainda não entrou no app vê o aviso na primeira vez que entrar.</p>}
             </fieldset>

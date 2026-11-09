@@ -40,6 +40,7 @@ export function explicarErroPush(e: unknown): string {
   const status = (e as { statusCode?: number }).statusCode;
   const corpo = String((e as { body?: string }).body ?? "").slice(0, 120);
   if (status === 404 || status === 410) return "O aparelho cancelou a inscrição; é preciso ativar os avisos de novo no app.";
+  if (status === 403 && /do not correspond|credentials/i.test(corpo + String((e as Error).message))) return "Este aparelho foi inscrito com chaves de notificação antigas. Abra o app Amada Massa nele: o app se inscreve de novo sozinho com as chaves atuais.";
   if (status === 401 || status === 403) return `O serviço de notificações recusou as chaves (${status}). Confira VAPID_PRIVATE_KEY, NEXT_PUBLIC_VAPID_PUBLIC_KEY e VAPID_SUBJECT na Vercel e faça redeploy. ${corpo}`.trim();
   if (status === 400) return `Pedido recusado pelo serviço de notificações (400). ${corpo}`.trim();
   return `${status ? `Erro ${status}. ` : ""}${e instanceof Error ? e.message : "Falha ao enviar."} ${corpo}`.trim();
@@ -66,7 +67,9 @@ export async function enviarPush(inscricoes: Inscricao[], carga: (s: Inscricao) 
         } catch (e) {
           r.falhas++;
           const status = (e as { statusCode?: number }).statusCode;
-          if (status === 404 || status === 410) r.mortas.push(s.id);
+          const corpo = String((e as { body?: string }).body ?? "");
+          // inscrição feita com outro par de chaves nunca mais funciona: sai da lista até o app se inscrever de novo
+          if (status === 404 || status === 410 || (status === 403 && /do not correspond/i.test(corpo))) r.mortas.push(s.id);
           r.erro = explicarErroPush(e);
           console.error("push recusado", status, (e as { body?: string }).body ?? (e as Error).message);
         }

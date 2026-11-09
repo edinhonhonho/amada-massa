@@ -13,6 +13,8 @@ function chave(base64: string): Uint8Array<ArrayBuffer> {
   return out;
 }
 
+const base64Url = (b: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
 type Situacao = "carregando" | "sem_suporte" | "inativo" | "ativo" | "negado";
 
 /** Cartão com o interruptor das notificações deste aparelho. */
@@ -24,15 +26,37 @@ export default function AtivarNotificacoes({ publicKey }: { publicKey: string })
   const [teste, setTeste] = useState<{ ok: boolean; mensagem: string } | null>(null);
   const [testando, setTestando] = useState(false);
 
+  /** Inscreve este aparelho com a chave atual e avisa o servidor. */
+  async function inscrever(): Promise<{ ok: boolean; erro?: string }> {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave(publicKey) }));
+    const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
+    return salvarInscricao(j, navigator.userAgent);
+  }
+
   useEffect(() => {
     (async () => {
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) return setSituacao("sem_suporte");
       if (Notification.permission === "denied") return setSituacao("negado");
       try {
         const reg = await navigator.serviceWorker.ready;
-        setSituacao((await reg.pushManager.getSubscription()) ? "ativo" : "inativo");
+        const sub = await reg.pushManager.getSubscription();
+        if (!sub) return setSituacao("inativo");
+        const usada = sub.options?.applicationServerKey ? base64Url(sub.options.applicationServerKey) : null;
+        if (publicKey && usada && usada !== publicKey) {
+          // as chaves do clube mudaram: a inscrição antiga nunca mais recebe avisos, então renova sozinha
+          await sub.unsubscribe();
+          if (Notification.permission === "granted") {
+            const r = await inscrever();
+            return setSituacao(r.ok ? "ativo" : "inativo");
+          }
+          return setSituacao("inativo");
+        }
+        setSituacao("ativo");
+        void inscrever(); // garante que o servidor tem esta inscrição (ela some quando é recusada)
       } catch { setSituacao("sem_suporte"); }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function ativar() {
@@ -40,10 +64,7 @@ export default function AtivarNotificacoes({ publicKey }: { publicKey: string })
     try {
       const permissao = await Notification.requestPermission();
       if (permissao !== "granted") { setSituacao("negado"); return; }
-      const reg = await navigator.serviceWorker.ready;
-      const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: chave(publicKey) }));
-      const j = sub.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-      const r = await salvarInscricao(j, navigator.userAgent);
+      const r = await inscrever();
       if (!r.ok) { setErro(r.erro ?? "Não foi possível salvar."); return; }
       setSituacao("ativo");
     } catch (e) {

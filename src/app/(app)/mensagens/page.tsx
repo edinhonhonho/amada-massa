@@ -1,8 +1,7 @@
 import { TriangleAlert } from "lucide-react";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
-import CentralMensagens, { type LinhaHistorico, type NaoEntrou } from "@/components/avisos/CentralMensagens";
-import GerenciarModelos from "@/components/avisos/GerenciarModelos";
+import CentralMensagens, { BotaoNovoAviso, type LinhaHistorico, type NaoEntrou } from "@/components/avisos/CentralMensagens";
 import PageHeader from "@/components/ui/PageHeader";
 import { exigirEquipe } from "@/lib/auth";
 import { carregarModelosAviso, nomeCompleto } from "@/lib/dados";
@@ -29,7 +28,7 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
   const semEntrar = (ativos ?? []).filter((c) => !entraram.has(c.id));
   // quem não consegue entrar por falta de dado vem primeiro: é o que a equipe pode resolver
   const falta = (c: { email: string | null; whatsapp: string | null }) => (!c.email && !chaveTelefone(c.whatsapp) ? "e-mail e telefone" : !c.email ? "e-mail" : !chaveTelefone(c.whatsapp) ? "telefone com DDD" : null);
-  const naoEntraram: NaoEntrou[] = semEntrar.map((c) => ({ id: c.id, nome: nomeCompleto(c), falta: falta(c) })).sort((a, b) => Number(!!b.falta) - Number(!!a.falta)).slice(0, 6);
+  const naoEntraram: NaoEntrou[] = semEntrar.slice(0, 400).map((c) => ({ id: c.id, nome: nomeCompleto(c), falta: falta(c) })).sort((a, b) => Number(!!b.falta) - Number(!!a.falta));
 
   const linhas = (historico ?? []) as LinhaHistorico[];
   const desde = Date.now() - 30 * 86_400_000;
@@ -46,7 +45,7 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader titulo="Mensagens" subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>} />
+      <PageHeader titulo="Mensagens" subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>} acoes={<BotaoNovoAviso />} />
       {problema && (
         <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />
@@ -56,8 +55,7 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
       <CentralMensagens
         opcoes={opcoes} modelos={modelos} historico={linhas} qr={qr} link={link} abrirInicial={b.novo === "1" || !!b.para} segmentoInicial={b.para}
         indicadores={{ ativos: idsAtivos.size, entraram: entraram.size, comAvisos: comAvisos.size, leitura: gravados ? Math.round((lidos / gravados) * 100) : null, enviados30: recentes.length }}
-        naoEntraram={naoEntraram} totalNaoEntraram={semEntrar.length}
-        modelosSlot={<GerenciarModelos modelos={modelos} />}
+        naoEntraram={naoEntraram}
       />
     </>
   );
