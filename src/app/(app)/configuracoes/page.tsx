@@ -2,7 +2,9 @@ import { revalidatePath } from "next/cache";
 import { renovarConfiguracoes } from "@/lib/cache";
 import PageHeader from "@/components/ui/PageHeader";
 import SubmitButton from "@/components/ui/SubmitButton";
+import GeradorVapid from "@/components/GeradorVapid";
 import { exigirAdmin } from "@/lib/auth";
+import { diagnosticoPush } from "@/lib/notificar";
 
 async function salvar(f: FormData) {
   "use server";
@@ -31,6 +33,7 @@ export default async function Configuracoes() {
         ))}
         <div className="flex justify-end"><SubmitButton>Salvar configurações</SubmitButton></div>
       </form>
+      <GeradorVapid problema={diagnosticoPush()[0]} />
       <p className="mt-4 max-w-xl text-sm text-stone-500">Contas da equipe: crie em Supabase → Authentication → Users e ajuste o perfil e o nome na tabela <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs">usuarios</code> (ver README).</p>
     </>
   );

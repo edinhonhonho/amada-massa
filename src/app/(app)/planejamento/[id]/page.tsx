@@ -199,7 +199,7 @@ function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: Estad
           <li key={e.id}>
             <Link
               href={`/planejamento/${semanaId}?etapa=${e.id}`} aria-current={ativa ? "step" : undefined}
-              className={`flex h-full items-start gap-3 rounded-2xl p-4 transition ${ativa ? "bg-white shadow-[0_10px_30px_-10px_rgba(146,64,14,.35)]" : "bg-white/55 shadow-sm hover:bg-white hover:shadow-md"}`}
+              className={`flex h-full items-start gap-3 rounded-2xl p-4 transition ${ativa ? "bg-white shadow-[0_10px_28px_-10px_rgba(28,25,23,.25)] ring-1 ring-stone-900/10" : "bg-painel ring-1 ring-stone-900/[0.04] hover:bg-white hover:shadow-md"}`}
             >
               <span className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold ${e.feita ? "bg-emerald-100 text-emerald-700" : ativa ? "bg-amber-700 text-white" : "bg-stone-100 text-stone-500"}`}>
                 {e.feita ? <Check size={16} /> : i + 1}
@@ -411,12 +411,15 @@ export default async function Semana({ params, searchParams }: { params: Promise
         <form action={alternarListaFechada}><input type="hidden" name="id" value={id} /><input type="hidden" name="fechar" value={s.lista_fechada ? "0" : "1"} />
           <SubmitButton className={s.lista_fechada ? "btn-sec" : "btn"}>{s.lista_fechada ? <><LockOpen size={16} />Reabrir lista</> : <><Lock size={16} />Fechar a lista da semana</>}</SubmitButton></form>
       </div>
-      <div className="mb-6 grid grid-cols-4 gap-3">
+      <section className="cartao mb-6">
+        <div className="cartao-titulo">Resumo da semana</div>
+      <div className="grid grid-cols-4 gap-3">
         <Stat rotulo="Pães a produzir" valor={totalPaes} icone={PackageCheck} tom="ambar" detalhe={paes.length ? paes.map((p) => `${totaisPorPao[p.id] ?? 0} ${p.nome}`).join(" · ") : "Defina os pães da semana"} />
         <Stat rotulo="Clientes na semana" valor={clientes} icone={Users} tom="azul" detalhe={semAtribuir ? `${semAtribuir} entrega(s) sem rota` : undefined} />
         <Stat rotulo="Entrega em casa" valor={`${entrega.p} pães`} icone={Truck} tom="verde" detalhe={`${entrega.c} cliente(s)`} />
         <Stat rotulo="Retirada" valor={`${pontos.p + padaria.p} pães`} icone={Store} tom="neutro" detalhe={`${pontos.c + padaria.c} cliente(s) · ${doTipo("ponto").length} ponto(s) e padaria`} />
       </div>
+      </section>
       {grupos.length > 0 && !s.sem_producao && (
         <section className="cartao mb-6 overflow-hidden !p-0">
           <header className="border-b border-stone-100 px-5 py-3.5"><h2 className="font-semibold">Quanto produzir e para onde levar</h2></header>

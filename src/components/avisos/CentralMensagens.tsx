@@ -43,15 +43,18 @@ export default function CentralMensagens({ opcoes, modelos, historico, indicador
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <div className="grid flex-1 grid-cols-2 gap-3 lg:grid-cols-4">
-          <Indicador icone={<Smartphone size={16} />} rotulo="Já entraram no app" valor={`${indicadores.entraram}`} total={indicadores.ativos} barra={pct(indicadores.entraram, indicadores.ativos)} />
-          <Indicador icone={<Bell size={16} />} rotulo="Com notificações ativas" valor={`${indicadores.comAvisos}`} total={indicadores.ativos} barra={pct(indicadores.comAvisos, indicadores.ativos)} dica="É o máximo de pessoas que recebem o aviso no celular" />
-          <Indicador icone={<CheckCheck size={16} />} rotulo="Leitura média (30 dias)" valor={indicadores.leitura === null ? "—" : `${indicadores.leitura}%`} barra={indicadores.leitura ?? 0} cor="bg-emerald-500" />
-          <Indicador icone={<Inbox size={16} />} rotulo="Avisos em 30 dias" valor={`${indicadores.enviados30}`} />
+      <section className="cartao mb-6">
+        <div className="mb-3 flex items-center gap-3">
+          <h2 className="cartao-titulo !mb-0">Visão geral</h2>
+          <button type="button" onClick={() => abrir()} className="btn ml-auto"><PenSquare size={16} />Novo aviso</button>
         </div>
-        <button type="button" onClick={() => abrir()} className="btn !px-5 !py-3.5 shadow-md"><PenSquare size={17} />Novo aviso</button>
-      </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Indicador icone={<Smartphone size={14} />} rotulo="Já entraram no app" valor={`${indicadores.entraram}`} total={indicadores.ativos} barra={pct(indicadores.entraram, indicadores.ativos)} />
+          <Indicador icone={<Bell size={14} />} rotulo="Com notificações ativas" valor={`${indicadores.comAvisos}`} total={indicadores.ativos} barra={pct(indicadores.comAvisos, indicadores.ativos)} dica="É o máximo de pessoas que recebem o aviso no celular" />
+          <Indicador icone={<CheckCheck size={14} />} rotulo="Leitura média (30 dias)" valor={indicadores.leitura === null ? "—" : `${indicadores.leitura}%`} barra={indicadores.leitura ?? 0} cor="bg-emerald-500" />
+          <Indicador icone={<Inbox size={14} />} rotulo="Avisos em 30 dias" valor={`${indicadores.enviados30}`} />
+        </div>
+      </section>
 
       <div className="grid items-start gap-6 xl:grid-cols-[1fr_340px]">
         <section aria-labelledby="enviados">
@@ -117,9 +120,9 @@ export default function CentralMensagens({ opcoes, modelos, historico, indicador
 
 function Indicador({ icone, rotulo, valor, total, barra, cor = "bg-amber-600", dica }: { icone: ReactNode; rotulo: string; valor: string; total?: number; barra?: number; cor?: string; dica?: string }) {
   return (
-    <div className="cartao !p-4" title={dica}>
-      <div className="flex items-center gap-1.5 text-[13px] text-stone-500"><span className="text-stone-400">{icone}</span>{rotulo}</div>
-      <div className="mt-1 text-2xl font-semibold tabular-nums tracking-tight">{valor}{total !== undefined && <span className="text-sm font-normal text-stone-400"> / {total}</span>}</div>
+    <div className="cartao-branco p-4" title={dica}>
+      <div className="flex items-center gap-2 text-[13px] text-stone-500"><span className="flex size-6 items-center justify-center rounded-lg bg-stone-100 text-stone-500">{icone}</span>{rotulo}</div>
+      <div className="mt-3 text-[26px] font-semibold leading-none tabular-nums tracking-tight">{valor}{total !== undefined && <span className="text-sm font-normal text-stone-400"> / {total}</span>}</div>
       {barra !== undefined && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-100"><div className={`h-full rounded-full ${cor} transition-[width]`} style={{ width: `${barra}%` }} /></div>}
     </div>
   );

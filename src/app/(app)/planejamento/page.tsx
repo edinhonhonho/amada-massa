@@ -90,7 +90,7 @@ export default async function Planejamento({ searchParams }: { searchParams: Pro
                 const eAtual = d === atual;
                 const passada = adicionarDias(d, 6) < hoje;
                 const corpo = (
-                  <div className={`flex h-full min-h-[132px] flex-col gap-2 rounded-2xl p-4 text-left transition ${s ? "bg-white shadow-md hover:-translate-y-0.5 hover:shadow-xl" : "bg-white/50 shadow-sm hover:bg-white hover:shadow-md"} ${eAtual ? "ring-2 ring-stone-900/80" : ""} ${passada ? "opacity-70" : ""}`}>
+                  <div className={`flex h-full min-h-[132px] flex-col gap-2 rounded-2xl p-4 text-left transition ${s ? "bg-painel ring-1 ring-stone-900/[0.06] hover:-translate-y-0.5 hover:bg-white hover:shadow-lg" : "bg-white ring-1 ring-dashed ring-stone-900/10 hover:bg-painel"} ${eAtual ? "ring-2 ring-stone-900/80" : ""} ${passada ? "opacity-70" : ""}`}>
                     <div className="flex items-center justify-between text-xs text-stone-500"><span>Semana {numeroSemanaISO(d)}</span>{eAtual && <span className="size-2 rounded-full bg-amber-600" />}</div>
                     <div className="text-[15px] font-semibold tabular-nums tracking-tight">{dm(d)} – {dm(adicionarDias(d, 6))}</div>
                     <div className="flex flex-1 flex-wrap content-start gap-1">

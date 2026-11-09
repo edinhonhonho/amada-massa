@@ -46,7 +46,7 @@ export default function ResumoMes({ esperado, recebido, aReceber, emAtraso, cobr
 
       <ul className="grid gap-2 sm:grid-cols-3">
         {partes.map((p) => (
-          <li key={p.chave} className="flex items-start gap-2.5 rounded-xl bg-stone-50 px-3 py-2.5">
+          <li key={p.chave} className="cartao-branco flex items-start gap-2.5 px-3 py-2.5">
             <span className={`${p.cor} mt-1 size-2.5 shrink-0 rounded-[3px]`} aria-hidden />
             <div className="min-w-0">
               <div className="text-xs text-stone-500">{p.rotulo}</div>

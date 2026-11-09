@@ -24,8 +24,8 @@ export function problemasVapid(publica?: string, privada?: string): string[] {
   if (!pub) out.push("Falta a variável NEXT_PUBLIC_VAPID_PUBLIC_KEY na Vercel.");
   if (!priv) out.push("Falta a variável VAPID_PRIVATE_KEY na Vercel.");
   if (out.length) return out;
-  if (!/^[A-Za-z0-9_-]{87}$/.test(pub)) out.push(`A chave pública tem ${pub.length} caracteres e deveria ter 87. Copie de novo a linha “Public Key” do npm run vapid.`);
-  if (!/^[A-Za-z0-9_-]{43}$/.test(priv)) out.push(`A chave privada tem ${priv.length} caracteres e deveria ter 43. Copie de novo a linha “Private Key” do npm run vapid, sem o nome da variável.`);
+  if (!/^[A-Za-z0-9_-]{87}$/.test(pub)) out.push(`A chave pública tem ${pub.length} caracteres e deveria ter 87. Provavelmente a cópia ficou cortada. Gere o par em Configurações, com botão de copiar.`);
+  if (!/^[A-Za-z0-9_-]{43}$/.test(priv)) out.push(`A chave privada tem ${priv.length} caracteres e deveria ter 43. Provavelmente a cópia ficou cortada (clique duplo para no primeiro “-” ou “_”). Gere o par em Configurações, com botão de copiar.`);
   if (out.length) return out;
   try {
     const ecdh = createECDH("prime256v1");
