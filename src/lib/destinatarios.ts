@@ -7,7 +7,7 @@ import { primeiroDoMes, situacaoCobranca, type Faixas } from "@/lib/pagamentos";
 
 /** Para quem vai um aviso. O código viaja como "tipo" ou "tipo:valor" (ex.: "rota:uuid"). */
 export type Destinatario = { cliente_id: string; nome: string; valor?: string; vencimento?: string };
-export type OpcaoSegmento = { codigo: string; rotulo: string; detalhe?: string; qtd: number };
+export type OpcaoSegmento = { codigo: string; rotulo: string; detalhe?: string; qtd: number; /** quantos já recebem notificação no celular */ comPush?: number };
 
 const primeiro = (n: string) => n.trim().split(/\s+/)[0] ?? n;
 
@@ -76,21 +76,26 @@ export async function resolverDestinatarios(db: SupabaseClient, codigo: string):
   }
 }
 
-/** Opções do seletor "Para quem", já com a quantidade de pessoas de cada uma. */
-export async function opcoesSegmento(db: SupabaseClient, extra?: { rotas?: { id: string; nome: string }[] }): Promise<OpcaoSegmento[]> {
+/** Opções do seletor "Para quem", com a quantidade de pessoas e quantas delas recebem notificação no celular. */
+export async function opcoesSegmento(db: SupabaseClient, extra?: { rotas?: { id: string; nome: string }[]; alcance?: boolean }): Promise<OpcaoSegmento[]> {
   const faixas = await faixasEmCache();
   const rotas = extra?.rotas ?? ((await db.from("rotas").select("id, nome").order("nome")).data ?? []);
-  const [todos, atrasados, pendentes, ...porRota] = await Promise.all([
+  const [todos, atrasados, pendentes, porRota, push] = await Promise.all([
     resolverDestinatarios(db, "todos"),
     devedores(db, faixas, true),
     devedores(db, faixas, false),
-    ...rotas.map((r) => resolverDestinatarios(db, `rota:${r.id}`)),
+    Promise.all(rotas.map((r) => resolverDestinatarios(db, `rota:${r.id}`))),
+    extra?.alcance ? db.from("push_inscricoes").select("cliente_id").range(0, 4999) : Promise.resolve({ data: null }),
   ]);
+  const comApp = new Set((push.data ?? []).map((x: { cliente_id: string }) => x.cliente_id));
+  const cria = (codigo: string, rotulo: string, detalhe: string, lista: Destinatario[]): OpcaoSegmento => ({
+    codigo, rotulo, detalhe, qtd: lista.length, ...(extra?.alcance ? { comPush: lista.filter((d) => comApp.has(d.cliente_id)).length } : {}),
+  });
   return [
-    { codigo: "todos", rotulo: "Todos os clientes", detalhe: "Clientes ativos", qtd: todos.length },
-    { codigo: "atrasados", rotulo: "Em atraso", detalhe: "Mensalidade vencida", qtd: atrasados.length },
-    { codigo: "pendentes", rotulo: "Com mensalidade em aberto", detalhe: "Vencida ou a vencer", qtd: pendentes.length },
-    ...rotas.map((r, i) => ({ codigo: `rota:${r.id}`, rotulo: r.nome, detalhe: "Clientes da rota", qtd: porRota[i].length })),
+    cria("todos", "Todos os clientes", "Clientes ativos", todos),
+    cria("atrasados", "Em atraso", "Mensalidade vencida", atrasados),
+    cria("pendentes", "Com mensalidade em aberto", "Vencida ou a vencer", pendentes),
+    ...rotas.map((r, i) => cria(`rota:${r.id}`, r.nome, "Clientes da rota", porRota[i])),
   ];
 }
 

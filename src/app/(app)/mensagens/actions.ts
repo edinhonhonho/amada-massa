@@ -45,7 +45,7 @@ export async function preverEnvio(segmento: string): Promise<Previa | null> {
   return {
     qtd: pessoas.length, rotulo,
     nomes: pessoas.slice(0, 6).map((p) => p.nome),
-    avisoPush: falta.length ? `As chaves de notificação (${falta.join(", ")}) não estão na Vercel: o aviso fica só dentro do app, sem chegar no celular.` : null,
+    avisoPush: falta.length ? `${falta[0]} Enquanto isso, o aviso fica só dentro do app.` : null,
   };
 }
 
@@ -167,4 +167,19 @@ export async function buscarPessoasAviso(termo: string): Promise<PessoaAviso[]> 
     id: c.id, nome: `${c.nome} ${c.sobrenome ?? ""}`.trim(),
     detalhe: [c.bairro, c.status === "pausado" ? "pausado" : null].filter(Boolean).join(" · "), noApp: noApp.has(c.id),
   }));
+}
+
+// ------------------------------------------------------------ quem leu
+export type DetalheAviso = { leram: string[]; naoLeram: string[] };
+
+/** Nomes de quem já leu e de quem ainda não leu um aviso enviado. */
+export async function detalheAviso(avisoId: string): Promise<DetalheAviso> {
+  const { supabase } = await exigirEquipe();
+  const { data } = await supabase.from("notificacoes").select("lida_em, clientes(nome, sobrenome)").eq("aviso_id", avisoId).range(0, 1999);
+  const nome = (c: unknown) => {
+    const x = (Array.isArray(c) ? c[0] : c) as { nome: string; sobrenome: string | null } | null;
+    return x ? `${x.nome} ${x.sobrenome ?? ""}`.trim() : "—";
+  };
+  const linhas = (data ?? []).map((n) => ({ lido: !!n.lida_em, nome: nome(n.clientes) })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  return { leram: linhas.filter((l) => l.lido).map((l) => l.nome), naoLeram: linhas.filter((l) => !l.lido).map((l) => l.nome) };
 }

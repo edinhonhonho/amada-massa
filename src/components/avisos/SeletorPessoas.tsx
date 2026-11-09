@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { buscarPessoasAviso, type PessoaAviso } from "@/app/(app)/mensagens/actions";
 import Avatar from "@/components/ui/Avatar";
 
-export type Escolhida = { id: string; nome: string };
+export type Escolhida = { id: string; nome: string; noApp?: boolean };
 
 /** Escolhe clientes um a um: busca por nome, e-mail ou telefone e junta numa lista. */
 export default function SeletorPessoas({ escolhidas, aoMudar }: { escolhidas: Escolhida[]; aoMudar: (l: Escolhida[]) => void }) {
@@ -25,7 +25,7 @@ export default function SeletorPessoas({ escolhidas, aoMudar }: { escolhidas: Es
     return () => { cancelado = true; clearTimeout(t); };
   }, [q]);
 
-  const alternar = (p: PessoaAviso) => aoMudar(ids.has(p.id) ? escolhidas.filter((e) => e.id !== p.id) : [...escolhidas, { id: p.id, nome: p.nome }]);
+  const alternar = (p: PessoaAviso) => aoMudar(ids.has(p.id) ? escolhidas.filter((e) => e.id !== p.id) : [...escolhidas, { id: p.id, nome: p.nome, noApp: p.noApp }]);
 
   return (
     <div className="flex flex-col gap-3 rounded-2xl bg-stone-50 p-4 shadow-inner">

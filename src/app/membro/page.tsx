@@ -6,6 +6,7 @@ import LogoApp from "@/components/LogoApp";
 import MarcarLidas from "@/components/MarcarLidas";
 import { EMOJI_TIPO, horaCurta, rotuloDia } from "@/lib/avisos";
 import { createClient } from "@/lib/supabase/server";
+import { limparChavePublica } from "@/lib/vapid";
 import { sairMembro } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +70,7 @@ export default async function Membro() {
       </header>
 
       <InstalarApp nome="Amada Massa" />
-      <AtivarNotificacoes publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
+      <AtivarNotificacoes publicKey={limparChavePublica(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)} />
 
       {!notificacoes.length ? (
         <section className="flex flex-col items-center gap-2 rounded-3xl bg-white px-6 py-12 text-center shadow-sm">

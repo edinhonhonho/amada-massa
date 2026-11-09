@@ -1,120 +1,64 @@
-import { BellRing, CheckCheck, Smartphone, TriangleAlert, Users } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { headers } from "next/headers";
 import QRCode from "qrcode";
-import PageHeader from "@/components/ui/PageHeader";
-import ComporAviso from "@/components/avisos/ComporAviso";
-import CopiarLink from "@/components/avisos/CopiarLink";
-import Vazio from "@/components/ui/Vazio";
+import CentralMensagens, { type LinhaHistorico, type NaoEntrou } from "@/components/avisos/CentralMensagens";
 import GerenciarModelos from "@/components/avisos/GerenciarModelos";
+import PageHeader from "@/components/ui/PageHeader";
 import { exigirEquipe } from "@/lib/auth";
+import { carregarModelosAviso, nomeCompleto } from "@/lib/dados";
 import { opcoesSegmento } from "@/lib/destinatarios";
-import { quando } from "@/lib/avisos";
-import { carregarModelosAviso } from "@/lib/dados";
 import { diagnosticoPush } from "@/lib/notificar";
+import { chaveTelefone } from "@/lib/telefone";
 
-export default async function Mensagens({ searchParams }: { searchParams: Promise<{ para?: string }> }) {
+export default async function Mensagens({ searchParams }: { searchParams: Promise<{ para?: string; novo?: string }> }) {
   const { supabase } = await exigirEquipe();
   const b = await searchParams;
 
-  const [opcoes, modelos, { data: historico }, { count: ativos }, { count: entraram }, { data: pushes }] = await Promise.all([
-    opcoesSegmento(supabase),
+  const [opcoes, modelos, { data: historico }, { data: ativos }, { data: membros }, { data: pushes }] = await Promise.all([
+    opcoesSegmento(supabase, { alcance: true }),
     carregarModelosAviso(supabase),
     supabase.from("avisos_resumo").select("*").order("criado_em", { ascending: false }).limit(30),
-    supabase.from("clientes").select("id", { count: "exact", head: true }).eq("status", "ativo"),
-    supabase.from("membros").select("user_id, clientes!inner(status)", { count: "exact", head: true }).eq("clientes.status", "ativo"),
-    supabase.from("push_inscricoes").select("cliente_id, clientes!inner(status)").eq("clientes.status", "ativo").range(0, 4999),
+    supabase.from("clientes").select("id, nome, sobrenome, email, whatsapp").eq("status", "ativo").order("nome").range(0, 4999),
+    supabase.from("membros").select("cliente_id").range(0, 4999),
+    supabase.from("push_inscricoes").select("cliente_id").range(0, 4999),
   ]);
-  const comAvisos = new Set((pushes ?? []).map((p) => p.cliente_id)).size;
+
+  const idsAtivos = new Set((ativos ?? []).map((c) => c.id));
+  const entraram = new Set((membros ?? []).map((m) => m.cliente_id).filter((id) => idsAtivos.has(id)));
+  const comAvisos = new Set((pushes ?? []).map((p) => p.cliente_id).filter((id) => idsAtivos.has(id)));
+  const semEntrar = (ativos ?? []).filter((c) => !entraram.has(c.id));
+  // quem não consegue entrar por falta de dado vem primeiro: é o que a equipe pode resolver
+  const falta = (c: { email: string | null; whatsapp: string | null }) => (!c.email && !chaveTelefone(c.whatsapp) ? "e-mail e telefone" : !c.email ? "e-mail" : !chaveTelefone(c.whatsapp) ? "telefone com DDD" : null);
+  const naoEntraram: NaoEntrou[] = semEntrar.map((c) => ({ id: c.id, nome: nomeCompleto(c), falta: falta(c) })).sort((a, b) => Number(!!b.falta) - Number(!!a.falta)).slice(0, 6);
+
+  const linhas = (historico ?? []) as LinhaHistorico[];
+  const desde = Date.now() - 30 * 86_400_000;
+  const recentes = linhas.filter((l) => new Date(l.criado_em).getTime() >= desde);
+  const gravados = recentes.reduce((n, l) => n + l.gravados, 0);
+  const lidos = recentes.reduce((n, l) => n + l.lidos, 0);
 
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const link = `${process.env.NEXT_PUBLIC_SITE_URL ?? `${proto}://${host}`}/membro/entrar`;
   const qr = await QRCode.toString(link, { type: "svg", margin: 1, width: 168, color: { dark: "#292524", light: "#0000" } });
-
-  const pct = (a: number, t: number) => (t ? Math.round((a / t) * 100) : 0);
+  const problema = diagnosticoPush()[0];
 
   return (
     <>
-      <PageHeader
-        titulo="Mensagens"
-        subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>}
-      />
-      {diagnosticoPush().length > 0 && (
+      <PageHeader titulo="Mensagens" subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>} />
+      {problema && (
         <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />
-          <div>
-            <b>As notificações no celular ainda não estão configuradas.</b> Faltam na Vercel: <code className="rounded bg-amber-100 px-1.5 py-0.5 text-xs">{diagnosticoPush().join(", ")}</code>. Os avisos aparecem só dentro do app. Depois de incluir as variáveis, faça um redeploy.
-          </div>
+          <div><b>As notificações no celular não estão funcionando.</b> {problema} Os avisos aparecem só dentro do app. Depois de corrigir a variável na Vercel, faça um redeploy.</div>
         </div>
       )}
-
-      <section className="cartao mb-6 !p-6">
-            <div className="cartao-titulo"><BellRing size={16} className="text-amber-700" />Novo aviso<span className="ml-auto"><GerenciarModelos modelos={modelos} /></span></div>
-            <ComporAviso opcoes={opcoes} modelos={modelos} segmentoInicial={b.para} />
-      </section>
-
-      <div className="grid items-start gap-6 xl:grid-cols-[1fr_320px]">
-        <div className="flex flex-col gap-6">
-          <section>
-            <h2 className="mb-3 text-[15px] font-semibold">Enviados</h2>
-            {!historico?.length ? (
-              <div className="cartao"><Vazio icone={BellRing} titulo="Nenhum aviso enviado ainda" texto="Os avisos que você enviar aparecem aqui, com quem já leu." /></div>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {historico.map((a) => {
-                  const lidos = pct(a.lidos, a.gravados);
-                  return (
-                    <li key={a.id} className="cartao !p-4">
-                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                        <h3 className="font-semibold">{a.titulo}</h3>
-                        <span className="selo selo-cinza">{a.segmento_rotulo}</span>
-                        <span className="ml-auto text-xs text-stone-400">{quando(a.criado_em)}</span>
-                      </div>
-                      <p className="mt-1 whitespace-pre-line text-sm text-stone-600">{a.corpo}</p>
-                      <div className="mt-3 flex items-center gap-3 text-xs text-stone-500">
-                        <div className="h-1.5 w-32 overflow-hidden rounded-full bg-stone-100" role="img" aria-label={`${lidos}% leram`}>
-                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${lidos}%` }} />
-                        </div>
-                        <span><CheckCheck size={13} className="mr-1 inline text-emerald-600" />{a.lidos} de {a.gravados} leram</span>
-                        <span className="ml-auto">{a.pushes} no celular</span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        <aside className="flex flex-col gap-4 xl:sticky xl:top-6">
-          <section className="cartao">
-            <div className="cartao-titulo"><Smartphone size={16} className="text-amber-700" />Aplicativo Amada Massa</div>
-            <div className="mb-4 grid grid-cols-2 gap-3">
-              <Adesao rotulo="Já entraram" valor={entraram ?? 0} total={ativos ?? 0} />
-              <Adesao rotulo="Com avisos ativos" valor={comAvisos} total={ativos ?? 0} />
-            </div>
-            <div className="flex justify-center rounded-xl bg-stone-50 p-3" dangerouslySetInnerHTML={{ __html: qr }} aria-label="QR code do aplicativo" role="img" />
-            <p className="mt-3 text-sm text-stone-600">Peça ao cliente para abrir o link no celular, entrar com <b>e-mail e telefone</b> do cadastro e instalar o app.</p>
-            <CopiarLink link={link} />
-          </section>
-          <section className="cartao !p-4 text-sm text-stone-600">
-            <div className="cartao-titulo !mb-1.5"><Users size={15} className="text-stone-400" />Quem pode entrar</div>
-            Só quem tem <b>e-mail e telefone</b> no cadastro. Se algum dos dois estiver diferente, corrija na ficha do cliente.
-          </section>
-        </aside>
-      </div>
+      <CentralMensagens
+        opcoes={opcoes} modelos={modelos} historico={linhas} qr={qr} link={link} abrirInicial={b.novo === "1" || !!b.para} segmentoInicial={b.para}
+        indicadores={{ ativos: idsAtivos.size, entraram: entraram.size, comAvisos: comAvisos.size, leitura: gravados ? Math.round((lidos / gravados) * 100) : null, enviados30: recentes.length }}
+        naoEntraram={naoEntraram} totalNaoEntraram={semEntrar.length}
+        modelosSlot={<GerenciarModelos modelos={modelos} />}
+      />
     </>
-  );
-}
-
-function Adesao({ rotulo, valor, total }: { rotulo: string; valor: number; total: number }) {
-  const p = total ? Math.round((valor / total) * 100) : 0;
-  return (
-    <div className="rounded-xl bg-stone-50 p-3">
-      <div className="text-2xl font-semibold tabular-nums tracking-tight">{valor}<span className="text-sm font-normal text-stone-400"> / {total}</span></div>
-      <div className="text-xs text-stone-500">{rotulo}</div>
-      <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-stone-200"><div className="h-full rounded-full bg-amber-600" style={{ width: `${p}%` }} /></div>
-    </div>
   );
 }

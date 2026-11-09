@@ -10,21 +10,21 @@ export default function PreviaCelular({ titulo, corpo, nome = "Maria" }: Props) 
   const t = titulo || "Título do aviso";
   const c = corpo || "O texto aparece aqui enquanto você escreve.";
   return (
-    <div className="sticky top-6">
+    <div>
       <div role="tablist" className="mx-auto mb-3 flex w-fit rounded-full bg-stone-200/60 p-0.5 text-xs font-medium">
         {([["tela", "Tela bloqueada"], ["app", "Dentro do app"]] as const).map(([k, r]) => (
           <button key={k} role="tab" aria-selected={aba === k} type="button" onClick={() => setAba(k)} className={`rounded-full px-3 py-1.5 transition ${aba === k ? "bg-white text-stone-900 shadow" : "text-stone-500 hover:text-stone-800"}`}>{r}</button>
         ))}
       </div>
 
-      <div className="mx-auto w-[272px] rounded-[2.6rem] bg-stone-900 p-2.5 shadow-[0_30px_60px_-20px_rgba(28,25,23,.6),inset_0_0_0_2px_rgba(255,255,255,.08)]">
-        <div className={`relative h-[470px] overflow-hidden rounded-[2.1rem] ${aba === "tela" ? "bg-gradient-to-b from-amber-300 via-orange-200 to-rose-200" : "bg-gradient-to-b from-amber-50 to-stone-50"}`}>
+      <div className="mx-auto w-[256px] rounded-[2.6rem] bg-stone-900 p-2.5 shadow-[0_30px_60px_-20px_rgba(28,25,23,.6),inset_0_0_0_2px_rgba(255,255,255,.08)]">
+        <div className={`relative h-[410px] overflow-hidden rounded-[2.1rem] ${aba === "tela" ? "bg-gradient-to-b from-amber-300 via-orange-200 to-rose-200" : "bg-gradient-to-b from-amber-50 to-stone-50"}`}>
           <div className="absolute left-1/2 top-2.5 z-10 h-6 w-24 -translate-x-1/2 rounded-full bg-stone-900" />
           {aba === "tela" ? (
             <div className="pt-12 text-center text-stone-900">
               <div className="text-[11px] font-medium opacity-70">segunda-feira, 9 de novembro</div>
-              <div className="text-[64px] font-light leading-none tracking-tight">9:41</div>
-              <div className="mt-8 flex flex-col gap-2 px-3 text-left">
+              <div className="text-[56px] font-light leading-none tracking-tight">9:41</div>
+              <div className="mt-5 flex flex-col gap-2 px-3 text-left">
                 <div className="rounded-2xl bg-white/90 p-3 shadow-lg backdrop-blur-xl [animation:entra_.3s_ease-out]">
                   <div className="flex items-center gap-2 text-[11px] text-stone-500">
                     <span className="flex size-[18px] items-center justify-center rounded-[5px] bg-gradient-to-br from-amber-500 to-amber-800 text-[10px] font-bold text-white">A</span>

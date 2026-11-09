@@ -74,6 +74,12 @@ body { background: var(--color-fundo); letter-spacing: -0.006em; }
   }
   dialog.modal-largo { @apply max-w-2xl; }
   dialog.modal::backdrop { animation: fade-entra .16s ease-out; }
+  /* gaveta lateral (compor aviso) */
+  dialog.gaveta {
+    @apply m-0 ml-auto h-dvh max-h-dvh w-[min(1080px,100vw)] max-w-none overflow-hidden rounded-l-3xl border-0 bg-white p-0 text-stone-900 shadow-[-24px_0_60px_-12px_rgba(28,25,23,.35)] backdrop:bg-stone-900/40 backdrop:backdrop-blur-[3px];
+    animation: gaveta-entra .22s cubic-bezier(.2,.8,.2,1);
+  }
+  dialog.gaveta::backdrop { animation: fade-entra .2s ease-out; }
   .kbd {
     @apply inline-flex min-w-5 items-center justify-center rounded-md border border-stone-200 bg-stone-50 px-1.5 py-0.5 font-mono text-[11px] font-medium text-stone-500 shadow-[0_1px_0_rgba(0,0,0,.05)];
   }
@@ -89,3 +95,4 @@ body { background: var(--color-fundo); letter-spacing: -0.006em; }
   body { background: white; }
 }
 @keyframes barra { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
+@keyframes gaveta-entra { from { transform: translateX(40px); opacity: 0; } to { transform: none; opacity: 1; } }

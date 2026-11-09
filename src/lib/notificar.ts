@@ -2,6 +2,7 @@ import "server-only";
 import webpush from "web-push";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Aviso } from "@/lib/avisos";
+import { limparChavePrivada, limparChavePublica, problemasVapid } from "@/lib/vapid";
 
 const limpa = (v?: string) => (v ?? "").trim().replace(/^["']|["']$/g, "");
 
@@ -15,21 +16,22 @@ function assunto(): string {
   return "https://amadamassa.vercel.app";
 }
 
-/** O que falta para os avisos chegarem no celular. Vazio quando está tudo configurado. */
+const chavePublica = () => process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+const chavePrivada = () => process.env.VAPID_PRIVATE_KEY;
+
+/** O que impede os avisos de chegarem no celular, em português. Lista vazia quando está tudo certo. */
 export function diagnosticoPush(): string[] {
-  const falta: string[] = [];
-  if (!limpa(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY)) falta.push("NEXT_PUBLIC_VAPID_PUBLIC_KEY");
-  if (!limpa(process.env.VAPID_PRIVATE_KEY)) falta.push("VAPID_PRIVATE_KEY");
-  return falta;
+  return problemasVapid(chavePublica(), chavePrivada());
 }
 
 function configurarPush(): string | null {
-  if (diagnosticoPush().length) return `Faltam variáveis na Vercel: ${diagnosticoPush().join(" e ")}.`;
+  const problemas = diagnosticoPush();
+  if (problemas.length) return problemas[0];
   try {
-    webpush.setVapidDetails(assunto(), limpa(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY), limpa(process.env.VAPID_PRIVATE_KEY));
+    webpush.setVapidDetails(assunto(), limparChavePublica(chavePublica()), limparChavePrivada(chavePrivada()));
     return null;
   } catch (e) {
-    return `As chaves de notificação são inválidas (${e instanceof Error ? e.message : "erro desconhecido"}). Gere de novo com npm run vapid.`;
+    return `As chaves de notificação não foram aceitas (${e instanceof Error ? e.message : "erro desconhecido"}).`;
   }
 }
 
