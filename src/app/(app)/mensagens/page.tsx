@@ -72,8 +72,8 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
         <section className="cartao">
           <div className="cartao-titulo"><Bell size={17} className="text-stone-400" />Aviso no app dos membros</div>
           <p className="mb-4 text-sm text-stone-500">Chega como notificação no celular de quem instalou o app e fica guardado na caixa de avisos.</p>
-          {b.avisados !== undefined && <p className="mb-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Enviado para {b.avisados} membro(s).</p>}
-          {b.erro === "aviso" && <p className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">Preencha título e texto.</p>}
+          {b.avisados !== undefined && <p className="mb-3 rounded-xl bg-emerald-50 shadow-sm p-3 text-sm text-emerald-800">Enviado para {b.avisados} membro(s).</p>}
+          {b.erro === "aviso" && <p className="mb-3 rounded-xl bg-red-50 shadow-sm p-3 text-sm text-red-800">Preencha título e texto.</p>}
           <form action={enviarAvisoApp} className="flex flex-col gap-3">
             <div><label className="rotulo">Para quem</label>
               <select className="campo" name="rota" defaultValue=""><option value="">Todos os membros ativos</option>{rotas?.map((r) => <option key={r.id} value={r.id}>Só a rota {r.nome}</option>)}</select></div>

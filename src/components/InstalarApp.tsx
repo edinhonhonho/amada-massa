@@ -28,7 +28,7 @@ export default function InstalarApp({ nome }: { nome: string }) {
 
   if (instalado !== false) return null;
   return (
-    <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-left">
+    <div className="rounded-xl bg-amber-50 shadow-sm p-4 text-left">
       <h2 className="font-semibold">Instale o app {nome} para receber os avisos</h2>
       {evento ? (
         <button className="btn mt-2 w-full" onClick={() => void evento.prompt()}>Instalar agora</button>

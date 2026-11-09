@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import InstalarApp from "@/components/InstalarApp";
+import CampoSenha from "@/components/ui/CampoSenha";
 import { createClient } from "@/lib/supabase/server";
 
 async function entrar(formData: FormData) {
@@ -25,7 +26,7 @@ export default async function Entrar({ searchParams }: { searchParams: Promise<{
       {erro && <p className="rounded-lg bg-red-50 p-3 text-red-800">E-mail ou senha incorretos.</p>}
       <form action={entrar} className="cartao flex flex-col gap-4">
         <div><label className="rotulo" htmlFor="email">E-mail</label><input className="campo" id="email" name="email" type="email" required autoComplete="username" /></div>
-        <div><label className="rotulo" htmlFor="senha">Senha</label><input className="campo" id="senha" name="senha" type="password" required autoComplete="current-password" /></div>
+        <div><label className="rotulo" htmlFor="senha">Senha</label><CampoSenha id="senha" name="senha" /></div>
         <button className="btn py-3 text-lg">Entrar</button>
       </form>
     </main>

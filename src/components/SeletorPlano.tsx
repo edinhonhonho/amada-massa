@@ -65,7 +65,7 @@ export default function SeletorPlano({
             const I = MOD[m].icone;
             const menor = Math.min(...planos.filter((p) => p.modalidade === m).map((p) => p.valor_centavos));
             return (
-              <label key={m} className="group relative flex cursor-pointer flex-col gap-1 rounded-xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/60 has-[:checked]:ring-4 has-[:checked]:ring-amber-600/10">
+              <label key={m} className="group relative flex cursor-pointer flex-col gap-1 rounded-xl bg-white p-4 shadow-[0_1px_3px_rgba(28,25,23,.12)] transition hover:shadow-md has-[:checked]:bg-amber-50 has-[:checked]:shadow-lg has-[:checked]:ring-2 has-[:checked]:ring-amber-500/40">
                 <input type="radio" name="modalidade_ui" className="sr-only" checked={mod === m} onChange={() => escolherModalidade(m)} />
                 <span className="mb-1 flex size-9 items-center justify-center rounded-lg bg-stone-100 text-stone-600 group-has-[:checked]:bg-amber-600 group-has-[:checked]:text-white"><I size={18} /></span>
                 <span className="font-semibold leading-tight">{MOD[m].titulo}</span>
@@ -82,7 +82,7 @@ export default function SeletorPlano({
         <legend className="rotulo">2. Qual plano?</legend>
         <div className="grid grid-cols-2 gap-3">
           {doGrupo.map((p) => (
-            <label key={p.id} className="relative flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/60 has-[:checked]:ring-4 has-[:checked]:ring-amber-600/10">
+            <label key={p.id} className="relative flex cursor-pointer items-center gap-3 rounded-xl bg-white p-4 shadow-[0_1px_3px_rgba(28,25,23,.12)] transition hover:shadow-md has-[:checked]:bg-amber-50 has-[:checked]:shadow-lg has-[:checked]:ring-2 has-[:checked]:ring-amber-500/40">
               <input type="radio" name="plano_ui" className="sr-only" checked={planoId === p.id} onChange={() => setPlanoId(p.id)} />
               <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-stone-100 text-lg font-semibold text-stone-700">{p.paes_por_semana}</span>
               <span className="min-w-0 flex-1">
@@ -99,14 +99,14 @@ export default function SeletorPlano({
         <div>
           <div className="rotulo">3. Onde retira</div>
           {padarias.length ? (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50/60 p-4">
+            <div className="flex items-start gap-3 rounded-xl bg-amber-50/60 shadow-sm p-4">
               <Store size={20} className="mt-0.5 shrink-0 text-amber-800" />
               <div className="text-sm"><b>{padarias[0].nome}</b><span className="block text-stone-600">{padarias[0].endereco}</span>
                 {padarias[0].horario_texto && <span className="block text-xs text-stone-500">{padarias[0].horario_texto}</span>}</div>
               <span className="ml-auto selo selo-ambar">Definido pelo plano</span>
             </div>
           ) : (
-            <p className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"><AlertTriangle size={16} className="mt-0.5 shrink-0" />Nenhum ponto do tipo Padaria cadastrado. <Link className="underline" href="/pontos-coleta">Cadastre em Pontos de coleta</Link>.</p>
+            <p className="flex items-start gap-2 rounded-xl bg-red-50 shadow-sm p-3 text-sm text-red-800"><AlertTriangle size={16} className="mt-0.5 shrink-0" />Nenhum ponto do tipo Padaria cadastrado. <Link className="underline" href="/pontos-coleta">Cadastre em Pontos de coleta</Link>.</p>
           )}
         </div>
       )}
@@ -117,7 +117,7 @@ export default function SeletorPlano({
           {retiradas.length ? (
             <div className="grid grid-cols-2 gap-3">
               {retiradas.map((p) => (
-                <label key={p.id} className="relative flex cursor-pointer items-start gap-3 rounded-xl border border-stone-200 bg-white p-4 transition hover:border-stone-300 has-[:checked]:border-amber-600 has-[:checked]:bg-amber-50/60 has-[:checked]:ring-4 has-[:checked]:ring-amber-600/10">
+                <label key={p.id} className="relative flex cursor-pointer items-start gap-3 rounded-xl bg-white p-4 shadow-[0_1px_3px_rgba(28,25,23,.12)] transition hover:shadow-md has-[:checked]:bg-amber-50 has-[:checked]:shadow-lg has-[:checked]:ring-2 has-[:checked]:ring-amber-500/40">
                   <input type="radio" name="ponto_ui" className="sr-only" required checked={ponto?.id === p.id} onChange={() => setPontoId(p.id)} />
                   <MapPin size={18} className="mt-0.5 shrink-0 text-stone-500" />
                   <span className="text-sm"><b className="block leading-tight">{p.nome}</b><span className="block text-stone-500">{p.endereco}</span>
@@ -126,7 +126,7 @@ export default function SeletorPlano({
               ))}
             </div>
           ) : (
-            <p className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"><AlertTriangle size={16} className="mt-0.5 shrink-0" />Nenhum ponto de retirada cadastrado. <Link className="underline" href="/pontos-coleta">Cadastre em Pontos de coleta</Link>.</p>
+            <p className="flex items-start gap-2 rounded-xl bg-red-50 shadow-sm p-3 text-sm text-red-800"><AlertTriangle size={16} className="mt-0.5 shrink-0" />Nenhum ponto de retirada cadastrado. <Link className="underline" href="/pontos-coleta">Cadastre em Pontos de coleta</Link>.</p>
           )}
         </fieldset>
       )}

@@ -12,6 +12,7 @@ export type Parada = {
   id: string; ordem: number; nome: string; telefone: string | null; endereco: string; bairro: string | null;
   instrucoes: string | null; qtd: number; status: string; ocorrencia: string | null;
   observacao: string | null; entregue_em: string | null; tem_foto: boolean; lat: number | null; lng: number | null;
+  paes: { nome: string; qtd: number }[] | null;
 };
 type Estado = { status: string; ocorrencia: string | null; observacao: string | null; em: string | null; foto: boolean };
 type Folha = { id: string; modo: "entregue" | "nao_entregue" };
@@ -200,13 +201,14 @@ export default function EntregadorApp({
       {paradas.map((p, i) => {
         const e = estado[p.id];
         const mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.endereco}, ${p.bairro ?? ""}, Porto Alegre`)}`;
-        const cor = e.status === "entregue" ? "border-green-300 bg-green-50" : e.status === "nao_entregue" ? "border-red-300 bg-red-50" : p.id === proximo && emAndamento ? "border-amber-500 ring-2 ring-amber-300" : "";
+        const cor = e.status === "entregue" ? "bg-green-50 shadow-md" : e.status === "nao_entregue" ? " bg-red-50" : p.id === proximo && emAndamento ? "bg-amber-50 shadow-xl" : "";
         return (
           <article key={p.id} className={`cartao ${cor}`}>
             <div className="flex items-start gap-2">
               <span className="text-xl font-bold text-stone-500">{i + 1}</span>
               <div className="min-w-0 flex-1">
                 <div className="text-lg font-semibold">{p.nome} · {p.qtd} 🍞</div>
+                {p.paes && p.paes.length > 0 && <div className="mt-0.5 flex flex-wrap gap-1">{p.paes.map((x) => <span key={x.nome} className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">{x.qtd} {x.nome}</span>)}</div>}
                 <a className="underline" href={mapa} target="_blank" rel="noreferrer">{p.endereco}{p.bairro && ` · ${p.bairro}`}</a>
                 {p.instrucoes && <div className="text-sm italic text-stone-700">{p.instrucoes}</div>}
                 {p.telefone && <a className="text-sm underline" href={`tel:${p.telefone}`}>{p.telefone}</a>}

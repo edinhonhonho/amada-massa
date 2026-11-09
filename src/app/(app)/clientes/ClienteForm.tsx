@@ -76,7 +76,7 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
       {c && <input type="hidden" name="id" value={c.id} />}
       <div className="flex flex-col gap-5">
         {estado.erro && (
-          <div className="flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-900" role="alert">
+          <div className="flex gap-3 rounded-xl bg-red-50 shadow-sm p-4 text-red-900" role="alert">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
             <div>
               <p className="font-medium">{estado.erro}</p>

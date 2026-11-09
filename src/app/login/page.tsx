@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { CalendarDays, Truck, Wallet } from "lucide-react";
+import CampoSenha from "@/components/ui/CampoSenha";
+import Modal from "@/components/ui/Modal";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { createClient } from "@/lib/supabase/server";
 
@@ -31,41 +32,35 @@ export default async function Login({
   const { erro, enviado } = await searchParams;
   return (
     <main className="grid min-h-screen grid-cols-[1.05fr_1fr]">
-      <section className="relative hidden flex-col justify-between overflow-hidden bg-gradient-to-br from-amber-700 via-amber-800 to-stone-900 p-12 text-white lg:flex">
-        <div className="flex items-center gap-3"><span className="flex size-11 items-center justify-center rounded-2xl bg-white/15 text-2xl backdrop-blur">🍞</span><span className="text-xl font-semibold tracking-tight">Amada Massa</span></div>
-        <div>
-          <h2 className="max-w-md text-4xl font-semibold leading-tight tracking-tight">Pão de fermentação natural, da massa à porta.</h2>
-          <ul className="mt-8 space-y-4 text-amber-50/90">
-            {[[Wallet, "Receba as mensalidades", "Cobranças automáticas e atrasos à vista."], [CalendarDays, "Planeje a semana", "Sabor, produção e listas num só lugar."], [Truck, "Acompanhe as entregas", "Rotas, fotos e avisos aos membros."]].map(([Icone, t, d]) => {
-              const I = Icone as typeof Wallet;
-              return <li key={t as string} className="flex items-start gap-3"><span className="mt-0.5 flex size-8 items-center justify-center rounded-lg bg-white/10"><I size={16} /></span><span><b className="block text-white">{t as string}</b><span className="text-sm">{d as string}</span></span></li>;
-            })}
-          </ul>
+      <section className="relative hidden items-center justify-center overflow-hidden bg-gradient-to-br from-amber-700 via-amber-800 to-stone-900 lg:flex">
+        <div className="flex flex-col items-center gap-4 text-white">
+          <span className="flex size-24 items-center justify-center rounded-[28px] bg-white/15 text-5xl shadow-2xl backdrop-blur">🍞</span>
+          <span className="text-3xl font-semibold tracking-tight">Amada Massa</span>
         </div>
-        <p className="text-sm text-amber-100/70">Clube do Pão · gestão interna</p>
         <span className="pointer-events-none absolute -bottom-32 -right-24 size-96 rounded-full bg-amber-400/20 blur-3xl" />
+        <span className="pointer-events-none absolute -left-24 -top-32 size-96 rounded-full bg-amber-300/10 blur-3xl" />
       </section>
 
       <section className="flex flex-col justify-center px-8 sm:px-16">
         <div className="mx-auto w-full max-w-sm">
-          <h1 className="text-3xl font-semibold tracking-tight">Entrar</h1>
-          <p className="mb-6 mt-1 text-stone-500">Acesso da equipe do clube.</p>
-          {erro === "credenciais" && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">E-mail ou senha incorretos.</p>}
-          {erro === "link" && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">Link inválido ou expirado.</p>}
-          {erro === "inativo" && <p className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">Conta inativa. Fale com o administrador.</p>}
-          {enviado && <p className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">Se o e-mail existir, enviamos o link de recuperação.</p>}
+          <h1 className="mb-6 text-3xl font-semibold tracking-tight">Entrar</h1>
+          {erro === "credenciais" && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 shadow-sm">E-mail ou senha incorretos.</p>}
+          {erro === "link" && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 shadow-sm">Link inválido ou expirado.</p>}
+          {erro === "inativo" && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 shadow-sm">Conta inativa. Fale com o administrador.</p>}
+          {enviado && <p className="mb-4 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800 shadow-sm">Se o e-mail existir, enviamos o link de recuperação.</p>}
           <form action={entrar} className="flex flex-col gap-4">
             <div><label className="rotulo" htmlFor="email">E-mail</label><input className="campo" id="email" name="email" type="email" required autoComplete="username" /></div>
-            <div><label className="rotulo" htmlFor="senha">Senha</label><input className="campo" id="senha" name="senha" type="password" required autoComplete="current-password" /></div>
+            <div><label className="rotulo" htmlFor="senha">Senha</label><CampoSenha id="senha" name="senha" /></div>
             <SubmitButton className="btn !py-3 text-base">Entrar</SubmitButton>
           </form>
-          <details className="mt-6 text-sm text-stone-600">
-            <summary className="cursor-pointer select-none hover:text-stone-900">Esqueci minha senha</summary>
-            <form action={recuperar} className="mt-3 flex gap-2">
-              <input className="campo" name="email" type="email" placeholder="seu e-mail" required />
-              <button className="btn-sec">Enviar</button>
-            </form>
-          </details>
+          <div className="mt-5 text-center">
+            <Modal titulo="Recuperar senha" descricao="Enviamos um link para você criar uma nova senha." gatilho="Esqueci minha senha" gatilhoClasse="rounded-lg px-3 py-1.5 text-sm font-medium text-amber-800 transition hover:bg-amber-50">
+              <form action={recuperar} className="flex flex-col gap-4">
+                <div><label className="rotulo" htmlFor="email-rec">E-mail da sua conta</label><input className="campo" id="email-rec" name="email" type="email" required autoComplete="email" /></div>
+                <div className="flex justify-end"><SubmitButton>Enviar link</SubmitButton></div>
+              </form>
+            </Modal>
+          </div>
         </div>
       </section>
     </main>

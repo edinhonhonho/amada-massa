@@ -43,7 +43,7 @@ export default async function Membro() {
       <section className="flex flex-col gap-2">
         {!notificacoes?.length && <p className="cartao text-stone-500">Nenhum aviso por enquanto. Eles aparecem aqui quando houver novidades da sua entrega.</p>}
         {notificacoes?.map((n) => (
-          <article key={n.id} className={`cartao ${n.lida_em ? "" : "border-amber-400 bg-amber-50"}`}>
+          <article key={n.id} className={`cartao ${n.lida_em ? "" : "bg-amber-50 shadow-md"}`}>
             <h2 className="font-semibold">{n.titulo}</h2>
             <p>{n.corpo}</p>
             <p className="mt-1 text-xs text-stone-500">{quando(n.criada_em)}</p>

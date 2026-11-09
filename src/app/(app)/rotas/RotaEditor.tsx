@@ -184,7 +184,7 @@ export default function RotaEditor({
             <div className="px-5 py-6 text-sm text-stone-600">
               <p className="mb-2 flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-700" />Nenhum cliente ativo com plano de entrega.</p>
               <p>Só aparecem aqui clientes ativos cuja assinatura é de <b>Entrega em casa</b> (clientes de coleta retiram no ponto e não entram em rota). <Link className="link" href="/clientes/novo">Cadastre um cliente</Link> com esse plano.</p>
-              {totalEntrega === 0 && <p className="mt-2 text-xs text-stone-500">Dica: crie antes um plano de “Entrega em casa” em Planos e preços.</p>}
+              {totalEntrega === 0 && <p className="mt-2 text-xs text-stone-500">Dica: crie antes um plano de “Entrega em casa” em Planos.</p>}
             </div>
           ) : (
             <>
@@ -245,7 +245,7 @@ export default function RotaEditor({
         </section>
 
         {msg && (
-          <p role={msg.tipo === "erro" ? "alert" : "status"} className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${msg.tipo === "erro" ? "border-red-200 bg-red-50 text-red-800" : msg.tipo === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
+          <p role={msg.tipo === "erro" ? "alert" : "status"} className={`flex items-start gap-2 rounded-xl border p-3 text-sm ${msg.tipo === "erro" ? " bg-red-50 text-red-800" : msg.tipo === "ok" ? " bg-emerald-50 text-emerald-800" : " bg-amber-50 text-amber-900"}`}>
             {msg.tipo === "ok" ? <CheckCircle2 size={16} className="mt-0.5 shrink-0" /> : <AlertTriangle size={16} className="mt-0.5 shrink-0" />}{msg.texto}
           </p>
         )}

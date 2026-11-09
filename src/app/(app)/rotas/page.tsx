@@ -32,7 +32,7 @@ export default async function Rotas() {
       />
 
       {semRota.length > 0 && (
-        <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+        <div className="mb-5 flex items-start gap-3 rounded-xl bg-amber-50 shadow-sm p-4 text-sm text-amber-950">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />
           <div>
             <b>{semRota.length} cliente(s) de entrega ainda sem rota</b> — não entram nas listas até serem atribuídos:{" "}
@@ -63,7 +63,7 @@ export default async function Rotas() {
             const estourou = !!r.capacidade_paes && paes > r.capacidade_paes;
             const entregador = r.entregador_id ? nomeEnt.get(r.entregador_id) : null;
             return (
-              <Link key={r.id} href={`/rotas/${r.id}`} className={`cartao group block overflow-hidden !p-0 transition hover:border-amber-300 hover:shadow-md ${r.ativa ? "" : "opacity-60"}`}>
+              <Link key={r.id} href={`/rotas/${r.id}`} className={`cartao group block overflow-hidden !p-0 transition hover: hover:shadow-md ${r.ativa ? "" : "opacity-60"}`}>
                 <div className="h-1.5" style={{ background: r.cor }} />
                 <div className="p-5">
                   <div className="mb-3 flex items-start gap-3">

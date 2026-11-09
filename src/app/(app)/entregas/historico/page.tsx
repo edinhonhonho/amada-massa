@@ -63,8 +63,8 @@ export default async function Historico({ searchParams }: { searchParams: Promis
       />
 
       {(pend?.length ?? 0) > 0 && (
-        <section className="cartao mb-5 overflow-hidden border-red-200/80 !p-0">
-          <h2 className="flex items-center gap-2 border-b border-red-100 bg-red-50/60 px-5 py-3 text-sm font-semibold text-red-900"><TriangleAlert size={16} />Pendências: {pend?.length} entrega(s) não concluída(s)</h2>
+        <section className="cartao mb-5 overflow-hidden  !p-0">
+          <h2 className="flex items-center gap-2 border-b border-stone-100 bg-red-50/60 px-5 py-3 text-sm font-semibold text-red-900"><TriangleAlert size={16} />Pendências: {pend?.length} entrega(s) não concluída(s)</h2>
           <ul className="divide-y divide-stone-100">
             {pend?.map((e) => (
               <li key={e.id} className="flex items-center gap-3 px-5 py-3 text-sm">
@@ -112,7 +112,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
       )}
 
       <section className="cartao overflow-hidden !p-0">
-        {!data?.length ? <Vazio icone={Truck} titulo="Sem entregas nesta semana" texto="Abra a semana em Semanas para gerar as entregas." /> : (
+        {!data?.length ? <Vazio icone={Truck} titulo="Sem entregas nesta semana" texto="Abra a semana em Planejamento: as entregas são criadas a partir das assinaturas ativas." /> : (
           <table className="tabela">
             <thead><tr><th>Cliente</th><th>Rota ou ponto</th><th>Situação</th><th>Hora</th><th>Quem</th><th>Detalhes</th></tr></thead>
             <tbody>

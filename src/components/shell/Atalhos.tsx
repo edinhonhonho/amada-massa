@@ -18,9 +18,9 @@ const ATALHOS_AJUDA: [string[], string][] = [
   [["N"], "Novo cliente"],
   [["G", "I"], "Ir para Início"],
   [["G", "C"], "Ir para Clientes"],
-  [["G", "L"], "Ir para Planos e preços"],
+  [["G", "L"], "Ir para Planos"],
   [["G", "P"], "Ir para Pagamentos"],
-  [["G", "S"], "Ir para Semanas"],
+  [["G", "S"], "Ir para Planejamento"],
   [["G", "R"], "Ir para Rotas"],
   [["G", "E"], "Ir para Entregas"],
   [["G", "M"], "Ir para Mensagens"],
@@ -43,7 +43,7 @@ export default function Atalhos({ admin }: { admin: boolean }) {
     );
     return [
       { id: "novo-cliente", rotulo: "Novo cliente", grupo: "Criar", href: "/clientes/novo", icone: <UserPlus size={16} />, dica: "N", palavras: "cadastrar adicionar assinante" },
-      { id: "nova-semana", rotulo: "Planejar semanas do ano", grupo: "Criar", href: "/semanas", icone: <FilePlus2 size={16} />, palavras: "calendário sabor pães produção" },
+      { id: "nova-semana", rotulo: "Planejar semanas do ano", grupo: "Criar", href: "/planejamento", icone: <FilePlus2 size={16} />, palavras: "calendário sabor pães produção" },
       { id: "nova-rota", rotulo: "Nova rota", grupo: "Criar", href: "/rotas/nova", icone: <FilePlus2 size={16} /> },
       ...paginas,
     ];
@@ -154,7 +154,7 @@ export default function Atalhos({ admin }: { admin: boolean }) {
             ultimoGrupo = grupo;
             return (
               <li key={l.tipo === "cmd" ? l.c.id : l.r.id} role="option" aria-selected={i === indice}>
-                {cab && <div className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-stone-400">{grupo}</div>}
+                {cab && <div className="px-3 pb-1 pt-2 text-xs font-semibold text-stone-400">{grupo}</div>}
                 <button
                   type="button"
                   onMouseMove={() => setIndice(i)}

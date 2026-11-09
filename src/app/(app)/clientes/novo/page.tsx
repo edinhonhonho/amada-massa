@@ -20,7 +20,7 @@ export default async function NovoCliente() {
         <div className="cartao max-w-2xl">
           <Vazio icone={Tag} titulo="Cadastre um plano primeiro"
             texto="Todo cliente assina um plano do catálogo. Crie ao menos um plano e depois volte para cadastrar o cliente."
-            acao={<Link href="/planos" className="btn">Ir para Planos e preços</Link>} />
+            acao={<Link href="/planos" className="btn">Ir para Planos</Link>} />
         </div>
       </>
     );

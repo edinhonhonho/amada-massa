@@ -105,7 +105,7 @@ export default async function Inicio() {
   const atrasoQtd = lista.length;
   const passos: Passo[] = [
     {
-      n: 1, titulo: "Semana", icone: CalendarDays, href: sem ? `/semanas/${sem.id}` : "/semanas",
+      n: 1, titulo: "Planejamento", icone: CalendarDays, href: sem ? `/planejamento/${sem.id}` : "/planejamento",
       tom: !sem ? "cinza" : !sem.sabor && !sem.sem_producao ? "ambar" : !totalEntregas && !sem.sem_producao ? "ambar" : "verde",
       estado: !sem ? "A fazer" : sem.sem_producao ? "Sem produção" : !sem.sabor ? "Definir pães" : !totalEntregas ? "Abrir semana" : "Pronta",
       resumo: !sem ? "Planeje a semana no calendário" : sem.sem_producao ? "Semana de descanso" : !sem.sabor ? "Cadastre os pães da semana" : !totalEntregas ? "Gere as entregas da semana" : `${totalPaes} pães · ${sem.sabor}`,
@@ -134,7 +134,7 @@ export default async function Inicio() {
       />
 
       {(!qtdPlanos || !qtdPontos || !((ativos ?? 0) + (pausados ?? 0))) && (
-        <section className="cartao mb-6 border-amber-200 bg-gradient-to-r from-amber-50 to-white">
+        <section className="cartao mb-6  bg-gradient-to-r from-amber-50 to-white">
           <h2 className="font-semibold">Primeiros passos</h2>
           <p className="mb-3 text-sm text-stone-600">Siga esta ordem: o cliente precisa de um plano, e quem retira o pão precisa de um ponto.</p>
           <ol className="flex flex-wrap gap-3 text-sm">
@@ -144,7 +144,7 @@ export default async function Inicio() {
               { ok: !!((ativos ?? 0) + (pausados ?? 0)), t: "Cadastrar o primeiro cliente", href: "/clientes/novo" },
             ].map((p, i) => (
               <li key={p.t}>
-                <Link href={p.href} className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition hover:shadow-sm ${p.ok ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-stone-200 bg-white"}`}>
+                <Link href={p.href} className={`flex items-center gap-2 rounded-xl border px-3 py-2 transition hover:shadow-sm ${p.ok ? " bg-emerald-50 text-emerald-900" : "border-stone-200 bg-white"}`}>
                   <span className={`flex size-5 items-center justify-center rounded-full text-xs font-semibold ${p.ok ? "bg-emerald-600 text-white" : "bg-stone-200"}`}>{p.ok ? <CheckCircle2 size={13} /> : i + 1}</span>{p.t}
                 </Link>
               </li>
@@ -161,7 +161,7 @@ export default async function Inicio() {
             const Icone = p.icone;
             return (
               <li key={p.n} className="relative">
-                <Link href={p.href} className="cartao group block !p-4 transition hover:border-amber-300 hover:shadow-md">
+                <Link href={p.href} className="cartao group block !p-4 transition hover: hover:shadow-md">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="flex size-6 items-center justify-center rounded-full bg-stone-900 text-xs font-semibold text-white">{p.n}</span>
                     <span className="font-semibold">{p.titulo}</span>
@@ -225,7 +225,7 @@ export default async function Inicio() {
         <div className="col-span-2 flex flex-col gap-4">
           <section className="cartao">
             <div className="cartao-titulo"><CalendarDays size={17} className="text-stone-400" />Pães desta semana
-              <Link className="link ml-auto text-sm" href={sem ? `/semanas/${sem.id}` : "/semanas"}>Abrir</Link></div>
+              <Link className="link ml-auto text-sm" href={sem ? `/planejamento/${sem.id}` : "/planejamento"}>Abrir</Link></div>
             {!sem ? <p className="flex items-center gap-2 text-sm text-stone-500"><CircleDashed size={16} />Nenhuma semana aberta.</p>
               : sem.sem_producao ? <p className="text-sm">Semana sem produção.</p>
               : !producao.length ? <p className="text-sm text-stone-500">Semana criada, ainda sem entregas geradas.</p> : (

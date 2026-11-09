@@ -17,7 +17,7 @@ export default function Sidebar({
   const ativo = (href: string) => (href === "/" ? caminho === "/" : caminho === href || caminho.startsWith(`${href}/`));
 
   return (
-    <aside className="nao-imprimir sticky top-0 flex h-screen w-[264px] shrink-0 flex-col border-r border-stone-200/80 bg-white">
+    <aside className="nao-imprimir sticky top-0 flex h-screen w-[264px] shrink-0 flex-col bg-white shadow-[1px_0_0_rgba(28,25,23,.05),8px_0_32px_-16px_rgba(28,25,23,.18)]">
       <div className="flex items-center gap-2.5 px-5 pb-3 pt-5">
         <span className="flex size-9 items-center justify-center rounded-xl bg-amber-700 text-lg shadow-sm">🍞</span>
         <div className="leading-tight">
@@ -39,7 +39,7 @@ export default function Sidebar({
       <nav className="flex-1 overflow-y-auto px-3 pb-3">
         {GRUPOS.filter((g) => !g.admin || admin).map((g, gi) => (
           <div key={gi} className="mt-4 first:mt-2">
-            {g.titulo && <div className="mb-1 px-2 text-[11px] font-semibold uppercase tracking-wider text-stone-400">{g.titulo}</div>}
+            {g.titulo && <div className="mb-1 px-2 text-xs font-semibold text-stone-400">{g.titulo}</div>}
             <ul className={g.fluxo ? "relative" : ""}>
               {g.fluxo && <span className="absolute bottom-4 left-[19px] top-4 w-px bg-stone-200" aria-hidden />}
               {g.itens.map((it) => {
@@ -73,7 +73,7 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div className="flex items-center gap-2.5 border-t border-stone-200/80 p-3">
+      <div className="flex items-center gap-2.5 border-t border-stone-100 p-3">
         <Avatar nome={nome} tamanho={34} />
         <div className="min-w-0 flex-1 leading-tight">
           <div className="truncate text-sm font-medium">{nome}</div>

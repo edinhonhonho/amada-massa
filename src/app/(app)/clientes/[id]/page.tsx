@@ -101,7 +101,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
       />
 
       {proximo && (
-        <form action={concluirContato} className="mb-5 flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <form action={concluirContato} className="mb-5 flex items-center gap-3 rounded-xl bg-amber-50 shadow-sm px-4 py-3 text-sm text-amber-950">
           <input type="hidden" name="id" value={proximo.id} /><input type="hidden" name="cliente_id" value={id} />
           <CalendarClock size={18} className="shrink-0" />
           <span className="flex-1"><b>Próximo passo:</b> {proximo.proximo_passo} {proximo.proximo_passo_em && <span className="text-amber-800">· {dataBR(proximo.proximo_passo_em)}</span>}</span>
@@ -277,7 +277,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
           )}
 
           {usuario.perfil === "admin" && (
-            <section className="cartao border-red-200/70">
+            <section className="cartao ">
               <div className="cartao-titulo text-red-800">LGPD</div>
               <div className="flex flex-col gap-2">
                 <a className="btn-sec btn-pequeno justify-start" href={`/clientes/${id}/exportar`}><FileDown size={15} />Exportar dados (JSON)</a>
