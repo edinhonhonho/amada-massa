@@ -92,14 +92,14 @@ export default function AtivarNotificacoes({ publicKey }: { publicKey: string })
   const pode = situacao === "ativo" || situacao === "inativo";
 
   return (
-    <section className="rounded-3xl bg-white p-4 shadow-[0_8px_28px_-14px_rgba(120,53,15,.4)]">
+    <section className="rounded-[28px] bg-white p-5 shadow-[0_1px_2px_rgba(28,25,23,.04),0_18px_40px_-24px_rgba(28,25,23,.3)]">
       <div className="flex items-center gap-3.5">
         <span className={`flex size-11 shrink-0 items-center justify-center rounded-2xl transition-colors ${ligado ? "bg-emerald-100 text-emerald-700" : "bg-stone-100 text-stone-500"}`}>
           {ligado ? <BellRing size={22} /> : situacao === "negado" ? <BellOff size={22} /> : <Bell size={22} />}
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold leading-tight">Avisos no celular</h2>
-          <p className="text-sm text-stone-500">
+          <h2 className="text-[17px] font-semibold leading-tight">Avisos no celular</h2>
+          <p className="text-[15px] text-stone-500">
             {situacao === "carregando" ? "Verificando…" : ligado ? "Ligados neste aparelho" : situacao === "negado" ? "Bloqueados nas configurações" : situacao === "sem_suporte" ? "Indisponíveis neste aparelho" : "Desligados"}
           </p>
         </div>

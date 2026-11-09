@@ -34,24 +34,24 @@ export default function EntrarMembro() {
   }
 
   return (
-    <form onSubmit={enviar} className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-[0_20px_50px_-20px_rgba(120,53,15,.35)]">
+    <form onSubmit={enviar} className="flex flex-col gap-5 rounded-[32px] bg-white p-7 shadow-[0_1px_2px_rgba(28,25,23,.04),0_24px_50px_-26px_rgba(28,25,23,.35)]">
       {erro && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{erro}</p>}
       <div>
-        <label className="rotulo" htmlFor="email">E-mail</label>
+        <label className="mb-2 block text-sm font-semibold text-stone-700" htmlFor="email">E-mail</label>
         <div className="relative">
-          <Mail size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-          <input className="campo !pl-10" id="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" required placeholder="voce@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <Mail size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input className="campo !rounded-2xl !py-4 !pl-11 text-base" id="email" type="email" inputMode="email" autoComplete="email" autoCapitalize="none" required placeholder="voce@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
       </div>
       <div>
-        <label className="rotulo" htmlFor="telefone">Telefone</label>
+        <label className="mb-2 block text-sm font-semibold text-stone-700" htmlFor="telefone">Telefone</label>
         <div className="relative">
-          <Phone size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400" />
-          <input className="campo !pl-10" id="telefone" type="tel" inputMode="tel" autoComplete="tel" required placeholder="(51) 99999-8888" value={telefone} onChange={(e) => setTelefone(mascara(e.target.value))} />
+          <Phone size={17} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input className="campo !rounded-2xl !py-4 !pl-11 text-base" id="telefone" type="tel" inputMode="tel" autoComplete="tel" required placeholder="(51) 99999-8888" value={telefone} onChange={(e) => setTelefone(mascara(e.target.value))} />
         </div>
-        <p className="ajuda">Os mesmos dados que você informou ao assinar o clube.</p>
+        <p className="mt-2 text-sm text-stone-400">Os mesmos dados que você informou ao assinar o clube.</p>
       </div>
-      <button className="btn !rounded-2xl !py-3.5 text-base" disabled={pendente}>{pendente ? "Entrando…" : "Entrar"}</button>
+      <button className="btn !rounded-full !py-4 text-base" disabled={pendente}>{pendente ? "Entrando…" : "Entrar"}</button>
     </form>
   );
 }

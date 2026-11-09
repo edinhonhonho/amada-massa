@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 
 export default function MembroLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50 via-stone-50 to-stone-50">
-      <div className="mx-auto min-h-screen max-w-md px-4 pb-16">
+    <div className="min-h-screen bg-[#faf9f6]">
+      <div className="mx-auto min-h-screen max-w-md px-5 pb-32 pt-[max(1.5rem,env(safe-area-inset-top))]">
         <RegistrarSW arquivo="/sw-membro.js" escopo="/membro" />
         {children}
       </div>

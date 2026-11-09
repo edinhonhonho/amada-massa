@@ -29,19 +29,19 @@ export default function InstalarApp({ nome }: { nome: string }) {
 
   if (instalado !== false) return null;
   return (
-    <section className="overflow-hidden rounded-3xl bg-white shadow-[0_14px_40px_-18px_rgba(146,64,14,.45)]">
-      <div className="bg-gradient-to-br from-amber-500 to-amber-700 px-5 py-4 text-white">
-        <h2 className="text-lg font-bold leading-tight">Instale o {nome}</h2>
-        <p className="mt-0.5 text-sm text-amber-50/90">Para os avisos chegarem direto no seu celular.</p>
+    <section className="overflow-hidden rounded-[28px] bg-white shadow-[0_1px_2px_rgba(28,25,23,.04),0_18px_40px_-24px_rgba(28,25,23,.3)]">
+      <div className="px-6 pb-1 pt-6">
+        <h2 className="text-xl font-bold leading-tight tracking-tight">Instale o {nome}</h2>
+        <p className="mt-1 text-[15px] text-stone-500">Para os avisos chegarem direto no seu celular.</p>
       </div>
-      <ul className="flex flex-col gap-3 px-5 py-4 text-sm text-stone-700">
-        <li className="flex items-start gap-3"><Feather size={18} className="mt-0.5 shrink-0 text-amber-700" /><span><b>É levinho.</b> Ocupa menos espaço que uma foto e não deixa o celular lento.</span></li>
-        <li className="flex items-start gap-3"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-amber-700" /><span><b>Serve só para as notificações.</b> Não acessa suas fotos, contatos nem localização; só pede permissão para mostrar avisos.</span></li>
-        <li className="flex items-start gap-3"><Battery size={18} className="mt-0.5 shrink-0 text-amber-700" /><span><b>Não gasta bateria à toa.</b> Fica quietinho até chegar um aviso do clube.</span></li>
+      <ul className="flex flex-col gap-4 px-6 py-5 text-[15px] leading-snug text-stone-600">
+        <li className="flex items-center gap-3.5"><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-700"><Feather size={17} /></span><span><b>É levinho.</b> Ocupa menos espaço que uma foto e não deixa o celular lento.</span></li>
+        <li className="flex items-center gap-3.5"><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-700"><ShieldCheck size={17} /></span><span><b>Serve só para as notificações.</b> Não acessa suas fotos, contatos nem localização; só pede permissão para mostrar avisos.</span></li>
+        <li className="flex items-center gap-3.5"><span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-700"><Battery size={17} /></span><span><b>Não gasta bateria à toa.</b> Fica quietinho até chegar um aviso do clube.</span></li>
       </ul>
-      <div className="border-t border-stone-100 px-5 py-4">
+      <div className="px-6 pb-6 pt-1">
         {evento ? (
-          <button className="btn !rounded-2xl w-full !py-3" onClick={() => void evento.prompt()}><Download size={17} />Instalar agora</button>
+          <button className="btn !rounded-full w-full !py-3.5 text-base" onClick={() => void evento.prompt()}><Download size={17} />Instalar agora</button>
         ) : ios ? (
           <ol className="flex flex-col gap-2.5 text-sm text-stone-700">
             <li className="flex items-start gap-2.5"><span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-800">1</span><span>Abra esta página no <b>Safari</b>.</span></li>

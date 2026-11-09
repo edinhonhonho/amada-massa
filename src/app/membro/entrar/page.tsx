@@ -4,12 +4,12 @@ import LogoApp from "@/components/LogoApp";
 
 export default function Entrar() {
   return (
-    <main className="flex min-h-screen flex-col justify-center gap-6 py-10">
-      <header className="flex flex-col items-center gap-3 text-center">
-        <LogoApp tamanho={72} />
+    <main className="flex min-h-[calc(100vh-4rem)] flex-col justify-center gap-9 py-6">
+      <header className="flex flex-col items-center gap-4 text-center">
+        <LogoApp tamanho={68} />
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-stone-900">Amada Massa</h1>
-          <p className="mt-1 text-stone-600">Seus avisos do Clube do Pão: rota, entregador e o pão da semana, direto no celular.</p>
+          <h1 className="text-[34px] font-bold leading-tight tracking-tight">Amada Massa</h1>
+          <p className="mx-auto mt-2 max-w-[19rem] text-[17px] leading-snug text-stone-500">Seus avisos do Clube do Pão, direto no celular.</p>
         </div>
       </header>
       <EntrarMembro />

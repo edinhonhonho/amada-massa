@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronRight, MapPin, Navigation, Phone, Play, WifiOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { finalizarRota, iniciarRota, registrarEntrega } from "@/app/entregador/actions";
 import { empilhar, lerFila, novoItemKey, remover, type ItemFila, type NovoItem } from "@/lib/fila";
@@ -167,21 +168,25 @@ export default function EntregadorApp({
   }));
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="sticky top-0 z-10 flex items-center gap-3 rounded-lg bg-white/95 p-2 text-sm shadow">
-        <b>{entregues}/{paradas.length} entregues</b>
-        <span className={online ? "text-green-700" : "text-red-700"}>{online ? "online" : "sem sinal"}</span>
-        {pendentes > 0 && <button className="ml-auto underline" onClick={() => void sincronizar()}>{pendentes} a sincronizar</button>}
+    <div className="flex flex-col gap-4">
+      <div className="sticky top-2 z-10 rounded-[28px] bg-white/90 p-4 shadow-[0_14px_34px_-18px_rgba(28,25,23,.4),0_0_0_1px_rgba(28,25,23,.04)] backdrop-blur-xl">
+        <div className="flex items-baseline gap-2">
+          <span className="text-[28px] font-bold leading-none tracking-tight tabular-nums">{entregues}<span className="text-lg font-semibold text-stone-400">/{paradas.length}</span></span>
+          <span className="text-[15px] text-stone-500">entregues</span>
+          <span className={`ml-auto flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${online ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>{online ? <><i className="size-1.5 rounded-full bg-emerald-500" />online</> : <><WifiOff size={12} />sem sinal</>}</span>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-stone-100"><div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${paradas.length ? (concluidas / paradas.length) * 100 : 0}%` }} /></div>
+        {pendentes > 0 && <button className="mt-2.5 text-sm font-medium text-amber-800 underline" onClick={() => void sincronizar()}>{pendentes} a sincronizar</button>}
       </div>
 
       {(paradasMapa.length > 0 || navegar) && (
         <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            {paradasMapa.length > 0 && <button className="btn-sec" onClick={() => setVerMapa((v) => !v)}>{verMapa ? "Ocultar mapa" : "Ver mapa da rota"}</button>}
-            {navegar && <a className="btn" href={navegar} target="_blank" rel="noreferrer">Navegar (Google Maps)</a>}
+          <div className="grid grid-cols-2 gap-2.5">
+            {paradasMapa.length > 0 && <button className="btn-sec !rounded-full !py-3.5 text-[15px]" onClick={() => setVerMapa((v) => !v)}><MapPin size={17} />{verMapa ? "Ocultar mapa" : "Ver mapa"}</button>}
+            {navegar && <a className="btn !rounded-full !py-3.5 text-[15px]" href={navegar} target="_blank" rel="noreferrer"><Navigation size={17} />Navegar</a>}
           </div>
           {verMapa && (
-            <div className="h-80 overflow-hidden rounded-2xl border border-stone-200">
+            <div className="h-80 overflow-hidden rounded-[28px] shadow-[0_14px_34px_-20px_rgba(28,25,23,.4)]">
               <MapaRotaDinamico origem={origem} paradas={paradasMapa} trajeto={trajeto} cor={cor} destaque={proximo} />
             </div>
           )}
@@ -189,11 +194,11 @@ export default function EntregadorApp({
         </div>
       )}
 
-      {aviso && <p className="rounded-lg bg-red-50 p-3 text-red-800" onClick={() => setAviso(null)}>{aviso} <span className="underline">ok</span></p>}
+      {aviso && <p className="rounded-2xl bg-red-50 p-4 text-[15px] text-red-800" onClick={() => setAviso(null)}>{aviso} <span className="underline">ok</span></p>}
 
-      {!inicio && <button className="btn py-5 text-xl" onClick={iniciar}>▶ Iniciar rota</button>}
+      {!inicio && <button className="btn !rounded-full !py-5 text-lg shadow-[0_16px_30px_-12px_rgba(180,83,9,.7)]" onClick={iniciar}><Play size={20} fill="currentColor" />Iniciar rota</button>}
       {inicio && (
-        <p className="text-sm text-stone-600">
+        <p className="px-1 text-[15px] text-stone-500">
           Iniciada às {hora(inicio)}{fim && ` · finalizada às ${hora(fim)}`}
         </p>
       )}
@@ -201,22 +206,22 @@ export default function EntregadorApp({
       {paradas.map((p, i) => {
         const e = estado[p.id];
         const mapa = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${p.endereco}, ${p.bairro ?? ""}, Porto Alegre`)}`;
-        const cor = e.status === "entregue" ? "bg-green-50 shadow-md" : e.status === "nao_entregue" ? " bg-red-50" : p.id === proximo && emAndamento ? "bg-amber-50 shadow-xl" : "";
+        const cor = e.status === "entregue" ? "!bg-emerald-50" : e.status === "nao_entregue" ? "!bg-red-50" : p.id === proximo && emAndamento ? "!bg-amber-50 !shadow-[0_22px_40px_-20px_rgba(180,83,9,.55)]" : "";
         return (
-          <article key={p.id} className={`cartao ${cor}`}>
+          <article key={p.id} className={`rounded-[28px] bg-white p-5 shadow-[0_1px_2px_rgba(28,25,23,.04),0_16px_34px_-22px_rgba(28,25,23,.3)] ${cor}`}>
             <div className="flex items-start gap-2">
-              <span className="text-xl font-bold text-stone-500">{i + 1}</span>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-[15px] font-bold text-stone-600">{i + 1}</span>
               <div className="min-w-0 flex-1">
-                <div className="text-lg font-semibold">{p.nome} · {p.qtd} 🍞</div>
-                {p.paes && p.paes.length > 0 && <div className="mt-0.5 flex flex-wrap gap-1">{p.paes.map((x) => <span key={x.nome} className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">{x.qtd} {x.nome}</span>)}</div>}
-                <a className="underline" href={mapa} target="_blank" rel="noreferrer">{p.endereco}{p.bairro && ` · ${p.bairro}`}</a>
-                {p.instrucoes && <div className="text-sm italic text-stone-700">{p.instrucoes}</div>}
-                {p.telefone && <a className="text-sm underline" href={`tel:${p.telefone}`}>{p.telefone}</a>}
+                <div className="text-[19px] font-semibold leading-tight">{p.nome} <span className="whitespace-nowrap font-normal text-stone-400">· {p.qtd} 🍞</span></div>
+                {p.paes && p.paes.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{p.paes.map((x) => <span key={x.nome} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">{x.qtd} {x.nome}</span>)}</div>}
+                <a className="mt-2 block text-[15px] leading-snug text-stone-600 underline decoration-stone-300 underline-offset-2" href={mapa} target="_blank" rel="noreferrer">{p.endereco}{p.bairro && ` · ${p.bairro}`}</a>
+                {p.instrucoes && <div className="mt-2 rounded-2xl bg-stone-50 px-3.5 py-2.5 text-sm text-stone-600">{p.instrucoes}</div>}
+                {p.telefone && <a className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-700" href={`tel:${p.telefone}`}><Phone size={13} />{p.telefone}</a>}
               </div>
             </div>
 
             {e.status === "entregue" || e.status === "nao_entregue" ? (
-              <div className="mt-2 text-sm">
+              <div className="mt-3 text-sm">
                 <div className="flex items-center gap-3">
                   <b className={e.status === "entregue" ? "text-green-800" : "text-red-800"}>
                     {e.status === "entregue" ? "✔ Entregue" : `✖ Não entregue${e.ocorrencia ? ` — ${e.ocorrencia}` : ""}`} às {hora(e.em)}
@@ -226,42 +231,43 @@ export default function EntregadorApp({
                 {(e.observacao || e.foto) && <div className="text-stone-700">{e.foto && "📷 foto registrada "}{e.observacao}</div>}
               </div>
             ) : emAndamento ? (
-              <div className="mt-3 grid grid-cols-3 gap-2">
-                <button className="btn col-span-2 py-4 text-lg" onClick={() => marcar(p.id, "entregue")}>Entregue</button>
-                <button className="btn-sec py-4" onClick={() => abrirFolha({ id: p.id, modo: "nao_entregue" })}>Problema</button>
-                <button className="col-span-3 text-sm underline" onClick={() => abrirFolha({ id: p.id, modo: "entregue" })}>Entregue com foto ou observação</button>
+              <div className="mt-4 grid grid-cols-3 gap-2.5">
+                <button className="btn col-span-2 !rounded-2xl py-4 text-lg" onClick={() => marcar(p.id, "entregue")}>Entregue</button>
+                <button className="btn-sec !rounded-2xl py-4" onClick={() => abrirFolha({ id: p.id, modo: "nao_entregue" })}>Problema</button>
+                <button className="col-span-3 flex items-center justify-center gap-1 py-1 text-sm font-medium text-stone-500" onClick={() => abrirFolha({ id: p.id, modo: "entregue" })}>Entregue com foto ou observação<ChevronRight size={14} /></button>
               </div>
             ) : (
-              <p className="mt-2 text-sm text-stone-500">{fim ? "Rota finalizada." : "Inicie a rota para registrar."}</p>
+              <p className="mt-3 text-sm text-stone-400">{fim ? "Rota finalizada." : "Inicie a rota para registrar."}</p>
             )}
           </article>
         );
       })}
 
-      {emAndamento && restantes === 0 && <button className="btn py-4 text-lg" onClick={finalizar}>Finalizar rota</button>}
+      {emAndamento && restantes === 0 && <button className="btn !rounded-full !py-4 text-lg" onClick={finalizar}>Finalizar rota</button>}
 
       {folha && (
         <div className="fixed inset-0 z-20 flex items-end bg-black/40" onClick={() => setFolha(null)}>
-          <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-2xl bg-white p-4" onClick={(ev) => ev.stopPropagation()}>
-            <h2 className="mb-3 text-lg font-bold">{folha.modo === "entregue" ? "Entrega" : "Não foi possível entregar"} — {paradas.find((p) => p.id === folha.id)?.nome}</h2>
+          <div className="max-h-[90vh] w-full overflow-y-auto rounded-t-[32px] bg-white p-5 pb-8" onClick={(ev) => ev.stopPropagation()}>
+            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-stone-200" />
+            <h2 className="mb-4 text-xl font-bold tracking-tight">{folha.modo === "entregue" ? "Entrega" : "Não foi possível entregar"} — {paradas.find((p) => p.id === folha.id)?.nome}</h2>
             {folha.modo === "nao_entregue" && (
               <div className="mb-3 grid grid-cols-2 gap-2">
                 {OCORRENCIAS.map((o) => (
-                  <button key={o} className={ocorr === o ? "btn py-3" : "btn-sec py-3"} onClick={() => setOcorr(o)}>{o}</button>
+                  <button key={o} className={ocorr === o ? "btn !rounded-2xl py-3.5" : "btn-sec !rounded-2xl py-3.5"} onClick={() => setOcorr(o)}>{o}</button>
                 ))}
               </div>
             )}
             <label className="rotulo">Observação (opcional)</label>
             <textarea className="campo mb-3" rows={3} value={obs} onChange={(ev) => setObs(ev.target.value)} />
             <input ref={inputFoto} type="file" accept="image/*" capture="environment" hidden onChange={(ev) => void aoEscolherFoto(ev.target.files?.[0])} />
-            <button className="btn-sec mb-2 w-full py-3" onClick={() => inputFoto.current?.click()}>{lendoFoto ? "Preparando foto…" : foto ? "📷 Trocar foto" : "📷 Tirar foto"}</button>
+            <button className="btn-sec mb-2 w-full !rounded-2xl py-3.5" onClick={() => inputFoto.current?.click()}>{lendoFoto ? "Preparando foto…" : foto ? "📷 Trocar foto" : "📷 Tirar foto"}</button>
             {fotoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={fotoUrl} alt="Foto da entrega" className="mb-3 max-h-48 w-full rounded-lg object-cover" />
+              <img src={fotoUrl} alt="Foto da entrega" className="mb-3 max-h-48 w-full rounded-2xl object-cover" />
             )}
             <div className="grid grid-cols-2 gap-2">
-              <button className="btn-sec py-3" onClick={() => setFolha(null)}>Cancelar</button>
-              <button className="btn py-3" onClick={confirmarFolha} disabled={lendoFoto}>Confirmar</button>
+              <button className="btn-sec !rounded-2xl py-3.5" onClick={() => setFolha(null)}>Cancelar</button>
+              <button className="btn !rounded-2xl py-3.5" onClick={confirmarFolha} disabled={lendoFoto}>Confirmar</button>
             </div>
           </div>
         </div>
