@@ -67,7 +67,7 @@ O membro só entra se o e-mail estiver na ficha do cliente (e o cliente não est
    update usuarios set perfil = 'admin' where id = (select id from auth.users where email = 'voce@exemplo.com');
    ```
    Demais contas da equipe: mesmo caminho; ajuste `perfil` (`operacao` ou `entregador`) e o `nome` (aparece nos avisos aos membros, ex.: "Seu entregador é Marcelo").
-4. **Chaves de notificação**: rode `npm run vapid` e guarde as duas chaves. Sem elas os avisos ficam só dentro do app: a tela Mensagens mostra um alerta enquanto faltarem, e no app do cliente o botão "Enviar uma notificação de teste" diz o motivo de uma recusa. `VAPID_SUBJECT` é só um contato (`mailto:seu@email.com` ou o endereço do site).
+4. **Chaves de notificação**: rode `npm run vapid` e guarde as duas chaves. Sem elas os avisos ficam só dentro do app: a tela Mensagens mostra um alerta enquanto faltarem, e em Configurações há um gerador das chaves com botão de copiar. `VAPID_SUBJECT` é só um contato (`mailto:seu@email.com` ou o endereço do site).
 5. **Vercel**: importe o repositório e defina as variáveis de `.env.example`: URL e chave pública do Supabase, `SUPABASE_SERVICE_ROLE_KEY` (secreta!), `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`. Faça um redeploy depois de mudar variáveis.
 6. **Local**: `cp .env.example .env.local`, preencha e rode `npm install && npm run dev`.
 7. **Backup**: secret `SUPABASE_DB_URL` no GitHub (ver `docs/backup.md`).

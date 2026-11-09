@@ -137,7 +137,7 @@ export default async function Clientes({ searchParams }: { searchParams: Promise
                     <td>
                       {p?.plano ? (
                         <Link href={`/planos`} className="block hover:opacity-80">
-                          <span className="block text-stone-800">{MODALIDADES[p.plano.modalidade]}{p.plano.paes_por_semana > 0 && ` · ${p.plano.paes_por_semana} pão${p.plano.paes_por_semana > 1 ? "es" : ""}/sem`}</span>
+                          <span className="block text-stone-800">{MODALIDADES[p.plano.modalidade]}{p.plano.paes_por_semana > 0 && ` · ${p.plano.paes_por_semana} ${p.plano.paes_por_semana > 1 ? "pães" : "pão"}/sem`}</span>
                           <span className="text-xs text-stone-500">{reais(p.valor_centavos)}/mês</span>
                         </Link>
                       ) : <span className="text-stone-400">{c.status === "cancelado" ? "Assinatura encerrada" : "Sem assinatura"}</span>}

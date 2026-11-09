@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { enviarPush } from "@/lib/notificar";
 import { chaveTelefone } from "@/lib/telefone";
 
 type R = { ok: boolean; erro?: string };
@@ -116,25 +115,6 @@ export async function removerInscricao(endpoint: string): Promise<R> {
 export async function marcarLidas(): Promise<void> {
   const supabase = await createClient();
   await supabase.from("notificacoes").update({ lida_em: new Date().toISOString() }).is("lida_em", null);
-}
-
-/** Manda uma notificação de teste para os aparelhos deste cliente e diz o que aconteceu. */
-export async function testarNotificacao(): Promise<{ ok: boolean; mensagem: string }> {
-  try {
-    const supabase = await createClient();
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) return { ok: false, mensagem: "Sessão expirada. Entre de novo." };
-    const admin = createAdminClient();
-    const { data: subs } = await admin.from("push_inscricoes").select("id, cliente_id, endpoint, p256dh, auth").eq("user_id", auth.user.id);
-    if (!subs?.length) return { ok: false, mensagem: "Este aparelho ainda não está inscrito. Toque em Ativar avisos." };
-    const r = await enviarPush(subs, () => [{ title: "Teste do Amada Massa 🍞", body: "Deu certo: os avisos chegam neste aparelho.", url: "/membro", tag: "teste" }]);
-    if (r.mortas.length) await admin.from("push_inscricoes").delete().in("id", r.mortas);
-    if (r.enviados > 0) return { ok: true, mensagem: `Enviado para ${r.enviados} ${r.enviados === 1 ? "aparelho" : "aparelhos"}. Se não aparecer em alguns segundos, confira as notificações do app nas configurações do celular.` };
-    return { ok: false, mensagem: r.erro ?? "Não foi possível enviar o teste." };
-  } catch (e) {
-    console.error("testarNotificacao", e);
-    return { ok: false, mensagem: "Serviço indisponível no momento." };
-  }
 }
 
 export async function sairMembro() {

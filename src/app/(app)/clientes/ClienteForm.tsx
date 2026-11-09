@@ -171,7 +171,7 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-800"><IconeMod size={18} /></span>
             <div className="min-w-0">
               <div className="text-sm font-medium leading-snug">{MODALIDADES[plano.modalidade]}</div>
-              <div className="text-xs text-stone-500">{plano.paes_por_semana === 0 ? "Sem pães" : `${plano.paes_por_semana} pão${plano.paes_por_semana > 1 ? "es" : ""} por semana`}</div>
+              <div className="text-xs text-stone-500">{plano.paes_por_semana === 0 ? "Sem pães" : `${plano.paes_por_semana} ${plano.paes_por_semana > 1 ? "pães" : "pão"} por semana`}</div>
             </div>
           </div>
           <div>

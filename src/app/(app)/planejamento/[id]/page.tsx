@@ -93,7 +93,7 @@ function CartaoGrupo({ g, paes, semanaId, rotas }: { g: Grupo; paes: PaoSemana[]
                     {entrega && <td><input type="checkbox" name="entrega_id" value={l.id} data-bairro={l.bairro ?? "Sem bairro"} className="size-4 accent-amber-700" aria-label={`Selecionar ${l.nome}`} /></td>}
                     <td><Link href={`/clientes/${l.cliente_id}`} className="font-medium hover:underline">{l.nome}</Link></td>
                     {entrega && <td className="text-sm text-stone-600">{l.endereco || "—"}<span className="block text-xs text-stone-400">{l.bairro}</span></td>}
-                    <td className="text-sm text-stone-600">{l.paesPlano} pão{l.paesPlano > 1 ? "es" : ""}/sem</td>
+                    <td className="text-sm text-stone-600">{l.paesPlano} {l.paesPlano > 1 ? "pães" : "pão"}/sem</td>
                     {paes.map((p) => {
                       const q = l.quantidades[p.id] ?? 0;
                       return (
@@ -174,7 +174,7 @@ function ListaClientes({ grupos, semanaId }: { grupos: Grupo[]; semanaId: string
           {linhas.map(({ l, g }) => (
             <tr key={l.id} className={estaAtiva(l.status) ? "" : "opacity-65"}>
               <td><Link href={`/clientes/${l.cliente_id}`} className="font-medium hover:underline">{l.nome}</Link></td>
-              <td className="text-sm text-stone-600">{l.paesPlano} pão{l.paesPlano > 1 ? "es" : ""}/sem</td>
+              <td className="text-sm text-stone-600">{l.paesPlano} {l.paesPlano > 1 ? "pães" : "pão"}/sem</td>
               <td className="text-sm text-stone-600">{g.chave === "rota:sem" ? <span className="text-amber-800">Sem rota</span> : g.nome}<span className="ml-1.5 text-xs text-stone-400">{g.tipo === "entrega" ? "entrega" : g.tipo === "padaria" ? "padaria" : "ponto"}</span></td>
               <td className="text-center font-semibold">{l.qtd}</td>
               <td><BadgeSituacao status={l.status} />{estaAtiva(l.status) && !["entregue", "retirada", "nao_entregue"].includes(l.status) && <span className="text-xs text-stone-400">Recebe</span>}</td>

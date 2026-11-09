@@ -7,13 +7,15 @@ import { buscarClientes, type ResultadoBusca } from "@/app/(app)/busca-actions";
 import Avatar from "@/components/ui/Avatar";
 import Kbd from "@/components/ui/Kbd";
 import { GRUPOS, TODOS_ITENS } from "@/lib/nav";
+import { useModificador } from "./useModificador";
 
 type Comando = { id: string; rotulo: string; grupo: string; href: string; icone: React.ReactNode; dica?: string; palavras?: string };
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-const ATALHOS_GERAIS: [string[], string][] = [
-  [["⌘", "K"], "Abrir busca e comandos"],
+const ATALHOS_GERAIS = (mod: string): [string[], string][] => [
+  [[mod, "K"], "Abrir busca e comandos"],
+  [[mod, "B"], "Recolher ou abrir o menu lateral"],
   [["/"], "Abrir busca e comandos"],
   [["N"], "Novo cliente"],
   [["?"], "Mostrar esta ajuda"],
@@ -22,6 +24,7 @@ const ATALHOS_GERAIS: [string[], string][] = [
 /** Paleta de comandos (⌘K), atalhos "g + letra" e ajuda. Vive uma vez no layout. */
 export default function Atalhos({ admin }: { admin: boolean }) {
   const router = useRouter();
+  const mod = useModificador();
   const paleta = useRef<HTMLDialogElement>(null);
   const ajuda = useRef<HTMLDialogElement>(null);
   const entrada = useRef<HTMLInputElement>(null);
@@ -186,7 +189,7 @@ export default function Atalhos({ admin }: { admin: boolean }) {
           <h2 className="text-lg font-semibold tracking-tight">Atalhos de teclado</h2>
           <p className="mb-4 text-sm text-stone-500">Funcionam em qualquer tela, fora dos campos de texto. Para ir a uma tela, aperte a letra do grupo e depois a letra da página (por exemplo, <Kbd>C</Kbd> <Kbd>M</Kbd> abre Mensagens).</p>
           <ul className="divide-y divide-stone-100">
-            {ATALHOS_GERAIS.map(([teclas, texto]) => (
+            {ATALHOS_GERAIS(mod).map(([teclas, texto]) => (
               <li key={texto + teclas.join("")} className="flex items-center gap-3 py-2 text-sm">
                 <span className="flex-1">{texto}</span>
                 <span className="flex gap-1">{teclas.map((k) => <Kbd key={k}>{k}</Kbd>)}</span>

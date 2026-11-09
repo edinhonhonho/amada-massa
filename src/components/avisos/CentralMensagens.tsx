@@ -9,7 +9,6 @@ import { quando } from "@/lib/avisos";
 import type { ModeloAviso } from "@/lib/dados";
 import ComporAviso, { type Opcao } from "./ComporAviso";
 import ConviteApp from "./ConviteApp";
-import GerenciarModelos from "./GerenciarModelos";
 
 export type LinhaHistorico = { id: string; titulo: string; corpo: string; segmento: string; segmento_rotulo: string; destinatarios: number; pushes: number; criado_em: string; gravados: number; lidos: number };
 export type NaoEntrou = { id: string; nome: string; falta: string | null };
@@ -56,7 +55,6 @@ export default function CentralMensagens({ opcoes, modelos, historico, indicador
                 <h2 className="text-lg font-semibold leading-tight tracking-tight">Novo aviso</h2>
                 <p className="text-[13px] text-stone-500">Chega no app Amada Massa e como notificação no celular.</p>
               </div>
-              <GerenciarModelos modelos={modelos} />
             </header>
             <ComporAviso key={rodada} opcoes={opcoes} modelos={modelos} inicial={inicial} segmentoInicial={segmentoInicial} />
           </section>

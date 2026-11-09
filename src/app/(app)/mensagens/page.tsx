@@ -45,7 +45,7 @@ export default async function Mensagens({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      <PageHeader titulo="Mensagens" subtitulo={<>Tudo o que a equipe diz ao cliente vai pelo aplicativo <b className="font-semibold text-stone-700">Amada Massa</b>, a central de avisos dos membros.</>} />
+      <PageHeader titulo="Mensagens" />
       {problema && (
         <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
           <TriangleAlert size={18} className="mt-0.5 shrink-0" />

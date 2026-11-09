@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="moldura flex min-h-screen gap-3 bg-fundo p-3">
       <Sidebar admin={admin} nome={usuario.nome} perfil={usuario.perfil} sair={sair} />
       <main className="min-h-[calc(100dvh-1.5rem)] min-w-0 flex-1 rounded-[28px] bg-white shadow-[0_1px_2px_rgba(28,25,23,.05),0_0_0_1px_rgba(28,25,23,.02)] print:rounded-none print:shadow-none">
-        <div className="entra mx-auto max-w-[1360px] px-9 py-7">{children}</div>
+        <div className="entra max-w-[1360px] px-9 py-7">{children}</div>
       </main>
       <Atalhos admin={admin} />
     </div>

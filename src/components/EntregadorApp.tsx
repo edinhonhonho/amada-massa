@@ -212,10 +212,10 @@ export default function EntregadorApp({
             <div className="flex items-start gap-2">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-stone-100 text-[15px] font-bold text-stone-600">{i + 1}</span>
               <div className="min-w-0 flex-1">
-                <div className="text-[19px] font-semibold leading-tight">{p.nome} <span className="whitespace-nowrap font-normal text-stone-400">· {p.qtd} 🍞</span></div>
+                <div className="text-[19px] font-semibold leading-tight [overflow-wrap:anywhere]">{p.nome} <span className="whitespace-nowrap font-normal text-stone-400">· {p.qtd} 🍞</span></div>
                 {p.paes && p.paes.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5">{p.paes.map((x) => <span key={x.nome} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900">{x.qtd} {x.nome}</span>)}</div>}
                 <a className="mt-2 block text-[15px] leading-snug text-stone-600 underline decoration-stone-300 underline-offset-2" href={mapa} target="_blank" rel="noreferrer">{p.endereco}{p.bairro && ` · ${p.bairro}`}</a>
-                {p.instrucoes && <div className="mt-2 rounded-2xl bg-stone-50 px-3.5 py-2.5 text-sm text-stone-600">{p.instrucoes}</div>}
+                {p.instrucoes && <div className="mt-2 rounded-2xl bg-stone-50 px-3.5 py-2.5 text-sm text-stone-600 [overflow-wrap:anywhere]">{p.instrucoes}</div>}
                 {p.telefone && <a className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5 text-sm font-medium text-stone-700" href={`tel:${p.telefone}`}><Phone size={13} />{p.telefone}</a>}
               </div>
             </div>

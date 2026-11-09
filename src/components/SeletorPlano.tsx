@@ -15,7 +15,7 @@ const MOD = {
   apoio: { icone: HeartHandshake, titulo: "Apoio recorrente", desc: "Contribui todo mês, sem receber pão" },
 } as const;
 const ORDEM: (keyof typeof MOD)[] = ["entrega", "coleta_ponto", "coleta_padaria", "apoio"];
-const pluralPaes = (n: number) => (n === 0 ? "Sem pães" : `${n} pão${n > 1 ? "es" : ""}`);
+const pluralPaes = (n: number) => (n === 0 ? "Sem pães" : `${n} ${n > 1 ? "pães" : "pão"}`);
 
 /**
  * Escolha em 3 passos que impede combinações inválidas:

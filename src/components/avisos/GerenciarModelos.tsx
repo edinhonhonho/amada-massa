@@ -3,6 +3,7 @@
 import { BookOpen, Copy, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { excluirModelo, salvarModelo } from "@/app/(app)/mensagens/actions";
 import { VARIAVEIS_AVISO, personalizar } from "@/lib/avisos";
 import type { ModeloAviso } from "@/lib/dados";
@@ -24,6 +25,8 @@ export default function GerenciarModelos({ modelos }: { modelos: ModeloAviso[] }
   const [confirmando, setConfirmando] = useState(false);
   const [pendente, iniciar] = useTransition();
   const [aposSalvar, setAposSalvar] = useState<string | null>(null);
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
 
   const atual = modelos.find((m) => m.id === sel);
   const sujo = sel === NOVO ? !!(r.nome || r.titulo || r.corpo) : !!atual && (atual.nome !== r.nome || atual.titulo !== r.titulo || atual.corpo !== r.corpo);
@@ -80,10 +83,10 @@ export default function GerenciarModelos({ modelos }: { modelos: ModeloAviso[] }
 
   return (
     <>
-      <button type="button" onClick={() => dialogo.current?.showModal()} className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium text-stone-600 transition hover:bg-stone-100 hover:text-stone-900">
-        <Pencil size={14} />Editar modelos
+      <button type="button" onClick={() => dialogo.current?.showModal()} title="Editar modelos" className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-medium text-stone-500 transition hover:bg-white hover:text-stone-900">
+        <Pencil size={12} />Editar
       </button>
-      <dialog ref={dialogo} className="modal !max-w-4xl" onClick={(e) => { if (e.target === dialogo.current) dialogo.current?.close(); }}>
+      {montado && createPortal(<dialog ref={dialogo} className="modal !max-w-4xl" onClick={(e) => { if (e.target === dialogo.current) dialogo.current?.close(); }}>
         <div className="flex h-[min(680px,86vh)] flex-col">
           <header className="flex items-center gap-3 border-b border-stone-100 px-6 py-4">
             <span className="flex size-9 items-center justify-center rounded-xl bg-amber-50 text-amber-700"><BookOpen size={17} /></span>
@@ -106,7 +109,7 @@ export default function GerenciarModelos({ modelos }: { modelos: ModeloAviso[] }
               {!modelos.length && <p className="px-3 py-6 text-center text-sm text-stone-500">Nenhum modelo ainda.</p>}
             </nav>
 
-            <form className="flex min-h-0 flex-col" onSubmit={(e) => { e.preventDefault(); if (valido && sujo) salvar(); }}>
+            <form className="flex min-h-0 flex-col" onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (valido && sujo) salvar(); }}>
               <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto p-6 lg:grid-cols-[1fr_230px]">
                 <div className="flex flex-col gap-4">
                   <div><label className="rotulo" htmlFor="mod-nome">Nome do modelo</label><input id="mod-nome" className="campo" maxLength={60} value={r.nome} onChange={(e) => setR({ ...r, nome: e.target.value })} placeholder="Ex.: Feriado" /></div>
@@ -153,7 +156,7 @@ export default function GerenciarModelos({ modelos }: { modelos: ModeloAviso[] }
             </form>
           </div>
         </div>
-      </dialog>
+      </dialog>, document.body)}
     </>
   );
 }

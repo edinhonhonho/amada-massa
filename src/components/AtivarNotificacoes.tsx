@@ -1,8 +1,8 @@
 "use client";
 
-import { Bell, BellOff, BellRing, Loader2, Send } from "lucide-react";
+import { Bell, BellOff, BellRing, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { removerInscricao, salvarInscricao, testarNotificacao } from "@/app/membro/actions";
+import { removerInscricao, salvarInscricao } from "@/app/membro/actions";
 import { useInstalado } from "@/components/InstalarApp";
 
 function chave(base64: string): Uint8Array<ArrayBuffer> {
@@ -23,8 +23,6 @@ export default function AtivarNotificacoes({ publicKey }: { publicKey: string })
   const [situacao, setSituacao] = useState<Situacao>("carregando");
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-  const [teste, setTeste] = useState<{ ok: boolean; mensagem: string } | null>(null);
-  const [testando, setTestando] = useState(false);
 
   /** Inscreve este aparelho com a chave atual e avisa o servidor. */
   async function inscrever(): Promise<{ ok: boolean; erro?: string }> {
@@ -60,7 +58,7 @@ export default function AtivarNotificacoes({ publicKey }: { publicKey: string })
   }, []);
 
   async function ativar() {
-    setErro(null); setTeste(null); setOcupado(true);
+    setErro(null); setOcupado(true);
     try {
       const permissao = await Notification.requestPermission();
       if (permissao !== "granted") { setSituacao("negado"); return; }
@@ -73,18 +71,13 @@ export default function AtivarNotificacoes({ publicKey }: { publicKey: string })
   }
 
   async function desativar() {
-    setOcupado(true); setTeste(null);
+    setOcupado(true);
     try {
       const reg = await navigator.serviceWorker.ready;
       const sub = await reg.pushManager.getSubscription();
       if (sub) { await removerInscricao(sub.endpoint); await sub.unsubscribe(); }
       setSituacao("inativo");
     } finally { setOcupado(false); }
-  }
-
-  async function enviarTeste() {
-    setTestando(true); setTeste(null);
-    try { setTeste(await testarNotificacao()); } finally { setTestando(false); }
   }
 
   if (instalado === false) return null; // a tela mostra o passo de instalação
@@ -124,14 +117,6 @@ export default function AtivarNotificacoes({ publicKey }: { publicKey: string })
       {situacao === "inativo" && <p className="mt-3 text-sm text-stone-500">Ligue para saber na hora quando sua rota sair e seu pão chegar.</p>}
       {erro && <p className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-800" role="alert">{erro}</p>}
 
-      {ligado && (
-        <div className="mt-3 border-t border-stone-100 pt-3">
-          <button type="button" onClick={enviarTeste} disabled={testando} className="flex items-center gap-2 text-sm font-medium text-amber-800 hover:underline disabled:opacity-60">
-            {testando ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}Enviar uma notificação de teste
-          </button>
-          {teste && <p className={`mt-2 rounded-xl p-3 text-sm ${teste.ok ? "bg-emerald-50 text-emerald-900" : "bg-red-50 text-red-800"}`} role="status">{teste.mensagem}</p>}
-        </div>
-      )}
     </section>
   );
 }

@@ -71,14 +71,14 @@ export default async function Membro() {
             <section key={dia} className="flex flex-col gap-3">
               <h2 className="px-1 text-[13px] font-semibold text-stone-400">{dia}</h2>
               {itens.map((n) => (
-                <article key={n.id} className={`flex gap-4 rounded-[28px] p-5 ${n.lida_em ? "bg-white/70" : "bg-white shadow-[0_1px_2px_rgba(28,25,23,.04),0_18px_36px_-22px_rgba(28,25,23,.3)]"}`}>
+                <article key={n.id} className={`flex min-w-0 gap-4 overflow-hidden rounded-[28px] p-5 ${n.lida_em ? "bg-white/70" : "bg-white shadow-[0_1px_2px_rgba(28,25,23,.04),0_18px_36px_-22px_rgba(28,25,23,.3)]"}`}>
                   <span className={`flex size-12 shrink-0 items-center justify-center rounded-full text-[22px] ${TOM_TIPO[n.tipo] ?? "bg-amber-50"}`} aria-hidden>{EMOJI_TIPO[n.tipo] ?? "🔔"}</span>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start gap-2">
-                      <h3 className="flex-1 text-[17px] font-semibold leading-snug">{n.titulo}</h3>
+                      <h3 className="min-w-0 flex-1 text-[17px] font-semibold leading-snug [overflow-wrap:anywhere]">{n.titulo}</h3>
                       {!n.lida_em && <span className="mt-2 size-2.5 shrink-0 rounded-full bg-amber-500" aria-label="não lido" />}
                     </div>
-                    <p className="mt-1 whitespace-pre-line text-[16px] leading-relaxed text-stone-600">{n.corpo}</p>
+                    <p className="mt-1 whitespace-pre-line text-[16px] leading-relaxed text-stone-600 [overflow-wrap:anywhere]">{n.corpo}</p>
                     <p className="mt-3 text-[13px] text-stone-400">{horaCurta(n.criada_em)}</p>
                   </div>
                 </article>

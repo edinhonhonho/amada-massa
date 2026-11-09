@@ -9,7 +9,7 @@ import SubmitButton from "@/components/ui/SubmitButton";
 import { exigirAdmin, exigirEquipe } from "@/lib/auth";
 import { MODALIDADES, dataBR, hojeISO, paraCentavos, reais } from "@/lib/format";
 
-const pluralPaes = (n: number) => (n === 0 ? "Sem pães" : `${n} pão${n > 1 ? "es" : ""}`);
+const pluralPaes = (n: number) => (n === 0 ? "Sem pães" : `${n} ${n > 1 ? "pães" : "pão"}`);
 type Mod = keyof typeof MODALIDADES;
 
 async function atualizarPlano(f: FormData) {
