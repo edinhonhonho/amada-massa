@@ -19,9 +19,6 @@ export default function TrocarPlanoForm({
         <div><label className="rotulo">Vale a partir de</label><input className="campo" type="date" name="inicio" defaultValue={hoje} /></div>
         <div><label className="rotulo">Valor combinado</label><input className="campo" name="valor" placeholder={plano ? `Padrão: ${reais(plano.valor_centavos)}` : "Padrão do plano"} /></div>
       </div>
-      {plano && plano.paes_por_semana > 0 && (
-        <div><label className="rotulo">Quantos pães tradicionais? (de {plano.paes_por_semana})</label><input className="campo !w-32" type="number" name="paes_tradicionais" min={0} max={plano.paes_por_semana} defaultValue={0} /></div>
-      )}
       <div><label className="rotulo">Motivo do valor diferente</label><input className="campo" name="justificativa_valor" placeholder="Só se o valor não for o do catálogo" /></div>
       <div className="flex justify-end"><SubmitButton>Trocar plano</SubmitButton></div>
     </form>

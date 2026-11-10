@@ -139,13 +139,6 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
               <input className="campo" id="dia_vencimento" name="dia_vencimento" type="number" min={1} max={28} required value={dia} onChange={(e) => setDia(e.target.value)} />
             </div>
             <Campo nome="inicio" rotulo="Início da assinatura" tipo="date" />
-            {plano && plano.paes_por_semana > 0 && (
-              <div>
-                <label className="rotulo" htmlFor="paes_tradicionais">Quantos são tradicionais?</label>
-                <input className="campo" id="paes_tradicionais" name="paes_tradicionais" type="number" min={0} max={plano.paes_por_semana} defaultValue={0} />
-                <p className="ajuda">Dos {plano.paes_por_semana} pães por semana. O resto é o pão da semana.</p>
-              </div>
-            )}
             <div>
               <label className="rotulo" htmlFor="valor">Valor combinado (se diferente)</label>
               <input className="campo" id="valor" name="valor" placeholder={plano ? reais(plano.valor_centavos) : ""} value={valor} onChange={(e) => setValor(e.target.value)} />

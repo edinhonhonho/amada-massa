@@ -6,6 +6,7 @@ import { exigirEquipe } from "@/lib/auth";
 import { avisarSabor } from "@/lib/avisos-entrega";
 import { hojeISO } from "@/lib/format";
 import { adicionarDias } from "@/lib/pagamentos";
+import { organizarRotasDaSemana } from "@/lib/rota-semanal";
 
 const txt = (f: FormData, k: string) => {
   const v = f.get(k);
@@ -137,7 +138,7 @@ export async function criarPao(f: FormData) {
   let paoId = existente?.id as string | undefined;
   if (!paoId) {
     const { data, error } = await supabase.from("paes")
-      .insert({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos"), tradicional: f.get("tradicional") === "on" }).select("id").single();
+      .insert({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos") }).select("id").single();
     if (error || !data) return voltar(error?.message ?? "Não foi possível cadastrar o pão.");
     paoId = data.id;
   }
@@ -157,7 +158,7 @@ export async function salvarPao(f: FormData) {
   const id = String(f.get("id"));
   const nome = txt(f, "nome");
   if (!nome) return;
-  const { error } = await supabase.from("paes").update({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos"), tradicional: f.get("tradicional") === "on" }).eq("id", id);
+  const { error } = await supabase.from("paes").update({ nome, descricao: txt(f, "descricao"), ingredientes: txt(f, "ingredientes"), alergenos: txt(f, "alergenos") }).eq("id", id);
   if (error) redirect(`/paes?erro=${encodeURIComponent(error.code === "23505" ? "Já existe um pão com esse nome." : error.message)}`);
   revalidatePath("/planejamento", "layout");
 }
@@ -277,5 +278,13 @@ export async function marcarRetirada(semana: string, entregaId: string, _f?: For
   const { supabase } = await exigirEquipe();
   const { error } = await supabase.rpc("marcar_entrega", { p_id: entregaId, p_status: "retirada" });
   if (error) return falhou(semana, error.message);
+  refresh(semana);
+}
+
+/** Recalcula a ordem das paradas e o caminho de todas as rotas da semana (depois de corrigir localizações, por exemplo). */
+export async function reorganizarRotas(semana: string, ...resto: unknown[]) {
+  void resto; // o último argumento é o FormData do formulário
+  const { supabase } = await exigirEquipe();
+  await organizarRotasDaSemana(supabase, semana);
   refresh(semana);
 }

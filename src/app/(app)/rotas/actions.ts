@@ -17,6 +17,13 @@ export type PayloadRota = {
   origem_ponto_id: string | null;
   bairros: string[];
 };
+/** Traduz o erro do banco; "coluna bairros" quer dizer que a migração 0009 ainda não foi rodada. */
+function erroDaRota(msg: string, o_que: string): string {
+  if (/bairros/i.test(msg) && /column|schema cache/i.test(msg)) {
+    return `Não foi possível ${o_que}: o Supabase ainda não tem a coluna dos bairros. Rode a migração 0009_rotas_por_bairro.sql (e a 0010) no SQL Editor e tente de novo.`;
+  }
+  return `Não foi possível ${o_que}: ${msg}`;
+}
 export type ResultadoRota = { ok: true; id: string } | { ok: false; erro: string };
 
 /**
@@ -38,10 +45,10 @@ export async function salvarRota(p: PayloadRota): Promise<ResultadoRota> {
     let id = p.id;
     if (id) {
       const { error } = await supabase.from("rotas").update(dados).eq("id", id);
-      if (error) return { ok: false, erro: `Não foi possível salvar a rota: ${error.message}` };
+      if (error) return { ok: false, erro: erroDaRota(error.message, "salvar a rota") };
     } else {
       const { data, error } = await supabase.from("rotas").insert(dados).select("id").single();
-      if (error || !data) return { ok: false, erro: `Não foi possível criar a rota: ${error?.message ?? "erro desconhecido"}` };
+      if (error || !data) return { ok: false, erro: erroDaRota(error?.message ?? "erro desconhecido", "criar a rota") };
       id = data.id;
     }
     // semanas ainda abertas passam a usar os bairros novos

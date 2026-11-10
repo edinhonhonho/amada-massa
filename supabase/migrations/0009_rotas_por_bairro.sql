@@ -143,3 +143,6 @@ do $$ begin
     revoke execute on all functions in schema public from anon;
   end if;
 end $$;
+
+-- Faz a API do Supabase enxergar a coluna nova (bairros) sem esperar.
+notify pgrst, 'reload schema';

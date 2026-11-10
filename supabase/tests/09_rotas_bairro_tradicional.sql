@@ -31,9 +31,8 @@ select 'Ana e Dani na Rota Centro, Beto na Sul, Caio sem rota',
 -- divisão: 4 pães, 2 pães na semana (um deles tradicional) -> 2 + 2 para quem não tem quantidade fixa
 select 'Ana: 2 tradicional + 2 sementes', (select quantidade from entrega_paes ep join entregas e on e.id=ep.entrega_id where e.cliente_id='91111111-1111-1111-1111-111111111111' and ep.pao_id='9c000000-0000-0000-0000-000000000001') = 2
   and (select quantidade from entrega_paes ep join entregas e on e.id=ep.entrega_id where e.cliente_id='91111111-1111-1111-1111-111111111111' and ep.pao_id='9c000000-0000-0000-0000-000000000002') = 2;
--- Dani tem 1 tradicional fixo; os outros 3 se dividem entre os dois pães (2 e 1) -> tradicional 1+2=3 ou 1+1=2, total 4
-select 'Dani: total 4 e ao menos 1 tradicional', (select sum(quantidade) from entrega_paes ep join entregas e on e.id=ep.entrega_id where e.cliente_id='94444444-4444-4444-4444-444444444444') = 4
-  and (select quantidade from entrega_paes ep join entregas e on e.id=ep.entrega_id where e.cliente_id='94444444-4444-4444-4444-444444444444' and ep.pao_id='9c000000-0000-0000-0000-000000000001') >= 1;
+-- sem distinção: Dani (que antes tinha 1 tradicional fixo) também recebe 2 + 2
+select 'Dani: 2 + 2, como todo mundo', (select count(*) from entrega_paes ep join entregas e on e.id=ep.entrega_id where e.cliente_id='94444444-4444-4444-4444-444444444444' and ep.quantidade = 2) = 2;
 
 -- mudar os bairros e realocar
 update rotas set bairros = array['Tristeza','Bom Fim'] where id = '9a000000-0000-0000-0000-000000000002';

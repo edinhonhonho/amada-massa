@@ -52,11 +52,6 @@ function lerCliente(f: FormData) {
   } as const;
 }
 
-/** Quantos dos pães da semana são tradicionais: de 0 até o total do plano. */
-function tradicionaisValidos(v: FormDataEntryValue | null, total: number): number {
-  const n = Math.floor(Number(v) || 0);
-  return Math.min(Math.max(n, 0), total);
-}
 
 /** Regra de retirada: padaria só na Padaria, ponto só em ponto de retirada, entrega sem ponto. */
 async function validarPonto(supabase: SupabaseClient, modalidade: string, pontoId: string | null): Promise<string | null> {
@@ -136,7 +131,6 @@ export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoF
     dia_vencimento: dia,
     ponto_coleta_id: plano.modalidade === "entrega" ? null : pontoId,
     inicio: vazio(f.get("inicio")) ?? hojeISO(),
-    paes_tradicionais: tradicionaisValidos(f.get("paes_tradicionais"), plano.paes_por_semana),
   });
   if (e2) {
     await supabase.from("clientes").delete().eq("id", novo.id); // evita cliente sem assinatura
@@ -242,7 +236,6 @@ export async function trocarPlano(f: FormData) {
   const { error } = await supabase.from("assinaturas").insert({
     cliente_id: clienteId, plano_id: planoId, valor_centavos: valor, justificativa_valor: justificativa,
     dia_vencimento: atual.dia_vencimento, ponto_coleta_id: pontoId, inicio,
-    paes_tradicionais: tradicionaisValidos(f.get("paes_tradicionais"), plano.paes_por_semana),
   });
   if (error) return;
   await supabase.from("assinaturas").update({ status: "encerrada", fim: inicio, motivo_cancelamento: "Troca de plano" }).eq("id", atualId);
@@ -260,15 +253,4 @@ export async function excluirCliente(f: FormData) {
   await supabase.from("clientes").delete().eq("id", String(f.get("cliente_id")));
   revalidatePath("/clientes");
   redirect("/clientes");
-}
-
-/** Muda quantos dos pães da assinatura são tradicionais (vale a partir das próximas semanas). */
-export async function definirTradicionais(f: FormData) {
-  const { supabase } = await exigirEquipe();
-  const assinatura = String(f.get("assinatura_id"));
-  const { data: a } = await supabase.from("assinaturas").select("cliente_id, planos(paes_por_semana)").eq("id", assinatura).single();
-  if (!a) return;
-  const plano = (Array.isArray(a.planos) ? a.planos[0] : a.planos) as { paes_por_semana: number } | null;
-  await supabase.from("assinaturas").update({ paes_tradicionais: tradicionaisValidos(f.get("paes_tradicionais"), plano?.paes_por_semana ?? 0) }).eq("id", assinatura);
-  revalidatePath(`/clientes/${a.cliente_id}`);
 }

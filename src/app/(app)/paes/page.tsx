@@ -9,14 +9,14 @@ import FormPao from "../planejamento/FormPao";
 export default async function Paes({ searchParams }: { searchParams: Promise<{ erro?: string }> }) {
   const { erro } = await searchParams;
   const { supabase } = await exigirEquipe();
-  const { data } = await supabase.from("paes").select("id, nome, descricao, ingredientes, alergenos, tradicional, paes_semana(count)").order("nome");
+  const { data } = await supabase.from("paes").select("id, nome, descricao, ingredientes, alergenos, paes_semana(count)").order("nome");
   const paes = (data ?? []).map((p) => ({ ...p, usos: (p.paes_semana as unknown as { count: number }[])?.[0]?.count ?? 0 }));
 
   return (
     <>
       <PageHeader
         titulo="Pães"
-        subtitulo="Cadastre cada pão uma vez e escolha, semana a semana, quais saem. O pão tradicional é um pão como os outros."
+        subtitulo="Cadastre cada pão uma vez e escolha, semana a semana, quais saem."
       />
       {erro && <p className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800 shadow-sm">{erro}</p>}
       {(
@@ -26,7 +26,7 @@ export default async function Paes({ searchParams }: { searchParams: Promise<{ e
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 shadow-sm"><Wheat size={19} /></span>
                 <div className="min-w-0 flex-1">
-                  <h2 className="flex items-center gap-2 font-semibold leading-tight">{p.nome}{p.tradicional && <span className="selo selo-ambar">Tradicional</span>}</h2>
+                  <h2 className="flex items-center gap-2 font-semibold leading-tight">{p.nome}</h2>
                   {p.descricao && <p className="text-sm text-stone-500">{p.descricao}</p>}
                 </div>
                 <Modal titulo="Editar pão" gatilho={<Pencil size={15} />} gatilhoClasse="btn-ghost !p-2" largo><FormPao pao={p} /></Modal>

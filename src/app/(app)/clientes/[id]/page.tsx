@@ -16,7 +16,7 @@ import { chaveTelefone } from "@/lib/telefone";
 import { CANAIS, MODALIDADES, STATUS_CLIENTE, dataBR, hojeISO, reais } from "@/lib/format";
 import { ROTULO_SITUACAO, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
 import { STATUS_ENTREGA } from "@/lib/semana";
-import { concluirContato, definirTradicionais, excluirCliente, mudarStatus, registrarContato } from "../actions";
+import { concluirContato, excluirCliente, mudarStatus, registrarContato } from "../actions";
 import TrocarPlanoForm from "./TrocarPlanoForm";
 
 const TOM_SIT: Record<Situacao, Tom> = { em_dia: "verde", a_vencer: "azul", vence_hoje: "ambar", atrasado: "laranja", atraso_critico: "vermelho", sem_cobranca: "cinza" };
@@ -130,18 +130,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
                     {planoAtual.modalidade === "apoio" ? <>Contribuição mensal, sem pães</> : planoAtual.modalidade === "entrega" ? (rota ? <>Entrega pela <b style={{ color: rota.cor }}>{rota.nome}</b></> : <span className="text-amber-800">Entrega, ainda sem rota</span>) : <>Retira em <b>{pontoAtual?.nome}</b></>}
                     {" · "}vence todo dia {atual.dia_vencimento}
                   </div>
-                  {planoAtual.paes_por_semana > 0 && (
-                    <div className="mt-0.5 flex items-center gap-2 text-xs text-stone-500">
-                      {planoAtual.paes_por_semana} pão(ões) por semana: <b className="text-stone-700">{atual.paes_tradicionais ?? 0} tradicional(is)</b> e <b className="text-stone-700">{planoAtual.paes_por_semana - (atual.paes_tradicionais ?? 0)} da semana</b>
-                      <Modal titulo="Pães tradicionais" descricao="Quantos dos pães por semana deste cliente são do tipo tradicional (os demais são o pão da semana)." gatilho="alterar" gatilhoClasse="font-medium text-amber-800 hover:underline">
-                        <form action={definirTradicionais} className="flex flex-col gap-4">
-                          <input type="hidden" name="assinatura_id" value={atual.id} />
-                          <div><label className="rotulo">Pães tradicionais (de {planoAtual.paes_por_semana})</label><input className="campo !w-32" type="number" name="paes_tradicionais" min={0} max={planoAtual.paes_por_semana} defaultValue={atual.paes_tradicionais ?? 0} /></div>
-                          <div className="flex justify-end"><SubmitButton>Salvar</SubmitButton></div>
-                        </form>
-                      </Modal>
-                    </div>
-                  )}
+                  {planoAtual.paes_por_semana > 0 && <div className="mt-0.5 text-xs text-stone-500">{planoAtual.paes_por_semana} {planoAtual.paes_por_semana > 1 ? "pães" : "pão"} por semana</div>}
                   {atual.justificativa_valor && <div className="text-xs text-stone-500">Valor diferente do catálogo: {atual.justificativa_valor}</div>}
                 </div>
                 <div className="text-right">
