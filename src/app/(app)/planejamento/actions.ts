@@ -14,6 +14,7 @@ const txt = (f: FormData, k: string) => {
 };
 const refresh = (id: string) => { revalidatePath(`/semana/${id}`); revalidatePath("/planejamento"); };
 const falhou = (id: string, msg: string): never => redirect(`/semana/${id}?erro=${encodeURIComponent(msg)}`);
+const ok = (id: string, r: { error: { message: string } | null }) => { if (r.error) falhou(id, r.error.message); };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // ----------------------------------------------------------- calendário
@@ -46,15 +47,15 @@ export async function criarSemanasDoAno(f: FormData) {
 export async function salvarSemana(f: FormData) {
   const { supabase } = await exigirEquipe();
   const id = String(f.get("id"));
-  await supabase.from("semanas").update({ observacao: txt(f, "observacao"), status: String(f.get("status")) }).eq("id", id);
+  ok(id, await supabase.from("semanas").update({ observacao: txt(f, "observacao"), status: String(f.get("status")) }).eq("id", id));
   refresh(id);
 }
 
 export async function alternarListaFechada(f: FormData) {
   const { supabase } = await exigirEquipe();
   const id = String(f.get("id"));
-  await supabase.from("semanas").update({ lista_fechada: f.get("fechar") === "1" }).eq("id", id);
-  if (f.get("fechar") !== "1") await supabase.rpc("preparar_semana", { p_semana: id });
+  ok(id, await supabase.from("semanas").update({ lista_fechada: f.get("fechar") === "1" }).eq("id", id));
+  if (f.get("fechar") !== "1") ok(id, await supabase.rpc("preparar_semana", { p_semana: id }));
   refresh(id);
 }
 
@@ -63,14 +64,14 @@ export async function alternarSemProducao(f: FormData) {
   const { supabase } = await exigirEquipe();
   const id = String(f.get("id"));
   const ligar = f.get("ligar") === "1";
-  await supabase.from("semanas").update({ sem_producao: ligar }).eq("id", id);
+  ok(id, await supabase.from("semanas").update({ sem_producao: ligar }).eq("id", id));
   if (ligar) {
-    await supabase.from("entregas").update({ status: "pulada", observacao: "Semana sem produção" })
-      .eq("semana_id", id).in("status", ["programada", "suspensa_atraso", "reagendada"]);
+    ok(id, await supabase.from("entregas").update({ status: "pulada", observacao: "Semana sem produção" })
+      .eq("semana_id", id).in("status", ["programada", "suspensa_atraso", "reagendada"]));
   } else {
-    await supabase.from("entregas").update({ status: "programada", observacao: null })
-      .eq("semana_id", id).eq("status", "pulada").eq("observacao", "Semana sem produção");
-    await supabase.rpc("preparar_semana", { p_semana: id });
+    ok(id, await supabase.from("entregas").update({ status: "programada", observacao: null })
+      .eq("semana_id", id).eq("status", "pulada").eq("observacao", "Semana sem produção"));
+    ok(id, await supabase.rpc("preparar_semana", { p_semana: id }));
   }
   refresh(id);
 }
@@ -82,13 +83,13 @@ export async function alternarPuloLinha(semana: string, assinatura: string, _f?:
   const { supabase } = await exigirEquipe();
   const { data: atual } = await supabase.from("pulos_semana").select("assinatura_id").eq("semana_id", semana).eq("assinatura_id", assinatura).maybeSingle();
   if (!atual) {
-    await supabase.from("pulos_semana").insert({ semana_id: semana, assinatura_id: assinatura, motivo: null });
-    await supabase.from("entregas").update({ status: "pulada", observacao: "Pulou a semana" })
-      .eq("semana_id", semana).eq("assinatura_id", assinatura).in("status", ["programada", "suspensa_atraso", "reagendada"]);
+    ok(semana, await supabase.from("pulos_semana").insert({ semana_id: semana, assinatura_id: assinatura, motivo: null }));
+    ok(semana, await supabase.from("entregas").update({ status: "pulada", observacao: "Pulou a semana" })
+      .eq("semana_id", semana).eq("assinatura_id", assinatura).in("status", ["programada", "suspensa_atraso", "reagendada"]));
   } else {
-    await supabase.from("pulos_semana").delete().eq("semana_id", semana).eq("assinatura_id", assinatura);
-    await supabase.from("entregas").update({ status: "programada", observacao: null }).eq("semana_id", semana).eq("assinatura_id", assinatura).eq("status", "pulada");
-    await supabase.rpc("preparar_semana", { p_semana: semana });
+    ok(semana, await supabase.from("pulos_semana").delete().eq("semana_id", semana).eq("assinatura_id", assinatura));
+    ok(semana, await supabase.from("entregas").update({ status: "programada", observacao: null }).eq("semana_id", semana).eq("assinatura_id", assinatura).eq("status", "pulada"));
+    ok(semana, await supabase.rpc("preparar_semana", { p_semana: semana }));
   }
   refresh(semana);
 }
@@ -179,10 +180,10 @@ export async function removerPaoSemana(f: FormData) {
   const pao = String(f.get("pao_id"));
   const { data: ent } = await supabase.from("entregas").select("id").eq("semana_id", semana);
   const ids = (ent ?? []).map((e) => e.id);
-  if (ids.length) await supabase.from("entrega_paes").delete().eq("pao_id", pao).in("entrega_id", ids);
-  await supabase.from("paes_semana").delete().eq("semana_id", semana).eq("pao_id", pao);
-  await supabase.rpc("sincronizar_quantidades", { p_semana: semana });
-  await supabase.rpc("distribuir_paes", { p_semana: semana });
+  if (ids.length) ok(semana, await supabase.from("entrega_paes").delete().eq("pao_id", pao).in("entrega_id", ids));
+  ok(semana, await supabase.from("paes_semana").delete().eq("semana_id", semana).eq("pao_id", pao));
+  ok(semana, await supabase.rpc("sincronizar_quantidades", { p_semana: semana }));
+  ok(semana, await supabase.rpc("distribuir_paes", { p_semana: semana }));
   refresh(semana);
 }
 

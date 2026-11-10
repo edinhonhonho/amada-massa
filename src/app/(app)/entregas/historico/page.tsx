@@ -56,7 +56,7 @@ export default async function Historico({ searchParams }: { searchParams: Promis
   return (
     <>
       <PageHeader
-        titulo="Entregas"
+        titulo="Histórico de entregas"
         subtitulo="Acompanhe a execução das rotas, as ocorrências e o histórico, com hora, observação e foto de cada parada."
         acoes={usuario.perfil === "admin" ? <Link className="btn-sec" href={`/exportar/entregas${semanaId ? `?semana=${semanaId}` : ""}`}><Download size={16} />Exportar CSV</Link> : undefined}
       />

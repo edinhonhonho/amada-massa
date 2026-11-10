@@ -43,7 +43,7 @@ export default async function Pontos({ searchParams }: { searchParams: Promise<{
                   <Modal titulo="Editar ponto de coleta" gatilho={<Pencil size={15} />} gatilhoClasse="btn-ghost !p-2" largo><PontoForm p={p} temPadaria={temPadaria} /></Modal>
                 </header>
 
-                <div className="flex items-start gap-3 text-sm">
+                <div className="flex min-h-[4.75rem] items-start gap-3 text-sm">
                   <MapPin size={16} className="mt-0.5 shrink-0 text-stone-400" />
                   <div className="min-w-0">
                     <div className="font-medium text-stone-800">{[p.logradouro && `${p.logradouro}${p.numero ? `, ${p.numero}` : ""}`, p.complemento].filter(Boolean).join(" - ") || p.endereco}</div>

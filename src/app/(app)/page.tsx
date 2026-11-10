@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Por enquanto não há tela de início: o essencial começa pelos clientes. */
+/** Não há tela de início: o trabalho da semana é a porta de entrada. */
 export default function Inicio() {
-  redirect("/clientes");
+  redirect("/semana");
 }

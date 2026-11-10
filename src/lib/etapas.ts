@@ -29,7 +29,7 @@ export function estadoEtapas(e: EntradaEtapas): EstadoEtapa[] {
     { ...base.planejar, feita: nada || e.paes > 0, detalhe: nada ? "Semana sem produção" : e.paes ? plural(e.paes, "pão", "pães") : "Defina os pães" },
     { ...base.clientes, feita: nada || e.ativos > 0, detalhe: nada ? "Ninguém recebe" : plural(e.ativos, "cliente", "clientes"),
       alerta: nada || !e.suspensos ? undefined : `${plural(e.suspensos, "suspenso", "suspensos")} por atraso` },
-    { ...base.alocar, feita: nada || (e.ativos > 0 && !alertaAlocar), detalhe: nada ? "Nada a alocar" : alertaAlocar ? "Falta alocar" : "Tudo alocado", alerta: nada ? undefined : alertaAlocar },
+    { ...base.alocar, feita: nada || (e.ativos > 0 && !alertaAlocar), detalhe: nada ? "Nada a alocar" : e.semRota ? "Falta alocar" : e.rotasSemEntregador ? "Falta responsável" : "Tudo alocado", alerta: nada ? undefined : alertaAlocar },
     { ...base.consolidar, feita: nada || e.listaFechada, detalhe: nada ? "Nada a enviar" : e.listaFechada ? `Fechada · ${e.totalPaes} pães` : `${e.totalPaes} pães a produzir` },
     { ...base.acompanhar, feita: nada || (e.ativos > 0 && e.concluidas >= e.ativos), detalhe: nada ? "—" : `${e.concluidas} de ${e.ativos} concluídas` },
   ];

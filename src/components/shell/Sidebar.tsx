@@ -42,7 +42,7 @@ export default function Sidebar({
   return (
     <aside className={`nao-imprimir sticky top-3 flex h-[calc(100dvh-1.5rem)] shrink-0 flex-col rounded-[28px] bg-painel ring-1 ring-stone-900/[0.04] transition-[width] duration-200 ${recolhida ? "w-[76px]" : "w-[252px]"}`}>
       <div className={`flex items-center ${recolhida ? "flex-col gap-2 px-3 pb-2 pt-5" : "gap-1 pb-3 pl-5 pr-3 pt-5"}`}>
-        <Link href="/clientes" className="flex min-w-0 flex-1 items-center gap-2.5" title="Amada Massa">
+        <Link href="/semana" className="flex min-w-0 flex-1 items-center gap-2.5" title="Amada Massa">
           <LogoApp tamanho={38} />
           {!recolhida && (
             <div className="min-w-0 leading-tight">

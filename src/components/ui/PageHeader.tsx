@@ -7,6 +7,8 @@ export default function PageHeader({
   titulo, subtitulo, acoes, voltar, etiqueta,
 }: { titulo: ReactNode; subtitulo?: ReactNode; acoes?: ReactNode; voltar?: { href: string; rotulo: string }; etiqueta?: ReactNode }) {
   return (
+    <>
+    {typeof titulo === "string" && <title>{`${titulo} · Amada Massa`}</title>}
     <header className="mb-6 flex flex-wrap items-end gap-x-6 gap-y-3">
       <div className="min-w-0 flex-1">
         {!voltar && <Migalha />}
@@ -23,5 +25,6 @@ export default function PageHeader({
       </div>
       {acoes && <div className="flex flex-wrap items-center gap-2">{acoes}</div>}
     </header>
+    </>
   );
 }

@@ -14,7 +14,7 @@ type Props = { endereco: Endereco; lat: number | null; lng: number | null; aoMud
 export default function LocalNoMapa({ endereco, lat, lng, aoMudar }: Props) {
   const [buscando, setBuscando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
-  const manual = useRef(lat != null && lng != null);
+  const arrastado = useRef(false); // o ponto foi posicionado à mão nesta sessão: não sobrescrever
   const chaveInicial = useRef(`${endereco.logradouro ?? ""}|${endereco.numero ?? ""}|${endereco.cidade ?? ""}|${endereco.cep ?? ""}`);
   const mudar = useRef(aoMudar);
   mudar.current = aoMudar;
@@ -25,22 +25,22 @@ export default function LocalNoMapa({ endereco, lat, lng, aoMudar }: Props) {
     setBuscando(true); setAviso(null);
     const r = await geocodificar(endereco).catch(() => null);
     setBuscando(false);
-    if (r) { manual.current = false; mudar.current(r.lat, r.lng); setAviso(forcar ? "Endereço localizado. Se o ponto não estiver na casa certa, arraste-o." : null); }
+    if (r) { arrastado.current = false; mudar.current(r.lat, r.lng); setAviso(forcar ? "Endereço localizado. Se o ponto não estiver na casa certa, arraste-o." : null); }
     else setAviso("Não encontrei esse endereço. Clique no mapa para marcar a casa.");
   }
 
   // localiza sozinho quando rua/número/cidade/CEP mudam (e o ponto não foi posicionado à mão)
   const chave = `${endereco.logradouro ?? ""}|${endereco.numero ?? ""}|${endereco.cidade ?? ""}|${endereco.cep ?? ""}`;
   useEffect(() => {
-    if (manual.current && chave === chaveInicial.current) return;
+    if (chave === chaveInicial.current && lat != null) return; // endereço igual ao guardado e já localizado
+    if (arrastado.current) return;
     if ((endereco.logradouro ?? "").trim().length < 4 || !(endereco.numero ?? "").trim()) return;
-    if (manual.current && lat != null) return;
     const t = setTimeout(() => void localizar(), 900);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chave]);
 
-  const marcou = (la: number, ln: number) => { manual.current = true; setAviso(null); mudar.current(la, ln); };
+  const marcou = (la: number, ln: number) => { arrastado.current = true; setAviso(null); mudar.current(la, ln); };
   const tem = lat != null && lng != null;
 
   return (

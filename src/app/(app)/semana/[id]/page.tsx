@@ -201,7 +201,6 @@ function ListaClientes({ grupos, semanaId }: { grupos: Grupo[]; semanaId: string
 function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: EstadoEtapa[]; atual: string }) {
   const indice = estados.findIndex((e) => e.id === atual);
   const ativa = estados[indice];
-  const proxima = estados[indice + 1];
   return (
     <nav className="mb-6 overflow-hidden rounded-[22px] bg-white shadow-[0_0_0_1px_rgba(28,25,23,.06)]" aria-label="Etapas da semana">
       <ol className="grid grid-cols-5 px-2 pt-5 sm:px-4">
@@ -225,7 +224,6 @@ function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: Estad
       </ol>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-100 bg-stone-50/70 px-5 py-3">
         <p className="min-w-0 flex-1 basis-64 text-sm text-stone-600"><b className="text-stone-900">Etapa {indice + 1} de {estados.length}.</b> {ativa.curto}.</p>
-        {proxima && <Link href={`/semana/${semanaId}?etapa=${proxima.id}`} className="btn-sec btn-pequeno">{proxima.rotulo}<ArrowRight size={14} /></Link>}
       </div>
     </nav>
   );
