@@ -7,7 +7,6 @@ import Vazio from "@/components/ui/Vazio";
 import { exigirEquipe } from "@/lib/auth";
 import { normBairro, rotaDoCliente, type RotaBairros } from "@/lib/bairros";
 import { DIAS_SEMANA, nomeCompleto, um } from "@/lib/dados";
-import { reais } from "@/lib/format";
 
 type Linha = { cliente_id: string; valor_centavos: number; planos: { paes_por_semana: number } | { paes_por_semana: number }[] | null; clientes: { id: string; nome: string; sobrenome: string | null; bairro: string | null } | { id: string; nome: string; sobrenome: string | null; bairro: string | null }[] | null };
 
@@ -25,7 +24,7 @@ export default async function Rotas() {
   const regras: RotaBairros[] = (rotas ?? []).map((r) => ({ id: r.id, nome: r.nome, ativa: r.ativa, bairros: (r.bairros ?? []) as string[] }));
 
   // cada cliente de entrega cai numa rota pelo bairro (ou fica sem rota)
-  const porRota = new Map<string, { clientes: Set<string>; paes: number; valor: number }>();
+  const porRota = new Map<string, { clientes: Set<string>; paes: number }>();
   const semRota = new Map<string, { nome: string; bairro: string | null }>();
   for (const a of (ass ?? []) as unknown as Linha[]) {
     const c = um(a.clientes as never) as { id: string; nome: string; sobrenome: string | null; bairro: string | null } | null;
@@ -33,8 +32,8 @@ export default async function Rotas() {
     if (!c) continue;
     const rotaId = rotaDoCliente(c.bairro, manual.get(c.id), regras);
     if (!rotaId) { semRota.set(c.id, { nome: nomeCompleto(c), bairro: c.bairro }); continue; }
-    const g = porRota.get(rotaId) ?? porRota.set(rotaId, { clientes: new Set(), paes: 0, valor: 0 }).get(rotaId)!;
-    g.clientes.add(c.id); g.paes += pl?.paes_por_semana ?? 0; g.valor += a.valor_centavos;
+    const g = porRota.get(rotaId) ?? porRota.set(rotaId, { clientes: new Set(), paes: 0 }).get(rotaId)!;
+    g.clientes.add(c.id); g.paes += pl?.paes_por_semana ?? 0;
   }
   // bairros com clientes de entrega que nenhuma rota cobre
   const semBairro = new Map<string, { nome: string; qtd: number }>();
@@ -48,7 +47,7 @@ export default async function Rotas() {
     <>
       <PageHeader
         titulo="Rotas"
-        subtitulo="Cada rota cobre alguns bairros e tem um responsável. Quem entra, a ordem e o caminho são montados a cada semana."
+        subtitulo="Cada rota cobre bairros e tem um responsável. Quem entra, a ordem das paradas e o caminho são montados a cada semana; os números abaixo são uma previsão com os assinantes de hoje."
       />
 
       {semRota.size > 0 && (
@@ -69,7 +68,7 @@ export default async function Rotas() {
           {rotas.map((r) => {
             const g = porRota.get(r.id);
             const membros = [...(g?.clientes ?? [])];
-            const paes = g?.paes ?? 0, valor = g?.valor ?? 0;
+            const paes = g?.paes ?? 0;
             const lista = (r.bairros ?? []) as string[];
             const estourou = !!r.capacidade_paes && paes > r.capacidade_paes;
             const entregador = r.entregador_id ? nomeEnt.get(r.entregador_id) : null;
@@ -90,16 +89,17 @@ export default async function Rotas() {
                   ) : <Badge tom="ambar"><AlertTriangle size={12} />Sem entregador</Badge>}
                 </div>
 
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="cartao-branco px-3.5 py-3"><div className="text-xl font-semibold tabular-nums leading-none">{membros.length}</div><div className="mt-1.5 text-xs text-stone-500">{membros.length === 1 ? "parada" : "paradas"}</div></div>
-                  <div className="cartao-branco px-3.5 py-3">
-                    <div className="text-xl font-semibold tabular-nums leading-none">{paes}{r.capacidade_paes ? <span className="text-sm font-normal text-stone-400">/{r.capacidade_paes}</span> : ""}</div>
-                    <div className="mt-1.5 text-xs text-stone-500">pães por semana</div>
+                <div className="flex items-center gap-4 rounded-2xl bg-white px-4 py-3 shadow-[0_0_0_1px_rgba(28,25,23,.05)]">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[11px] font-medium uppercase tracking-wide text-stone-400">Previsto por semana</div>
+                    <div className="mt-1 flex items-baseline gap-x-4 gap-y-0.5 text-sm text-stone-600">
+                      <span><b className="text-xl font-semibold tabular-nums text-stone-900">≈ {membros.length}</b> {membros.length === 1 ? "parada" : "paradas"}</span>
+                      <span><b className="text-xl font-semibold tabular-nums text-stone-900">≈ {paes}</b>{r.capacidade_paes ? <span className="text-stone-400">/{r.capacidade_paes}</span> : ""} {paes === 1 ? "pão" : "pães"}</span>
+                    </div>
                     {ocupacao !== null && <div className="mt-2 h-1 overflow-hidden rounded-full bg-stone-100"><div className={`h-full rounded-full ${estourou ? "bg-red-500" : "bg-emerald-500"}`} style={{ width: `${ocupacao}%` }} /></div>}
                   </div>
-                  <div className="cartao-branco px-3.5 py-3"><div className="text-xl font-semibold tabular-nums leading-none">{reais(valor)}</div><div className="mt-1.5 text-xs text-stone-500">por mês</div></div>
                 </div>
-                {estourou && <p className="-mt-1 flex items-center gap-1.5 text-[13px] font-medium text-red-700"><AlertTriangle size={14} />Acima da capacidade da rota</p>}
+                {estourou && <p className="-mt-1 flex items-center gap-1.5 text-[13px] font-medium text-red-700"><AlertTriangle size={14} />Acima da capacidade prevista da rota</p>}
 
                 <div className="mt-auto flex items-center gap-2">
                   <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">

@@ -8,6 +8,7 @@ export type LinhaEntrega = {
   id: string; cliente_id: string; assinatura_id: string; nome: string; whatsapp: string | null; bairro: string | null; endereco: string;
   plano: string; modalidade: "entrega" | "coleta_ponto" | "coleta_padaria"; paesPlano: number;
   status: string; qtd: number; manual: boolean; ordem: number; quantidades: Record<string, number>; lat: number | null; lng: number | null;
+  rua: string; numero: string; cidade: string; cep: string;
 };
 export type Grupo = {
   chave: string; tipo: "entrega" | "ponto" | "padaria"; nome: string; refId: string | null; cor: string | null;
@@ -30,7 +31,7 @@ export async function carregarSemanaCompleta(supabase: SupabaseClient, id: strin
     supabase.from("paes_semana").select("ordem, paes(id, nome, descricao, ingredientes, alergenos)").eq("semana_id", id).order("ordem").order("criado_em"),
     supabase
       .from("entregas")
-      .select("id, cliente_id, assinatura_id, rota_id, rota_nome, ponto_coleta_id, ponto_nome, ordem, qtd_prevista, status, paes_manual, clientes(nome, sobrenome, whatsapp, bairro, logradouro, numero, complemento, lat, lng), assinaturas(planos(modalidade, nome, paes_por_semana), pontos_coleta(tipo)), entrega_paes(pao_id, quantidade)")
+      .select("id, cliente_id, assinatura_id, rota_id, rota_nome, ponto_coleta_id, ponto_nome, ordem, qtd_prevista, status, paes_manual, clientes(nome, sobrenome, whatsapp, bairro, logradouro, numero, complemento, cidade, cep, lat, lng), assinaturas(planos(modalidade, nome, paes_por_semana), pontos_coleta(tipo)), entrega_paes(pao_id, quantidade)")
       .eq("semana_id", id),
     supabase.from("rotas").select("id, nome, cor"),
   ]);
@@ -47,7 +48,7 @@ export async function carregarSemanaCompleta(supabase: SupabaseClient, id: strin
   let totalPaes = 0, clientes = 0;
 
   for (const e of entregas ?? []) {
-    const cli = um(e.clientes as never) as { nome: string; sobrenome: string | null; whatsapp: string | null; bairro: string | null; logradouro: string | null; numero: string | null; complemento: string | null; lat: number | null; lng: number | null } | null;
+    const cli = um(e.clientes as never) as { nome: string; sobrenome: string | null; whatsapp: string | null; bairro: string | null; logradouro: string | null; numero: string | null; complemento: string | null; cidade: string | null; cep: string | null; lat: number | null; lng: number | null } | null;
     const ass = um(e.assinaturas as never) as { planos: never; pontos_coleta: never } | null;
     const plano = um(ass?.planos) as { modalidade: LinhaEntrega["modalidade"]; nome: string; paes_por_semana: number } | null;
     const ponto = um(ass?.pontos_coleta) as { tipo: string } | null;
@@ -59,6 +60,7 @@ export async function carregarSemanaCompleta(supabase: SupabaseClient, id: strin
       id: e.id, cliente_id: e.cliente_id, assinatura_id: e.assinatura_id, nome: nomeCompleto(cli), whatsapp: cli.whatsapp, bairro: cli.bairro,
       endereco: [cli.logradouro && `${cli.logradouro}${cli.numero ? `, ${cli.numero}` : ""}`, cli.complemento].filter(Boolean).join(" - "),
       plano: plano.nome, modalidade: plano.modalidade, paesPlano: plano.paes_por_semana, status: e.status, qtd: e.qtd_prevista, manual: e.paes_manual, ordem: e.ordem, quantidades, lat: cli.lat, lng: cli.lng,
+      rua: cli.logradouro ?? "", numero: cli.numero ?? "", cidade: cli.cidade ?? "Porto Alegre", cep: cli.cep ?? "",
     };
 
     let chave: string, tipo: Grupo["tipo"], nome: string, refId: string | null, cor: string | null = null;

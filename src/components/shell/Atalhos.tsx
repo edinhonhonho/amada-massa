@@ -1,6 +1,6 @@
 "use client";
 
-import { CornerDownLeft, FilePlus2, Search, UserPlus, Users } from "lucide-react";
+import { CornerDownLeft, FilePlus2, Search, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buscarClientes, type ResultadoBusca } from "@/app/(app)/busca-actions";
@@ -26,7 +26,6 @@ export default function Atalhos({ admin }: { admin: boolean }) {
       g.itens.map((i) => ({ id: i.href, rotulo: i.rotulo, grupo: "Ir para", href: i.href, icone: <i.icone size={16} />, dica: i.atalho.toUpperCase().split("").join(" "), palavras: i.dica })),
     );
     return [
-      { id: "novo-cliente", rotulo: "Novo cliente", grupo: "Criar", href: "/clientes/novo", icone: <UserPlus size={16} />, dica: "N", palavras: "cadastrar adicionar assinante" },
       { id: "nova-semana", rotulo: "Planejar semanas do ano", grupo: "Criar", href: "/planejamento", icone: <FilePlus2 size={16} />, palavras: "calendário sabor pães produção" },
       { id: "nova-rota", rotulo: "Nova rota", grupo: "Criar", href: "/rotas/nova", icone: <FilePlus2 size={16} /> },
       ...paginas,
@@ -81,7 +80,7 @@ export default function Atalhos({ admin }: { admin: boolean }) {
     const tecla = (ev: KeyboardEvent) => {
       if ((ev.metaKey || ev.ctrlKey) && ev.key.toLowerCase() === "k") { ev.preventDefault(); abrirPaleta(); return; }
       if (ev.metaKey || ev.ctrlKey || ev.altKey || digitando(ev.target) || document.querySelector("dialog[open]")) return;
-      if (ev.key.length === 1 && /[a-z]/i.test(ev.key) && ev.key.toLowerCase() !== "n") {
+      if (ev.key.length === 1 && /[a-z]/i.test(ev.key)) {
         // atalho de duas letras: 1ª do grupo + 1ª da página (ex.: C e M abrem Mensagens)
         const agora = Date.now();
         buffer = agora - quando < 1200 ? buffer + ev.key.toLowerCase() : ev.key.toLowerCase();
@@ -93,7 +92,6 @@ export default function Atalhos({ admin }: { admin: boolean }) {
       }
       buffer = "";
       if (ev.key === "/") { ev.preventDefault(); abrirPaleta(); }
-      else if (ev.key === "n") { ev.preventDefault(); router.push("/clientes/novo"); }
       else if (ev.key === "?") { ev.preventDefault(); router.push("/configuracoes#atalhos"); }
     };
     const abrir = () => abrirPaleta();

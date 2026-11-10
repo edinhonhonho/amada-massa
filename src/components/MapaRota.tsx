@@ -16,6 +16,10 @@ type Props = {
   destaque?: string | null;
   /** Quando informado, os pontos podem ser arrastados para corrigir a localização (id da parada, ou "origem"). */
   aoMover?: (id: string, lat: number, lng: number) => void;
+  /** Clique no mapa (ex.: posicionar o endereço de um cliente). */
+  aoClicar?: (lat: number, lng: number) => void;
+  /** Marcadores sem número (uma casa), para quando só há um ponto. */
+  semNumero?: boolean;
 };
 
 const marcador = (n: string, cor: string, destaque = false) =>
@@ -34,13 +38,15 @@ const iconeOrigem = L.divIcon({
 });
 
 /** Mapa (OpenStreetMap) com ponto de partida, paradas numeradas e o trajeto. */
-export default function MapaRota({ origem, paradas, trajeto, cor, destaque, aoMover }: Props) {
+export default function MapaRota({ origem, paradas, trajeto, cor, destaque, aoMover, aoClicar, semNumero }: Props) {
   const el = useRef<HTMLDivElement>(null);
   const mapa = useRef<L.Map | null>(null);
   const camada = useRef<L.LayerGroup | null>(null);
   const ultimaChave = useRef("");
   const mover = useRef(aoMover);
   mover.current = aoMover;
+  const clicar = useRef(aoClicar);
+  clicar.current = aoClicar;
 
   useEffect(() => {
     if (!el.current || mapa.current) return;
@@ -49,9 +55,10 @@ export default function MapaRota({ origem, paradas, trajeto, cor, destaque, aoMo
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(m);
+    m.on("click", (e: L.LeafletMouseEvent) => clicar.current?.(e.latlng.lat, e.latlng.lng));
     camada.current = L.layerGroup().addTo(m);
     mapa.current = m;
-    return () => { m.remove(); mapa.current = null; camada.current = null; };
+    return () => { try { m.stop(); m.off(); m.remove(); } catch { /* o mapa já saiu da tela */ } mapa.current = null; camada.current = null; };
   }, []);
 
   useEffect(() => {
@@ -73,15 +80,15 @@ export default function MapaRota({ origem, paradas, trajeto, cor, destaque, aoMo
       pts.push([origem.lat, origem.lng]);
     }
     paradas.forEach((p, i) => {
-      const mk = L.marker([p.lat, p.lng], { icon: marcador(String(i + 1), p.cor ?? cor, p.id === destaque), title: p.nome, draggable: !!mover.current }).bindTooltip(`${i + 1}. ${p.nome}${mover.current ? " (arraste para corrigir)" : ""}`).addTo(g);
+      const mk = L.marker([p.lat, p.lng], { icon: marcador(semNumero ? "🏠" : String(i + 1), p.cor ?? cor, p.id === destaque), title: p.nome, draggable: !!mover.current }).bindTooltip(`${semNumero ? "" : `${i + 1}. `}${p.nome}${mover.current ? " (arraste para corrigir)" : ""}`).addTo(g);
       mk.on("dragend", () => { const ll = mk.getLatLng(); mover.current?.(p.id, ll.lat, ll.lng); });
       pts.push([p.lat, p.lng]);
     });
     for (const q of linha) pts.push(q);
     // só reenquadra quando o conjunto de pontos muda (arrastar um ponto não deve fazer o mapa pular)
     const chave = `${origem ? "o" : ""}|${paradas.map((p) => p.id).join(",")}|${trajeto?.length ?? 0}`;
-    if (pts.length && chave !== ultimaChave.current) { m.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16 }); ultimaChave.current = chave; }
-  }, [origem, paradas, trajeto, cor, destaque]);
+    if (pts.length && chave !== ultimaChave.current) { m.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: 16, animate: false }); ultimaChave.current = chave; }
+  }, [origem, paradas, trajeto, cor, destaque, semNumero]);
 
   return <div ref={el} className="size-full min-h-64 overflow-hidden rounded-2xl bg-stone-200" />;
 }

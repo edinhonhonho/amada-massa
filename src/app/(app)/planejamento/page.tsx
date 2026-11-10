@@ -1,7 +1,6 @@
-import { CalendarPlus, LayoutGrid, List, Plus, Users, Wheat } from "lucide-react";
+import { CalendarPlus, Plus, Users, Wheat } from "lucide-react";
 import Link from "next/link";
-import { Fragment } from "react";
-import Badge from "@/components/ui/Badge";
+import CalendarioAno from "@/components/CalendarioAno";
 import PageHeader from "@/components/ui/PageHeader";
 import SeletorAno from "@/components/SeletorAno";
 import SubmitButton from "@/components/ui/SubmitButton";
@@ -17,12 +16,11 @@ const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 type Semana = { id: string; inicio: string; fim: string; status: string; sem_producao: boolean; lista_fechada: boolean; paes_semana: { ordem: number; paes: { nome: string } | { nome: string }[] | null }[]; entregas: { count: number }[] };
 
-export default async function Planejamento({ searchParams }: { searchParams: Promise<{ ano?: string; vista?: string }> }) {
+export default async function Planejamento({ searchParams }: { searchParams: Promise<{ ano?: string }> }) {
   const { supabase } = await exigirEquipe();
   const hoje = hojeISO();
   const b = await searchParams;
   const ano = Number(b.ano) || Number(hoje.slice(0, 4));
-  const vista = b.vista === "lista" ? "lista" : "matriz";
 
   // todas as segundas-feiras cujas semanas começam neste ano (a 1ª pode cair em dezembro anterior)
   const primeira = segundaDe(`${ano}-01-01`);
@@ -42,8 +40,6 @@ export default async function Planejamento({ searchParams }: { searchParams: Pro
 
   const meses: string[][] = Array.from({ length: 12 }, () => []);
   for (const d of segundas) meses[d < `${ano}-01-01` ? 0 : Number(d.slice(5, 7)) - 1].push(d);
-  const maxCols = Math.max(...meses.map((m) => m.length));
-  const href = (v: string) => `/planejamento?ano=${ano}&vista=${v}`;
 
   const situacao = (s?: Semana) => !s ? { rotulo: "Não planejada", tom: "cinza" as const }
     : s.sem_producao ? { rotulo: "Sem produção", tom: "cinza" as const }
@@ -62,13 +58,8 @@ export default async function Planejamento({ searchParams }: { searchParams: Pro
         titulo={`Calendário ${ano}`}
         subtitulo={`${planejadas} de ${segundas.length} semanas com pães definidos. Abra uma semana para planejar, alocar e acompanhar.`}
         acoes={<>
-          <div role="tablist" aria-label="Forma de exibir" className="flex rounded-xl bg-stone-100 p-0.5 text-sm font-medium">
-            {([["matriz", "Matriz", LayoutGrid], ["lista", "Lista", List]] as const).map(([k, r, Icone]) => (
-              <Link key={k} role="tab" aria-selected={vista === k} href={href(k)} className={`flex items-center gap-1.5 rounded-[10px] px-3 py-1.5 transition ${vista === k ? "bg-white text-stone-900 shadow-sm" : "text-stone-500 hover:text-stone-800"}`}><Icone size={15} />{r}</Link>
-            ))}
-          </div>
-          <SeletorAno ano={ano} base="/planejamento" extra={`&vista=${vista}`} />
-          {ano !== Number(hoje.slice(0, 4)) && <Link className="btn-sec" href={`/planejamento?vista=${vista}`}>Ano atual</Link>}
+          <SeletorAno ano={ano} base="/planejamento" />
+          {ano !== Number(hoje.slice(0, 4)) && <Link className="btn-sec" href="/planejamento">Ano atual</Link>}
           {faltam > 0 && (
             <form action={criarSemanasDoAno}><input type="hidden" name="ano" value={ano} />
               <SubmitButton className="btn-sec"><CalendarPlus size={16} />Criar as {faltam} semanas que faltam</SubmitButton></form>
@@ -95,79 +86,36 @@ export default async function Planejamento({ searchParams }: { searchParams: Pro
         </section>
       )}
 
-      {vista === "matriz" ? (
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed border-separate border-spacing-2 text-sm" style={{ minWidth: 700 }}>
-            <colgroup><col style={{ width: 104 }} />{Array.from({ length: maxCols }, (_, i) => <col key={i} />)}</colgroup>
-            <thead>
-              <tr><th className="text-left text-xs font-medium text-stone-400" />{Array.from({ length: maxCols }, (_, i) => <th key={i} className="text-left text-xs font-medium text-stone-400">{i + 1}ª semana</th>)}</tr>
-            </thead>
-            <tbody>
-              {meses.map((lista, m) => lista.length > 0 && (
-                <tr key={m}>
-                  <th scope="row" className="align-top pt-3 text-left text-[15px] font-semibold">{MESES[m]}</th>
-                  {Array.from({ length: maxCols }, (_, i) => {
-                    const d = lista[i];
-                    if (!d) return <td key={i} />;
-                    const s = existentes.get(d);
-                    const paes = nomesPaes(s);
-                    const sit = situacao(s);
-                    const eAtual = d === atual;
-                    const passada = adicionarDias(d, 6) < hoje;
-                    return (
-                      <td key={i} className="align-top">
-                        {alvo(d, s, (
-                          <>
-                            <span className="flex items-center justify-between text-[11px] text-stone-400"><span>Sem. {numeroSemanaISO(d)}</span>{eAtual && <span className="rounded-full bg-amber-600 px-1.5 text-[10px] font-semibold text-white">hoje</span>}</span>
-                            <span className="mt-0.5 block text-[13px] font-semibold tabular-nums">{d.slice(8, 10)}–{adicionarDias(d, 6).slice(8, 10)}{d.slice(5, 7) !== adicionarDias(d, 6).slice(5, 7) ? `/${adicionarDias(d, 6).slice(5, 7)}` : ""}</span>
-                            <span className="mt-1.5 line-clamp-2 block min-h-[2.1rem] text-[11.5px] leading-snug">
-                              {s?.sem_producao ? <span className="text-stone-400">Sem produção</span>
-                                : paes.length ? <span className="text-stone-700">{paes.slice(0, 2).join(" · ")}{paes.length > 2 ? ` +${paes.length - 2}` : ""}</span>
-                                : <span className="text-stone-400">{s ? "Sem pães" : "+ Planejar"}</span>}
-                            </span>
-                            <span className="mt-1 flex items-center gap-1 text-[10.5px] text-stone-400">{s && (s.entregas?.[0]?.count ?? 0) > 0 ? <><Users size={10} />{s.entregas[0].count}</> : <span aria-hidden>&nbsp;</span>}<span className={`ml-auto size-1.5 rounded-full ${sit.tom === "verde" ? "bg-emerald-500" : sit.tom === "azul" ? "bg-sky-500" : sit.tom === "ambar" ? "bg-amber-500" : "bg-stone-300"}`} title={sit.rotulo} /></span>
-                          </>
-                        ), `block rounded-xl p-2.5 transition ${s ? "bg-painel ring-1 ring-stone-900/[0.05] hover:bg-white hover:shadow-md" : "bg-white ring-1 ring-stone-900/[0.06] hover:bg-painel"} ${eAtual ? "!ring-2 !ring-amber-500/70" : ""} ${passada ? "opacity-70" : ""}`)}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <p className="mt-2 flex items-center gap-4 text-xs text-stone-400"><span className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-stone-300" />não planejada ou sem produção</span><span className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-amber-500" />sem pães</span><span className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-sky-500" />planejada</span><span className="flex items-center gap-1.5"><i className="size-1.5 rounded-full bg-emerald-500" />lista fechada</span></p>
-        </div>
-      ) : (
-        <div className="cartao overflow-hidden !p-0">
-          <table className="tabela">
-            <thead><tr><th className="w-24">Semana</th><th className="w-44">Período</th><th>Pães</th><th className="w-24">Clientes</th><th className="w-36">Situação</th><th className="w-28" /></tr></thead>
-            <tbody>
-              {meses.map((lista, m) => lista.length > 0 && (
-                <Fragment key={m}>
-                  <tr className="bg-painel"><td colSpan={6} className="!border-b-0 !py-2 text-[13px] font-semibold text-stone-600">{MESES[m]}</td></tr>
-                  {lista.map((d) => {
-                    const s = existentes.get(d);
-                    const paes = nomesPaes(s);
-                    const sit = situacao(s);
-                    const eAtual = d === atual;
-                    const passada = adicionarDias(d, 6) < hoje;
-                    return (
-                      <tr key={d} className={`${eAtual ? "bg-amber-50/60" : ""} ${passada ? "text-stone-500" : ""}`}>
-                        <td className="tabular-nums"><span className="font-medium">{numeroSemanaISO(d)}</span>{eAtual && <span className="ml-2 rounded-full bg-amber-600 px-1.5 py-0.5 text-[10px] font-semibold text-white">hoje</span>}</td>
-                        <td className="tabular-nums">{dm(d)} a {dm(adicionarDias(d, 6))}</td>
-                        <td>{s?.sem_producao ? <span className="text-stone-400">Sem produção</span> : paes.length ? <span className="flex flex-wrap gap-1">{paes.map((n) => <span key={n} className="rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-900">{n}</span>)}</span> : <span className="text-stone-300">—</span>}</td>
-                        <td className="tabular-nums">{s && (s.entregas?.[0]?.count ?? 0) > 0 ? s.entregas[0].count : <span className="text-stone-300">—</span>}</td>
-                        <td><Badge tom={sit.tom} ponto>{sit.rotulo}</Badge></td>
-                        <td className="text-right">{s ? <Link href={`/semana/${s.id}`} className="btn-sec btn-pequeno">Abrir</Link> : <form action={planejarSemana}><input type="hidden" name="inicio" value={d} /><SubmitButton className="btn-sec btn-pequeno"><Plus size={13} />Planejar</SubmitButton></form>}</td>
-                      </tr>
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <CalendarioAno
+        meses={meses.map((lista, m) => {
+          if (!lista.length) return null;
+          const passado = adicionarDias(lista[lista.length - 1], 6) < hoje;
+          const planej = lista.filter((d) => { const x = existentes.get(d); return x && (x.sem_producao || x.paes_semana.length > 0); }).length;
+          return { nome: MESES[m], passado, resumo: `${lista.length} semanas · ${planej} planejadas`, semanas: lista.map((d) => {
+            const s = existentes.get(d);
+            const paes = nomesPaes(s);
+            const sit = situacao(s);
+            const eAtual = d === atual;
+            const passada = adicionarDias(d, 6) < hoje;
+            const fim = adicionarDias(d, 6);
+            const corPonto = sit.tom === "verde" ? "bg-emerald-500" : sit.tom === "azul" ? "bg-sky-500" : sit.tom === "ambar" ? "bg-amber-500" : "bg-stone-300";
+            const filhos = (
+              <>
+                <span className="flex items-center justify-between text-[11px] text-stone-400"><span>Sem. {numeroSemanaISO(d)}</span>{eAtual && <span className="rounded-full bg-amber-600 px-1.5 text-[10px] font-semibold text-white">hoje</span>}</span>
+                <span className="mt-0.5 block text-[13px] font-semibold tabular-nums">{d.slice(8, 10)}–{fim.slice(8, 10)}{d.slice(5, 7) !== fim.slice(5, 7) ? `/${fim.slice(5, 7)}` : ""}</span>
+                <span className={`mt-1.5 line-clamp-2 block text-[11.5px] leading-snug ${s ? "min-h-[2.1rem]" : ""}`}>
+                  {s?.sem_producao ? <span className="text-stone-400">Sem produção</span>
+                    : paes.length ? <span className="text-stone-700">{paes.slice(0, 2).join(" · ")}{paes.length > 2 ? ` +${paes.length - 2}` : ""}</span>
+                    : <span className="text-stone-400">{s ? "Sem pães" : "+ Planejar"}</span>}
+                </span>
+                <span className="mt-1 flex items-center gap-1 text-[10.5px] text-stone-400">{s && (s.entregas?.[0]?.count ?? 0) > 0 ? <><Users size={10} />{s.entregas[0].count}</> : <span aria-hidden>&nbsp;</span>}<span className={`ml-auto size-1.5 rounded-full ${corPonto}`} title={sit.rotulo} /></span>
+              </>
+            );
+            const classe = `block rounded-xl p-2.5 transition ${s ? "bg-painel ring-1 ring-stone-900/[0.05] hover:bg-white hover:shadow-md" : "bg-white ring-1 ring-stone-900/[0.06] hover:bg-painel"} ${eAtual ? "!ring-2 !ring-amber-500/70" : ""} ${passada ? "opacity-70" : ""}`;
+            return { chave: d, no: alvo(d, s, filhos, classe) };
+          }) };
+        })}
+      />
     </>
   );
 }

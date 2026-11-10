@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import BuscaTabela from "@/components/BuscaTabela";
 import ChipsBairro from "@/components/ChipsBairro";
 import EscolherPaes from "@/components/semana/EscolherPaes";
+import DestinosSemana from "@/components/semana/DestinosSemana";
 import MapaSemana from "@/components/semana/MapaSemana";
 import Badge from "@/components/ui/Badge";
 import Modal from "@/components/ui/Modal";
@@ -50,10 +51,10 @@ function CartaoGrupo({ g, paes, semanaId, rotas, mapa }: { g: Grupo; paes: PaoSe
           <p className="text-sm text-stone-500"><b className="text-stone-800">{g.ativos}</b> cliente{g.ativos === 1 ? "" : "s"} · <b className="text-stone-800">{g.totalPaes}</b> {g.totalPaes === 1 ? "pão" : "pães"}
             {paes.length > 0 && <span className="text-stone-400"> — {paes.map((p) => `${g.totais[p.id] ?? 0} ${p.nome}`).join(" · ")}</span>}</p>
         </div>
-                <a href={pdfHref(semanaId, g.chave)} target="_blank" className="btn-sec btn-pequeno"><FileDown size={14} />PDF</a>
+                {!entrega && <a href={pdfHref(semanaId, g.chave)} target="_blank" className="btn-sec btn-pequeno"><FileDown size={14} />PDF</a>}
       </header>
-      {semRota && <p className="bg-amber-50 px-5 py-2 text-sm text-amber-900">Estes clientes de entrega ainda não estão em nenhuma rota. Marque-os abaixo e mova para uma rota.</p>}
-      {mapa}
+      {semRota && <p className="bg-amber-50 px-5 py-2 text-sm text-amber-900">Estes clientes moram em bairros que nenhuma rota cobre. Marque-os abaixo e mova para uma rota, ou inclua o bairro em <Link href="/rotas" className="font-medium underline">Rotas</Link>.</p>}
+      {mapa && <div className="p-3 pb-0">{mapa}</div>}
 
       <form id={formId} action={salvarQuantidades}>
         <input type="hidden" name="semana_id" value={semanaId} />
@@ -198,34 +199,34 @@ function ListaClientes({ grupos, semanaId }: { grupos: Grupo[]; semanaId: string
 }
 
 function Etapas({ semanaId, estados, atual }: { semanaId: string; estados: EstadoEtapa[]; atual: string }) {
-  const feitas = estados.filter((e) => e.feita).length;
+  const indice = estados.findIndex((e) => e.id === atual);
+  const ativa = estados[indice];
+  const proxima = estados[indice + 1];
   return (
-    <nav className="mb-6 rounded-[22px] bg-white p-4 shadow-[0_0_0_1px_rgba(28,25,23,.06)] sm:p-5" aria-label="Etapas da semana">
-      <div className="mb-3 flex items-center justify-between text-xs text-stone-500">
-        <span className="font-medium text-stone-700">Passo a passo da semana</span>
-        <span>{feitas} de {estados.length} etapas prontas</span>
-      </div>
-      <ol className="grid grid-cols-5">
+    <nav className="mb-6 overflow-hidden rounded-[22px] bg-white shadow-[0_0_0_1px_rgba(28,25,23,.06)]" aria-label="Etapas da semana">
+      <ol className="grid grid-cols-5 px-2 pt-5 sm:px-4">
         {estados.map((e, i) => {
-          const ativa = e.id === atual;
+          const eAtiva = e.id === atual;
           const ultima = i === estados.length - 1;
           return (
             <li key={e.id} className="relative">
-              {!ultima && <span aria-hidden className={`absolute left-1/2 top-[17px] h-0.5 w-full ${e.feita ? "bg-emerald-300" : "bg-stone-200"}`} />}
-              <Link href={`/semana/${semanaId}?etapa=${e.id}`} aria-current={ativa ? "step" : undefined} className="group relative flex flex-col items-center gap-1.5 px-1 text-center">
-                <span className={`flex size-[35px] items-center justify-center rounded-full text-sm font-semibold ring-4 ring-white transition ${e.feita ? "bg-emerald-500 text-white" : ativa ? "bg-amber-700 text-white shadow-[0_6px_16px_-4px_rgba(180,83,9,.6)]" : "bg-stone-100 text-stone-500 group-hover:bg-stone-200"}`}>
-                  {e.feita ? <Check size={17} strokeWidth={3} /> : i + 1}
+              {!ultima && <span aria-hidden className={`absolute left-1/2 top-[17px] h-0.5 w-full ${e.feita && estados[i + 1].feita ? "bg-emerald-300" : e.feita ? "bg-gradient-to-r from-emerald-300 to-stone-200" : "bg-stone-200"}`} />}
+              <Link href={`/semana/${semanaId}?etapa=${e.id}`} aria-current={eAtiva ? "step" : undefined} className="group relative flex flex-col items-center gap-1 px-0.5 pb-4 text-center">
+                <span className={`flex size-[35px] items-center justify-center rounded-full text-sm font-semibold ring-4 ring-white transition ${eAtiva ? "bg-amber-700 text-white shadow-[0_6px_16px_-4px_rgba(180,83,9,.6)]" : e.feita ? "bg-emerald-500 text-white" : "bg-stone-100 text-stone-500 group-hover:bg-stone-200"}`}>
+                  {e.feita && !eAtiva ? <Check size={17} strokeWidth={3} /> : i + 1}
                 </span>
-                <span className={`text-[13px] font-semibold leading-tight ${ativa ? "text-stone-900" : "text-stone-600 group-hover:text-stone-900"}`}>{e.rotulo}</span>
+                <span className={`mt-1 text-[13px] font-semibold leading-tight ${eAtiva ? "text-stone-900" : "hidden text-stone-600 group-hover:text-stone-900 sm:block"}`}>{e.rotulo}</span>
                 <span className="hidden text-xs leading-tight text-stone-500 sm:block">{e.detalhe}</span>
-                {e.alerta
-                  ? <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800"><AlertTriangle size={11} />{e.alerta}</span>
-                  : ativa && <span className="h-0.5 w-6 rounded-full bg-amber-700" />}
+                {e.alerta && <span className="hidden items-center gap-1 rounded-full bg-amber-50 sm:flex px-2 py-0.5 text-[11px] font-medium text-amber-800"><AlertTriangle size={11} />{e.alerta}</span>}
               </Link>
             </li>
           );
         })}
       </ol>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-stone-100 bg-stone-50/70 px-5 py-3">
+        <p className="min-w-0 flex-1 basis-64 text-sm text-stone-600"><b className="text-stone-900">Etapa {indice + 1} de {estados.length}.</b> {ativa.curto}.</p>
+        {proxima && <Link href={`/semana/${semanaId}?etapa=${proxima.id}`} className="btn-sec btn-pequeno">{proxima.rotulo}<ArrowRight size={14} /></Link>}
+      </div>
     </nav>
   );
 }
@@ -324,14 +325,17 @@ export default async function Semana({ params, searchParams }: { params: Promise
   type RotaSemana = NonNullable<typeof rotas>[number] & { entregador?: { nome: string } | null; origem?: { nome: string; lat: number | null; lng: number | null } | null };
   const mapaRotas = new Map((rotas ?? [] as RotaSemana[]).map((r) => [r.id, r as unknown as RotaSemana]));
   const destino = grupos.find((g) => g.chave === destinoPedido) ?? grupos.find((g) => g.chave === "rota:sem") ?? grupos.find((g) => g.tipo === "entrega" && g.refId && !mapaRotas.get(g.refId)?.entregador_id) ?? grupos[0];
-  const rotaDestino = destino?.refId && destino.tipo === "entrega" ? mapaRotas.get(destino.refId) : undefined;
-  const mapaDestino = destino && rotaDestino ? (
-    <MapaSemana
-      semanaId={id} cor={rotaDestino.cor ?? "#b45309"} origem={rotaDestino.origem ?? null}
-      trajeto={(rotaDestino.trajeto as [number, number][] | null) ?? null} distanciaM={rotaDestino.distancia_m ?? null} duracaoS={rotaDestino.duracao_s ?? null}
-      paradas={destino.linhas.map((l) => ({ id: l.id, clienteId: l.cliente_id, nome: l.nome, lat: l.lat, lng: l.lng, ativa: estaAtiva(l.status), logradouro: l.endereco, bairro: l.bairro }))}
-    />
-  ) : null;
+  const mapaPara = (g: Grupo) => {
+    const rota = g.refId && g.tipo === "entrega" ? mapaRotas.get(g.refId) : undefined;
+    if (!rota) return null;
+    return (
+      <MapaSemana
+        semanaId={id} rotaId={rota.id} cor={rota.cor ?? "#b45309"} origem={rota.origem ?? null}
+        trajeto={(rota.trajeto as [number, number][] | null) ?? null} distanciaM={rota.distancia_m ?? null} duracaoS={rota.duracao_s ?? null}
+        paradas={g.linhas.map((l) => ({ id: l.id, clienteId: l.cliente_id, nome: l.nome, lat: l.lat, lng: l.lng, ativa: estaAtiva(l.status), rua: l.rua, numero: l.numero, bairro: l.bairro, cidade: l.cidade, cep: l.cep }))}
+      />
+    );
+  };
 
   return (
     <>
@@ -407,7 +411,7 @@ export default async function Semana({ params, searchParams }: { params: Promise
                   <td>{g.ativos}</td>
                   {paes.map((p) => <td key={p.id} className="text-center">{g.totais[p.id] ?? 0}</td>)}
                   <td className="text-center font-semibold">{g.totalPaes}</td>
-                  <td className="text-right"><a href={pdfHref(id, g.chave)} target="_blank" className="btn-ghost !px-2 !py-1 text-xs"><FileDown size={13} />PDF</a></td>
+                  <td className="text-right">{g.tipo !== "entrega" && <a href={pdfHref(id, g.chave)} target="_blank" className="btn-ghost !px-2 !py-1 text-xs"><FileDown size={13} />PDF</a>}</td>
                 </tr>
               ))}
             </tbody>
@@ -428,42 +432,22 @@ export default async function Semana({ params, searchParams }: { params: Promise
         grupos.length === 0 ? (
           <div className="cartao"><Vazio icone={Users} titulo="Nenhum cliente com assinatura ativa" texto="Quando houver clientes com assinatura ativa, eles aparecem aqui nesta semana, agrupados por entrega, ponto de coleta e padaria." /></div>
         ) : (
-          <div className="grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <aside className="flex flex-col gap-5 lg:sticky lg:top-4">
-              {(["entrega", "ponto", "padaria"] as const).map((t) => doTipo(t).length > 0 && (
-                <div key={t}>
-                  <h2 className="mb-2 flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-stone-400">
-                    {t === "entrega" ? <><Truck size={14} />Entrega em casa</> : t === "ponto" ? <><MapPin size={14} />Pontos de coleta</> : <><Store size={14} />Padaria</>}
-                  </h2>
-                  <ul className="flex flex-col gap-1.5">
-                    {doTipo(t).map((g) => {
-                      const sel = g.chave === destino.chave;
-                      const rota = g.refId ? mapaRotas.get(g.refId) : undefined;
-                      const semResp = t === "entrega" && g.refId && !rota?.entregador_id;
-                      const alerta = g.chave === "rota:sem" || semResp;
-                      const Ic = t === "entrega" ? Truck : t === "padaria" ? Store : MapPin;
-                      return (
-                        <li key={g.chave}>
-                          <Link href={`/semana/${id}?etapa=alocar&destino=${encodeURIComponent(g.chave)}`} aria-current={sel ? "true" : undefined}
-                            className={`flex items-center gap-3 rounded-2xl p-3 transition ${sel ? "bg-white shadow-[0_8px_24px_-10px_rgba(28,25,23,.3)] ring-1 ring-stone-900/10" : "bg-painel ring-1 ring-stone-900/[0.04] hover:bg-white"}`}>
-                            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl text-white" style={{ background: g.cor ?? (g.chave === "rota:sem" ? "#d97706" : t === "padaria" ? "#be123c" : t === "ponto" ? "#0f766e" : "#b45309") }}><Ic size={16} /></span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-sm font-semibold">{g.chave === "rota:sem" ? "Sem rota definida" : g.nome}</span>
-                              <span className="block truncate text-xs text-stone-500">{g.ativos} cliente{g.ativos === 1 ? "" : "s"} · {g.totalPaes} {g.totalPaes === 1 ? "pão" : "pães"}{rota?.entregador?.nome ? ` · ${rota.entregador.nome}` : ""}</span>
-                            </span>
-                            {alerta && <span title={g.chave === "rota:sem" ? "Entregas sem rota" : "Rota sem entregador"} className="size-2 shrink-0 rounded-full bg-amber-500" />}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ))}
-            </aside>
-            <div className="min-w-0">
-              <CartaoGrupo key={destino.chave} g={destino} paes={paes} semanaId={id} rotas={rotas ?? []} mapa={mapaDestino} />
-            </div>
-          </div>
+          <DestinosSemana
+            semanaId={id} inicial={destino.chave}
+            categorias={(["entrega", "ponto", "padaria"] as const).filter((t) => doTipo(t).length > 0).map((t) => ({
+              tipo: t, titulo: t === "entrega" ? "Entrega em casa" : t === "ponto" ? "Pontos de coleta" : "Padaria",
+              destinos: doTipo(t).map((g) => {
+                const rota = g.refId ? mapaRotas.get(g.refId) : undefined;
+                const semResp = t === "entrega" && !!g.refId && !rota?.entregador_id;
+                return {
+                  chave: g.chave, nome: g.chave === "rota:sem" ? "Sem rota" : g.nome, ativos: g.ativos, paes: g.totalPaes,
+                  cor: g.cor ?? (g.chave === "rota:sem" ? "#d97706" : t === "padaria" ? "#be123c" : t === "ponto" ? "#0f766e" : "#b45309"),
+                  alerta: g.chave === "rota:sem" ? "Entregas sem rota" : semResp ? "Rota sem responsável" : null,
+                };
+              }),
+            }))}
+            paineis={Object.fromEntries(grupos.map((g) => [g.chave, <CartaoGrupo key={g.chave} g={g} paes={paes} semanaId={id} rotas={rotas ?? []} mapa={mapaPara(g)} />]))}
+          />
         )
       )}
         </>

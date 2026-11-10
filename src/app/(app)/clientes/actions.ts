@@ -27,6 +27,8 @@ const clienteSchema = z.object({
   confirmado_em: z.string().nullable(),
   restricoes_alimentares: z.string().nullable(),
   observacoes: z.string().nullable(),
+  lat: z.coerce.number().min(-90).max(90).nullable(),
+  lng: z.coerce.number().min(-180).max(180).nullable(),
 });
 
 export type EstadoForm = { erro?: string; duplicados?: { id: string; nome: string }[] };
@@ -63,6 +65,19 @@ async function validarPonto(supabase: SupabaseClient, modalidade: string, pontoI
   return null;
 }
 
+/** Rota de preferência do cliente: vazio = automática, pelo bairro; senão fica fixa nessa rota. */
+async function definirRotaPreferida(supabase: SupabaseClient, clienteId: string, f: FormData) {
+  if (!f.has("rota_preferida")) return;
+  const rotaId = vazio(f.get("rota_preferida"));
+  const { data: atual } = await supabase.from("atribuicoes_rota").select("id, rota_id").eq("cliente_id", clienteId).is("fim", null).maybeSingle();
+  if ((atual?.rota_id ?? null) === rotaId) return;
+  if (atual) await supabase.from("atribuicoes_rota").update({ fim: hojeISO() }).eq("id", atual.id);
+  if (rotaId) await supabase.from("atribuicoes_rota").insert({ cliente_id: clienteId, rota_id: rotaId, ordem: 0, inicio: hojeISO() });
+  await supabase.rpc("realocar_rotas_abertas");
+  revalidatePath("/rotas");
+  revalidatePath("/semana", "layout");
+}
+
 export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoForm> {
   const { supabase } = await exigirEquipe();
   const id = vazio(f.get("id"));
@@ -88,11 +103,9 @@ export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoF
   }
 
   if (id) {
-    // se o endereço mudou, a localização no mapa precisa ser refeita
-    const { data: antes } = await supabase.from("clientes").select("logradouro, numero, cep, cidade").eq("id", id).single();
-    const mudou = !antes || (["logradouro", "numero", "cep", "cidade"] as const).some((k) => (antes[k] ?? null) !== (dados[k] ?? null));
-    const { error } = await supabase.from("clientes").update(mudou ? { ...dados, lat: null, lng: null } : dados).eq("id", id);
+    const { error } = await supabase.from("clientes").update(dados).eq("id", id);
     if (error) return { erro: error.message };
+    await definirRotaPreferida(supabase, id, f);
     revalidatePath(`/clientes/${id}`);
     redirect(`/clientes/${id}`);
   }
@@ -136,6 +149,7 @@ export async function salvarCliente(_: EstadoForm, f: FormData): Promise<EstadoF
     await supabase.from("clientes").delete().eq("id", novo.id); // evita cliente sem assinatura
     return { erro: e2.message };
   }
+  await definirRotaPreferida(supabase, novo.id, f);
   await supabase.rpc("gerar_cobrancas", { p_competencia: hojeISO() }); // a cobrança do mês já nasce com o cliente
   revalidatePath("/clientes");
   redirect(`/clientes/${novo.id}`);

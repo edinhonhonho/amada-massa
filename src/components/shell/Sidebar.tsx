@@ -23,7 +23,11 @@ export default function Sidebar({
   // menu recolhido (só ícones); lembra a escolha neste navegador. Atalho: Ctrl B (⌘ B no Mac).
   const [recolhida, setRecolhida] = useState(false);
   useEffect(() => {
-    try { setRecolhida(localStorage.getItem("amada-lateral") === "1"); } catch { /* sem armazenamento */ }
+    try {
+      const guardado = localStorage.getItem("amada-lateral");
+      // sem escolha guardada, telas estreitas começam com o menu recolhido para dar espaço ao conteúdo
+      setRecolhida(guardado === null ? window.innerWidth < 1100 : guardado === "1");
+    } catch { /* sem armazenamento */ }
     const tecla = (ev: KeyboardEvent) => {
       if ((ev.ctrlKey || ev.metaKey) && !ev.altKey && !ev.shiftKey && ev.key.toLowerCase() === "b") {
         ev.preventDefault();
@@ -33,13 +37,6 @@ export default function Sidebar({
     window.addEventListener("keydown", tecla);
     return () => window.removeEventListener("keydown", tecla);
   }, []);
-  const [menuUsuario, setMenuUsuario] = useState(false);
-  useEffect(() => {
-    if (!menuUsuario) return;
-    const fora = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest("[data-menu-usuario]")) setMenuUsuario(false); };
-    document.addEventListener("mousedown", fora);
-    return () => document.removeEventListener("mousedown", fora);
-  }, [menuUsuario]);
   const alternar = () => setRecolhida((v) => { try { localStorage.setItem("amada-lateral", v ? "0" : "1"); } catch { /* sem armazenamento */ } return !v; });
 
   return (
@@ -59,15 +56,18 @@ export default function Sidebar({
         </button>
       </div>
 
+      {!recolhida && (
       <button
         type="button"
         onClick={() => window.dispatchEvent(new Event("abrir-paleta"))}
         title={`Buscar (${mod} K)`}
-        className={`mb-1 mt-1 flex items-center rounded-xl bg-white py-2.5 text-sm text-stone-400 shadow-[0_0_0_1px_rgba(28,25,23,.07)] transition hover:text-stone-600 hover:shadow-[0_0_0_1px_rgba(28,25,23,.14)] ${recolhida ? "mx-3 justify-center" : "mx-4 gap-2 px-3"}`}
+        className={`mb-1 mt-1 flex items-center rounded-xl bg-white py-2.5 text-sm text-stone-400 shadow-[0_0_0_1px_rgba(28,25,23,.07)] transition hover:text-stone-600 hover:shadow-[0_0_0_1px_rgba(28,25,23,.14)] mx-4 gap-2 px-3`}
       >
         <Search size={15} />
-        {!recolhida && <><span className="flex-1 text-left">Buscar…</span><Kbd>{mod} K</Kbd></>}
+        <span className="flex-1 text-left">Buscar…</span><Kbd>{mod} K</Kbd>
       </button>
+
+      )}
 
       <nav className={`flex-1 overflow-y-auto pb-3 ${recolhida ? "px-3" : "px-4"}`}>
         {gruposVisiveis(admin).map((g, gi) => (
@@ -85,7 +85,7 @@ export default function Sidebar({
                       prefetch
                       title={recolhida ? `${it.rotulo} (${it.atalho.toUpperCase().split("").join(" ")})` : it.dica}
                       aria-label={it.rotulo}
-                      className={`group relative flex items-center rounded-xl py-2 text-sm transition ${recolhida ? "justify-center px-0" : "gap-2.5 px-2.5"} ${
+                      className={`group relative flex h-9 items-center rounded-xl text-sm transition ${recolhida ? "justify-center px-0" : "gap-2.5 px-2.5"} ${
                         on ? "bg-white font-medium text-stone-900 shadow-[0_1px_2px_rgba(28,25,23,.06),0_0_0_1px_rgba(28,25,23,.05)]" : "text-stone-600 hover:bg-white/70 hover:text-stone-900"
                       }`}
                     >
@@ -97,7 +97,7 @@ export default function Sidebar({
                         <Icone size={17} className={on ? "text-amber-700" : "text-stone-400 group-hover:text-stone-600"} />
                       )}
                       {!recolhida && <span className="flex-1 truncate">{it.rotulo}</span>}
-                      {!recolhida && <span className="hidden items-center gap-0.5 group-hover:flex">{it.atalho.toUpperCase().split("").map((k, n) => <Kbd key={n}>{k}</Kbd>)}</span>}
+                      {!recolhida && <span className="hidden items-center gap-0.5 group-hover:flex [&_kbd]:!leading-none">{it.atalho.toUpperCase().split("").map((k, n) => <Kbd key={n}>{k}</Kbd>)}</span>}
                     </Link>
                   </li>
                 );
@@ -107,21 +107,8 @@ export default function Sidebar({
         ))}
       </nav>
 
-      <div data-menu-usuario className="relative mx-3 mb-3">
-        {recolhida ? (
-          <>
-            <button type="button" onClick={() => setMenuUsuario((v) => !v)} aria-expanded={menuUsuario} aria-label="Menu do usuário" title={nome}
-              className="flex w-full justify-center rounded-2xl bg-white p-2 shadow-[0_0_0_1px_rgba(28,25,23,.05)] transition hover:shadow-md">
-              <Avatar nome={nome} tamanho={34} />
-            </button>
-            {menuUsuario && (
-              <div className="absolute bottom-0 left-full z-30 ml-3 w-56 rounded-2xl bg-white p-3 shadow-[0_20px_44px_-16px_rgba(28,25,23,.4),0_0_0_1px_rgba(28,25,23,.06)]">
-                <div className="mb-2 flex items-center gap-2.5"><Avatar nome={nome} tamanho={34} /><div className="min-w-0 leading-tight"><div className="truncate text-sm font-medium">{nome}</div><div className="text-xs text-stone-500">{ROTULO_PERFIL[perfil] ?? perfil}</div></div></div>
-                <form action={sair}><SairBotao className="btn-sec btn-pequeno w-full" icone={<LogOut size={14} />} titulo="Sair" rotulo="Sair" /></form>
-              </div>
-            )}
-          </>
-        ) : (
+      {!recolhida && (
+        <div className="mx-3 mb-3">
           <div className="flex items-center gap-2.5 rounded-2xl bg-white p-2.5 shadow-[0_0_0_1px_rgba(28,25,23,.05)]">
             <Avatar nome={nome} tamanho={34} />
             <div className="min-w-0 flex-1 leading-tight">
@@ -130,8 +117,8 @@ export default function Sidebar({
             </div>
             <form action={sair}><SairBotao className="btn-ghost !p-2" icone={<LogOut size={17} />} titulo="Sair" /></form>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </aside>
   );
 }

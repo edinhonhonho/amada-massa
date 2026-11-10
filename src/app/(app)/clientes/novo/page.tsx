@@ -7,9 +7,10 @@ import ClienteForm from "../ClienteForm";
 
 export default async function NovoCliente() {
   const { supabase } = await exigirEquipe();
-  const [{ data: planos }, { data: pontos }] = await Promise.all([
+  const [{ data: planos }, { data: pontos }, { data: rotas }] = await Promise.all([
     supabase.from("planos").select("id, nome, modalidade, paes_por_semana, valor_centavos").eq("ativo", true).order("valor_centavos"),
     supabase.from("pontos_coleta").select("id, nome, tipo, endereco, horario_texto").eq("ativo", true).order("nome"),
+    supabase.from("rotas").select("id, nome, bairros").eq("ativa", true).order("nome"),
   ]);
 
   // O cliente assina um plano: sem plano cadastrado não há o que escolher.
@@ -28,7 +29,7 @@ export default async function NovoCliente() {
   return (
     <>
       <PageHeader voltar={{ href: "/clientes", rotulo: "Clientes" }} titulo="Novo cliente" subtitulo="Cadastre quem já confirmou a assinatura: dados, endereço e o plano que vai assinar." />
-      <ClienteForm planos={planos} pontos={(pontos ?? []) as never} />
+      <ClienteForm planos={planos} pontos={(pontos ?? []) as never} rotas={(rotas ?? []).map((r) => ({ id: r.id, nome: r.nome, bairros: (r.bairros ?? []) as string[] }))} />
     </>
   );
 }

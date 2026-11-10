@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Loader2, Plus, Route, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
@@ -76,28 +76,48 @@ export default function RotaEditor({
   return (
     <div className="flex max-w-5xl flex-col gap-5">
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        <section className="cartao">
-          <div className="cartao-titulo">Dados da rota</div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-4">
-            <div className="col-span-2"><label className="rotulo">Nome <span className="text-red-500">*</span></label><input className="campo" value={d.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: Rota Centro" /></div>
-            <div className="col-span-2"><label className="rotulo">Responsável</label>
-              <select className="campo" value={d.entregador_id ?? ""} onChange={(e) => set("entregador_id", e.target.value || null)}><option value="">Sem responsável</option>{entregadores.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}</select></div>
-            <div className="col-span-2 grid grid-cols-3 gap-3">
-              <div><label className="rotulo">Dia</label>
-                <select className="campo" value={d.dia_semana ?? ""} onChange={(e) => set("dia_semana", e.target.value === "" ? null : Number(e.target.value))}><option value="">—</option>{DIAS.map((x, i) => <option key={i} value={i}>{x}</option>)}</select></div>
-              <div><label className="rotulo">Saída</label><input className="campo !px-3" type="time" value={d.janela_inicio?.slice(0, 5) ?? ""} onChange={(e) => set("janela_inicio", e.target.value || null)} /></div>
-              <div><label className="rotulo">Fim previsto</label><input className="campo !px-3" type="time" value={d.janela_fim?.slice(0, 5) ?? ""} onChange={(e) => set("janela_fim", e.target.value || null)} /></div>
+        <section className="cartao flex flex-col gap-5">
+          <div className="cartao-titulo !mb-0">Dados da rota</div>
+
+          <div>
+            <label className="rotulo" htmlFor="rota-nome">Nome <span className="text-red-500">*</span></label>
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl text-white shadow-sm" style={{ background: d.cor }}><Route size={18} /></span>
+              <input id="rota-nome" className="campo" value={d.nome} onChange={(e) => set("nome", e.target.value)} placeholder="Ex.: Rota Centro" />
             </div>
-            <div className="col-span-2"><label className="rotulo">Ponto de partida</label>
-              <select className="campo" value={d.origem_ponto_id ?? ""} onChange={(e) => set("origem_ponto_id", e.target.value || null)}><option value="">Sem ponto de partida</option>{pontos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select></div>
-            <div>
-              <label className="rotulo">Cor</label>
-              <div className="flex flex-wrap gap-1.5">{CORES.map((c) => (
-                <button key={c} type="button" onClick={() => set("cor", c)} aria-label={`Cor ${c}`} className={`flex size-7 items-center justify-center rounded-full transition ${d.cor === c ? "ring-4 ring-stone-300" : "hover:scale-110"}`} style={{ background: c }}>{d.cor === c && <Check size={14} className="text-white" />}</button>
-              ))}</div>
+            <div className="mt-2.5 flex flex-wrap gap-1.5 pl-[52px]" role="group" aria-label="Cor da rota">{CORES.map((c) => (
+              <button key={c} type="button" onClick={() => set("cor", c)} aria-label={`Cor ${c}`} aria-pressed={d.cor === c} className={`flex size-6 items-center justify-center rounded-full transition ${d.cor === c ? "ring-2 ring-stone-900 ring-offset-2 ring-offset-painel" : "hover:scale-110"}`} style={{ background: c }}>{d.cor === c && <Check size={12} className="text-white" />}</button>
+            ))}</div>
+          </div>
+
+          <div>
+            <label className="rotulo" htmlFor="rota-resp">Responsável pela entrega</label>
+            <select id="rota-resp" className="campo" value={d.entregador_id ?? ""} onChange={(e) => set("entregador_id", e.target.value || null)}><option value="">Ainda sem responsável</option>{entregadores.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}</select>
+          </div>
+
+          <div>
+            <span className="rotulo">Dia e horário de saída</span>
+            <div className="flex flex-wrap items-center gap-3">
+              <div role="group" aria-label="Dia da semana" className="flex gap-1">
+                {DIAS.map((x, i) => (
+                  <button key={i} type="button" aria-pressed={d.dia_semana === i} title={x} onClick={() => set("dia_semana", d.dia_semana === i ? null : i)}
+                    className={`size-9 rounded-xl text-[13px] font-semibold transition ${d.dia_semana === i ? "bg-stone-900 text-white shadow-md" : "bg-white text-stone-600 shadow-[0_0_0_1px_rgba(28,25,23,.1)] hover:bg-stone-50"}`}>{x.slice(0, 1)}</button>
+                ))}
+              </div>
+              <span className="flex items-center gap-2 text-sm text-stone-500">às <input aria-label="Horário de saída" className="campo !w-36 !px-3" type="time" value={d.janela_inicio?.slice(0, 5) ?? ""} onChange={(e) => set("janela_inicio", e.target.value || null)} /></span>
             </div>
-            <div><label className="rotulo">Capacidade (pães)</label><input className="campo" type="number" min={1} value={d.capacidade_paes ?? ""} onChange={(e) => set("capacidade_paes", e.target.value ? Number(e.target.value) : null)} placeholder="Opcional" /></div>
-            {d.id && <label className="col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-amber-700" checked={d.ativa} onChange={(e) => set("ativa", e.target.checked)} />Rota ativa</label>}
+            {d.dia_semana != null && <p className="ajuda mt-1.5">{DIAS[d.dia_semana]}{d.janela_inicio ? `, saindo às ${d.janela_inicio.slice(0, 5)}` : ""}.</p>}
+          </div>
+
+          <div>
+            <label className="rotulo" htmlFor="rota-origem">Ponto de partida</label>
+            <select id="rota-origem" className="campo" value={d.origem_ponto_id ?? ""} onChange={(e) => set("origem_ponto_id", e.target.value || null)}><option value="">Sem ponto de partida</option>{pontos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}</select>
+            <p className="ajuda">O caminho de cada semana começa daqui.</p>
+          </div>
+
+          <div className="grid grid-cols-2 items-end gap-3">
+            <div><label className="rotulo" htmlFor="rota-cap">Capacidade prevista</label><input id="rota-cap" className="campo" type="number" min={1} value={d.capacidade_paes ?? ""} onChange={(e) => set("capacidade_paes", e.target.value ? Number(e.target.value) : null)} placeholder="Pães por semana (opcional)" /></div>
+            {d.id && <label className="flex h-[42px] items-center gap-2 text-sm"><input type="checkbox" className="size-4 accent-amber-700" checked={d.ativa} onChange={(e) => set("ativa", e.target.checked)} />Rota ativa</label>}
           </div>
         </section>
 

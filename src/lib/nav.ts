@@ -36,11 +36,11 @@ export const GRUPOS: GrupoNav[] = [
     ],
   },
   {
-    titulo: "Rotina da semana",
+    titulo: "Entregas",
     itens: [
-      { href: "/semana", rotulo: "Esta semana", icone: CalendarCheck, atalho: "re", dica: "Planejar, clientes, pontos e rotas, consolidar e acompanhar" },
-      { href: "/planejamento", rotulo: "Calendário", icone: CalendarDays, atalho: "rc", dica: "Todas as semanas do ano" },
-      { href: "/entregas/historico", rotulo: "Histórico de entregas", icone: Truck, atalho: "rh", dica: "Entregas de semanas passadas" },
+      { href: "/planejamento", rotulo: "Calendário", icone: CalendarDays, atalho: "ec", dica: "Todas as semanas do ano" },
+      { href: "/semana", rotulo: "Esta semana", icone: CalendarCheck, atalho: "ee", dica: "Pães, clientes, pontos e rotas, consolidar e acompanhar" },
+      { href: "/entregas/historico", rotulo: "Histórico de entregas", icone: Truck, atalho: "eh", dica: "Entregas de semanas passadas" },
     ],
   },
   {

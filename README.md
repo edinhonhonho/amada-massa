@@ -9,7 +9,7 @@ Sistema interno (Next.js + TypeScript + Tailwind) hospedado na **Vercel**, com *
 | 1 Base | Login, perfis com RLS, clientes (status, linha do tempo, contatos), planos, assinaturas, pontos de coleta, auditoria, LGPD |
 | 2 Dinheiro | Cobrança mensal automática (mês atual e próximo), baixa parcial/total, ajuste/isenção com justificativa, estorno (admin), situação calculada (em dia, a vencer, vence hoje, atrasado, crítico), painel de pagamentos e grade clientes × meses |
 | 3 Rotas | Editor com seleção de clientes, ordem sugerida e trajeto de bicicleta no mapa; atribuição com histórico (uma ativa por cliente); mapa e navegação pelo Google Maps no app do entregador |
-| 4 Rotas e planejamento | **Rotas**: cada rota tem responsável, dia e os bairros que cobre; a cada semana, quem tem assinatura de entrega ativa nesses bairros entra na rota, e a ordem das paradas e o caminho de bicicleta são calculados sozinhos (o mapa da rota permite arrastar um ponto para corrigir a localização). **Pães**: catálogo em Cadastros; o tradicional é um pão como os outros. |
+| 4 Rotas e planejamento | **Rotas**: cada rota tem responsável, dia e os bairros que cobre; a cada semana, quem tem assinatura de entrega ativa nesses bairros entra na rota, e a ordem das paradas e o caminho de bicicleta são calculados sozinhos O cliente pode ter uma rota de preferência; sem ela vale o bairro. A casa do cliente é marcada no mapa no próprio cadastro (sai do endereço e pode ser arrastada); na semana, a rota localiza endereços que faltam, ordena as paradas e traça o caminho sozinha. **Pães**: catálogo em Cadastros; o tradicional é um pão como os outros. |
 | 4b Planejamento | Calendário do ano; catálogo de pães reutilizáveis; em cada semana, clientes com assinatura ativa agrupados por rota, ponto de coleta e padaria, quantidade de cada pão por cliente, total a produzir por destino e PDF para conferência, pular cliente, semana sem produção, entregas geradas com suspensão por atraso (volta ao pagar), listas de produção, entrega e coleta para imprimir |
 | 5 Entregas | App do entregador (PWA, fila offline, iniciar/finalizar rota, foto e observação por parada, sem dados financeiros), ocorrências, pendências, histórico com fotos |
 | 6 Comunicação e relatórios | **Mensagens**: central de avisos pelo app Amada Massa (único canal): para todos, em atraso, com mensalidade em aberto ou uma rota, com `{nome}`, `{valor}`, `{vencimento}`, prévia no celular e histórico com quem leu; escolha de pessoas específicas, modelos editáveis, `{nome}` também no título, envio com barra de progresso; aviso individual na ficha do cliente e lembrete de cobrança em Pagamentos; 7 relatórios, CSV, configurações |
@@ -44,7 +44,7 @@ O SQL **apaga todos os clientes atuais** e importa clientes, assinaturas (modali
 
 ## Atalhos de teclado (gestão)
 
-`⌘K` ou `/` abre a busca e os comandos (clientes, telas e criar). `N` novo cliente. cada tela tem um atalho de duas letras: a inicial do grupo e a inicial da página (`C` `M` = Comunicação > Mensagens, `F` `P` = Financeiro > Pagamentos, `R` `E` = Rotina da semana > Esta semana). `?` mostra a lista.
+`⌘K` ou `/` abre a busca e os comandos (clientes e telas). Cada tela tem um atalho de duas letras: a inicial do grupo e a inicial da página (`C` `M` = Comunicação > Mensagens, `F` `P` = Financeiro > Pagamentos, `E` `E` = Entregas > Esta semana). `?` mostra a lista.
 
 ## Os três apps
 

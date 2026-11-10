@@ -15,6 +15,7 @@ import ComporAviso from "@/components/avisos/ComporAviso";
 import { chaveTelefone } from "@/lib/telefone";
 import { CANAIS, MODALIDADES, STATUS_CLIENTE, dataBR, hojeISO, reais } from "@/lib/format";
 import { ROTULO_SITUACAO, situacaoCobranca, type Situacao } from "@/lib/pagamentos";
+import { rotaDoCliente } from "@/lib/bairros";
 import { STATUS_ENTREGA } from "@/lib/semana";
 import { concluirContato, excluirCliente, mudarStatus, registrarContato } from "../actions";
 import TrocarPlanoForm from "./TrocarPlanoForm";
@@ -32,7 +33,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   const { supabase, usuario } = await exigirEquipe();
   const hoje = hojeISO();
 
-  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }, faixas, { data: cobrancas }, modelosAviso] = await Promise.all([
+  const [{ data: c }, { data: assinaturas }, { data: contatos }, { data: planos }, { data: pontos }, { data: entregas }, { data: membro }, { count: aparelhos }, { data: atrib }, { data: rotasAtivas }, faixas, { data: cobrancas }, modelosAviso] = await Promise.all([
     supabase.from("clientes").select("*").eq("id", id).single(),
     supabase.from("assinaturas").select("*, planos(nome, modalidade, paes_por_semana, valor_centavos), pontos_coleta(nome)").eq("cliente_id", id).order("inicio", { ascending: false }),
     supabase.from("contatos").select("*").eq("cliente_id", id).order("data", { ascending: false }).order("criado_em", { ascending: false }),
@@ -41,7 +42,8 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
     supabase.from("entregas").select("id, status, ocorrencia, rota_nome, ponto_nome, semanas(inicio, sabor)").eq("cliente_id", id).order("semana_id", { ascending: false }).limit(8),
     supabase.from("membros").select("criado_em").eq("cliente_id", id).maybeSingle(),
     supabase.from("push_inscricoes").select("*", { count: "exact", head: true }).eq("cliente_id", id),
-    supabase.from("atribuicoes_rota").select("rotas(nome, cor)").eq("cliente_id", id).is("fim", null).maybeSingle(),
+    supabase.from("atribuicoes_rota").select("rota_id, rotas(nome, cor)").eq("cliente_id", id).is("fim", null).maybeSingle(),
+    supabase.from("rotas").select("id, nome, cor, ativa, bairros").eq("ativa", true).order("nome"),
     faixasEmCache(),
     supabase.from("cobrancas").select("id, competencia, valor_centavos, vencimento, status, assinaturas!inner(cliente_id)").eq("assinaturas.cliente_id", id).order("competencia", { ascending: false }).limit(8),
     carregarModelosAviso(supabase),
@@ -51,7 +53,9 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
   const atual = assinaturas?.find((a) => a.status === "ativa" || a.status === "pausada");
   const planoAtual = um(atual?.planos as never) as { nome: string; modalidade: keyof typeof MODALIDADES; paes_por_semana: number; valor_centavos: number } | null;
   const pontoAtual = um(atual?.pontos_coleta as never) as { nome: string } | null;
-  const rota = um(atrib?.rotas as never) as { nome: string; cor: string } | null;
+  const rotaId = rotaDoCliente(c.bairro, (atrib as { rota_id?: string } | null)?.rota_id, (rotasAtivas ?? []).map((r) => ({ id: r.id, nome: r.nome, ativa: r.ativa, bairros: (r.bairros ?? []) as string[] })));
+  const rota = (rotasAtivas ?? []).find((r) => r.id === rotaId) as { nome: string; cor: string } | undefined ?? null;
+  const rotaFixa = !!atrib?.rota_id && atrib.rota_id === rotaId;
   const nome = nomeCompleto(c);
   const endereco = [c.logradouro && `${c.logradouro}${c.numero ? ", " + c.numero : ""}`, c.complemento, c.bairro].filter(Boolean).join(" · ");
 
@@ -127,7 +131,7 @@ export default async function Cliente({ params }: { params: Promise<{ id: string
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold">{planoAtual.nome}</div>
                   <div className="text-sm text-stone-600">
-                    {planoAtual.modalidade === "apoio" ? <>Contribuição mensal, sem pães</> : planoAtual.modalidade === "entrega" ? (rota ? <>Entrega pela <b style={{ color: rota.cor }}>{rota.nome}</b></> : <span className="text-amber-800">Entrega, ainda sem rota</span>) : <>Retira em <b>{pontoAtual?.nome}</b></>}
+                    {planoAtual.modalidade === "apoio" ? <>Contribuição mensal, sem pães</> : planoAtual.modalidade === "entrega" ? (rota ? <>Entrega pela <b style={{ color: rota.cor }}>{rota.nome}</b>{rotaFixa ? <span className="text-stone-400"> · preferência</span> : <span className="text-stone-400"> · pelo bairro</span>}</> : <span className="text-amber-800">Entrega, nenhuma rota cobre o bairro</span>) : <>Retira em <b>{pontoAtual?.nome}</b></>}
                     {" · "}vence todo dia {atual.dia_vencimento}
                   </div>
                   {planoAtual.paes_por_semana > 0 && <div className="mt-0.5 text-xs text-stone-500">{planoAtual.paes_por_semana} {planoAtual.paes_por_semana > 1 ? "pães" : "pão"} por semana</div>}

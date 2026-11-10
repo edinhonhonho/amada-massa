@@ -4,11 +4,11 @@
  */
 export type EtapaId = "planejar" | "clientes" | "alocar" | "consolidar" | "acompanhar";
 export const ETAPAS: { id: EtapaId; rotulo: string; curto: string }[] = [
-  { id: "planejar", rotulo: "Planejar", curto: "Quais pães saem na semana" },
-  { id: "clientes", rotulo: "Clientes", curto: "Quem recebe nesta semana" },
-  { id: "alocar", rotulo: "Pontos e rotas", curto: "Onde cada cliente recebe" },
-  { id: "consolidar", rotulo: "Consolidar e enviar", curto: "Fechar a lista e avisar" },
-  { id: "acompanhar", rotulo: "Acompanhar", curto: "Entregas e retiradas" },
+  { id: "planejar", rotulo: "Planejar", curto: "Escolha os pães que saem nesta semana" },
+  { id: "clientes", rotulo: "Clientes", curto: "Confira quem recebe, quem pulou e quem está suspenso" },
+  { id: "alocar", rotulo: "Pontos e rotas", curto: "Veja a rota de cada entrega e onde cada um retira" },
+  { id: "consolidar", rotulo: "Consolidar e enviar", curto: "Confira os totais, feche a lista e avise os clientes" },
+  { id: "acompanhar", rotulo: "Acompanhar", curto: "Marque o andamento das entregas e retiradas" },
 ];
 
 export type EntradaEtapas = {

@@ -46,9 +46,10 @@ export default function CentralMensagens({ opcoes, modelos, historico, indicador
         {indicadores.leitura !== null && <span className="flex items-center gap-1.5"><CheckCheck size={13} className="text-stone-400" />leitura média de <b className="font-semibold text-stone-700">{indicadores.leitura}%</b> nos últimos 30 dias</span>}
       </p>
 
-      <div className="grid items-stretch gap-6 xl:grid-cols-[1fr_330px]">
-        <div className="flex min-w-0 flex-col gap-7">
-          <section ref={composer} aria-label="Novo aviso" className="scroll-mt-6 rounded-3xl bg-painel p-6 ring-1 ring-stone-900/[0.04]">
+      <div className="flex flex-col gap-7">
+        {/* o convite tem exatamente a altura do "Novo aviso" (absolute não empurra a linha do grid) e ocupa toda a coluna */}
+        <div className="grid items-stretch gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
+          <section ref={composer} aria-label="Novo aviso" className="min-w-0 scroll-mt-6 rounded-3xl bg-painel p-6 ring-1 ring-stone-900/[0.04]">
             <header className="mb-5 flex items-center gap-3">
               <div className="min-w-0 flex-1">
                 <h2 className="text-lg font-semibold leading-tight tracking-tight">Novo aviso</h2>
@@ -58,17 +59,16 @@ export default function CentralMensagens({ opcoes, modelos, historico, indicador
             <ComporAviso key={rodada} opcoes={opcoes} modelos={modelos} inicial={inicial} segmentoInicial={segmentoInicial} />
           </section>
 
-          <Enviados historico={historico} opcoes={opcoes} aoReusar={reusar} />
+          <aside className="relative min-h-[28rem] w-full">
+            <section className="flex w-full flex-col rounded-3xl bg-painel p-5 ring-1 ring-stone-900/[0.04] xl:absolute xl:inset-0">
+              <ConviteApp qr={qr} link={link} />
+              <div className="my-4 h-px shrink-0 bg-stone-200/70" />
+              <NaoEntraram lista={naoEntraram} totalAtivos={indicadores.ativos} entraram={indicadores.entraram} />
+            </section>
+          </aside>
         </div>
 
-        {/* no desktop o painel acompanha a altura do "Novo aviso": absolute não empurra a linha do grid */}
-        <aside className="relative min-h-[28rem]">
-          <section className="flex flex-col rounded-3xl bg-painel p-5 ring-1 ring-stone-900/[0.04] xl:absolute xl:inset-0">
-            <ConviteApp qr={qr} link={link} />
-            <div className="my-4 h-px shrink-0 bg-stone-200/70" />
-            <NaoEntraram lista={naoEntraram} totalAtivos={indicadores.ativos} entraram={indicadores.entraram} />
-          </section>
-        </aside>
+        <Enviados historico={historico} opcoes={opcoes} aoReusar={reusar} />
       </div>
     </>
   );

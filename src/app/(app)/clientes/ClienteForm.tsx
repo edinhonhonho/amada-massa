@@ -4,12 +4,14 @@ import { AlertTriangle, CalendarClock, Check, HeartHandshake, Loader2, MapPin, P
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 import SeletorPlano, { type PlanoOpcao, type PontoOpcao } from "@/components/SeletorPlano";
+import LocalNoMapa from "@/components/clientes/LocalNoMapa";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { consultarCep, mascaraCep } from "@/lib/cep";
 import { MODALIDADES, ORIGENS, paraCentavos, reais } from "@/lib/format";
 import { salvarCliente, type EstadoForm } from "./actions";
 
-type Cliente = Record<string, string | null> & { id: string };
+type Cliente = Record<string, string | null> & { id: string; lat?: number | null; lng?: number | null };
+export type RotaOpcao = { id: string; nome: string; bairros: string[] };
 
 const Campo = ({ nome, rotulo, def, tipo = "text", req = false, area = false, ajuda, className = "" }: {
   nome: string; rotulo: string; def?: string | null; tipo?: string; req?: boolean; area?: boolean; ajuda?: string; className?: string;
@@ -35,7 +37,7 @@ function Secao({ n, titulo, texto, children }: { n?: number; titulo: string; tex
   );
 }
 
-export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cliente; planos?: PlanoOpcao[]; pontos?: PontoOpcao[] }) {
+export default function ClienteForm({ cliente, planos, pontos, rotas, rotaPreferida }: { cliente?: Cliente; planos?: PlanoOpcao[]; pontos?: PontoOpcao[]; rotas?: RotaOpcao[]; rotaPreferida?: string | null }) {
   const [estado, acao] = useActionState<EstadoForm, FormData>(salvarCliente, {});
   const c = cliente;
 
@@ -45,6 +47,9 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
   const [logradouro, setLogradouro] = useState(c?.logradouro ?? "");
   const [bairro, setBairro] = useState(c?.bairro ?? "");
   const [cidade, setCidade] = useState(c?.cidade ?? "Porto Alegre");
+  const [numero, setNumero] = useState(c?.numero ?? "");
+  const [local, setLocal] = useState<{ lat: number | null; lng: number | null }>({ lat: c?.lat ?? null, lng: c?.lng ?? null });
+  const [preferida, setPreferida] = useState(rotaPreferida ?? "");
   const numeroRef = useRef<HTMLInputElement>(null);
 
   async function aoDigitarCep(valor: string) {
@@ -122,13 +127,26 @@ export default function ClienteForm({ cliente, planos, pontos }: { cliente?: Cli
             </div>
             {cepEstado === "erro" && <p className="mt-1 text-xs text-amber-800">CEP não encontrado. Preencha o endereço manualmente.</p>}
           </div>
-          <div><label className="rotulo" htmlFor="numero">Número</label><input ref={numeroRef} className="campo" id="numero" name="numero" defaultValue={c?.numero ?? ""} /></div>
+          <div><label className="rotulo" htmlFor="numero">Número</label><input ref={numeroRef} className="campo" id="numero" name="numero" value={numero} onChange={(e) => setNumero(e.target.value)} /></div>
           <div className="col-span-2"><label className="rotulo" htmlFor="logradouro">Rua</label><input className="campo" id="logradouro" name="logradouro" value={logradouro} onChange={(e) => setLogradouro(e.target.value)} /></div>
           <Campo nome="complemento" rotulo="Complemento" def={c?.complemento} />
           <div><label className="rotulo" htmlFor="bairro">Bairro</label><input className="campo" id="bairro" name="bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} /></div>
           <div><label className="rotulo" htmlFor="cidade">Cidade</label><input className="campo" id="cidade" name="cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} /></div>
           <Campo nome="referencia_portaria" rotulo="Portaria / referência" def={c?.referencia_portaria} />
           <Campo nome="instrucoes_entrega" rotulo="Instruções de entrega" def={c?.instrucoes_entrega} ajuda='Ex.: "deixar com o porteiro"' className="col-span-2" />
+          <LocalNoMapa endereco={{ logradouro, numero, bairro, cidade, cep }} lat={local.lat} lng={local.lng} aoMudar={(lat, lng) => setLocal({ lat, lng })} />
+          <input type="hidden" name="lat" value={local.lat ?? ""} />
+          <input type="hidden" name="lng" value={local.lng ?? ""} />
+          {rotas && rotas.length > 0 && (
+            <div className="col-span-2">
+              <label className="rotulo" htmlFor="rota_preferida">Rota de entrega</label>
+              <select className="campo" id="rota_preferida" name="rota_preferida" value={preferida} onChange={(e) => setPreferida(e.target.value)}>
+                <option value="">Automática, pelo bairro{(() => { const k = bairro.trim().toLowerCase(); const r = rotas.find((x) => x.bairros.some((b) => b.trim().toLowerCase() === k)); return r ? ` (hoje: ${r.nome})` : bairro.trim() ? " (nenhuma rota cobre este bairro ainda)" : ""; })()}</option>
+                {rotas.map((r) => <option key={r.id} value={r.id}>Preferir a {r.nome}</option>)}
+              </select>
+              <p className="ajuda">Vale só para quem recebe em casa. Sem preferência, o cliente entra na rota que cobre o bairro dele.</p>
+            </div>
+          )}
         </Secao>
 
         {!c && planos && (
